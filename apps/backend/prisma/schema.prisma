@@ -1,0 +1,211 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  CLIENT
+  MASTER
+  ADMIN
+}
+
+enum PriceType {
+  hourly
+  fixed
+  starting_at
+}
+
+enum OrderStatus {
+  pending
+  in_progress
+  completed
+  cancelled
+}
+
+enum WeekDay {
+  mon
+  tue
+  wed
+  thu
+  fri
+  sat
+  sun
+}
+
+model User {
+  id              String   @id @default(uuid())
+  phone           String   @unique
+  name            String
+  role            Role     @default(CLIENT)
+  avatarUrl       String?
+  fcmToken        String?
+  isPhoneVerified Boolean  @default(false)
+  isBlocked       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  masterProfile MasterProfile?
+  clientOrders  Order[]          @relation("ClientOrders")
+  reviews       Review[]
+  favorites     FavoriteMaster[]
+
+  @@map("users")
+}
+
+model Region {
+  id        String          @id @default(uuid())
+  nameUz    String
+  nameRu    String
+  code      String?         @unique
+  districts District[]
+  masters   MasterProfile[]
+
+  @@map("regions")
+}
+
+model District {
+  id       String          @id @default(uuid())
+  regionId String
+  region   Region          @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  nameUz   String
+  nameRu   String
+  masters  MasterProfile[]
+  orders   Order[]
+
+  @@map("districts")
+}
+
+model Category {
+  id          String           @id @default(uuid())
+  nameUz      String
+  nameRu      String
+  icon        String
+  description String
+  slug        String           @unique
+  masters     MasterCategory[]
+
+  @@map("categories")
+}
+
+model MasterProfile {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName            String
+  lastName             String
+  phone                String
+  telegram             String?
+  bio                  String
+  experienceYears      Int      @default(0)
+  rating               Float    @default(0.0)
+  reviewCount          Int      @default(0)
+  completedOrdersCount Int      @default(0)
+  isVerified           Boolean  @default(false)
+  isAvailable          Boolean  @default(true)
+  regionId             String
+  region               Region   @relation(fields: [regionId], references: [id])
+  districtId           String
+  district             District @relation(fields: [districtId], references: [id])
+  address              String
+  workingHours         Json
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  categories  MasterCategory[]
+  services    MasterService[]
+  portfolio   PortfolioImage[]
+  reviews     Review[]
+  orders      Order[]          @relation("MasterOrders")
+  favoritedBy FavoriteMaster[]
+
+  @@index([regionId, districtId, rating])
+  @@map("master_profiles")
+}
+
+model MasterCategory {
+  masterId   String
+  categoryId String
+  master     MasterProfile @relation(fields: [masterId], references: [id], onDelete: Cascade)
+  category   Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([masterId, categoryId])
+  @@map("master_categories")
+}
+
+model MasterService {
+  id        String        @id @default(uuid())
+  masterId  String
+  master    MasterProfile @relation(fields: [masterId], references: [id], onDelete: Cascade)
+  title     String
+  price     Float
+  priceType PriceType     @default(fixed)
+  currency  String        @default("UZS")
+  createdAt DateTime      @default(now())
+
+  @@map("master_services")
+}
+
+model PortfolioImage {
+  id        String        @id @default(uuid())
+  masterId  String
+  master    MasterProfile @relation(fields: [masterId], references: [id], onDelete: Cascade)
+  url       String
+  sortOrder Int           @default(0)
+  createdAt DateTime      @default(now())
+
+  @@map("portfolio_images")
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  orderNumber   Int           @default(autoincrement())
+  masterId      String
+  master        MasterProfile @relation("MasterOrders", fields: [masterId], references: [id])
+  clientId      String?
+  client        User?         @relation("ClientOrders", fields: [clientId], references: [id], onDelete: SetNull)
+  serviceId     String?
+  serviceTitle  String
+  price         Float
+  clientName    String
+  clientPhone   String
+  districtId    String
+  district      District      @relation(fields: [districtId], references: [id])
+  address       String
+  preferredDate String
+  preferredTime String
+  comment       String?
+  status        OrderStatus   @default(pending)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([masterId, clientId, status])
+  @@map("orders")
+}
+
+model Review {
+  id        String        @id @default(uuid())
+  masterId  String
+  master    MasterProfile @relation(fields: [masterId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String
+  createdAt DateTime      @default(now())
+
+  @@map("reviews")
+}
+
+model FavoriteMaster {
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  masterId  String
+  master    MasterProfile @relation(fields: [masterId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@id([userId, masterId])
+  @@map("favorite_masters")
+}
