@@ -13,17 +13,18 @@ Sen **arxitektor va reviewer**san, Gemini (Flash) esa tez ijrochi. Amaliyotda bu
 ## Loyihani lokal ishga tushirish
 
 ```bash
-docker compose up -d              # postgres, redis, minio
-cd apps/backend
-pnpm install
-pnpm prisma migrate dev
-pnpm prisma db seed
-pnpm start:dev                    # http://localhost:3000, Swagger: /api/docs
+docker compose up -d               # postgres (localhost:5455), redis (6379), minio (9000/9001)
+pnpm install                       # root — barcha workspace'lar uchun
+cd apps/backend && cp .env.example .env   # birinchi marta ishga tushirishda
+cd /path/to/repo
+pnpm --filter backend exec prisma migrate dev
+pnpm --filter backend exec prisma db seed
+pnpm --filter backend start:dev    # http://localhost:3000/api/v1, Swagger: /api/docs
 
-cd apps/web
-pnpm install
-pnpm dev                          # http://localhost:3001
+pnpm --filter web dev              # http://localhost:3000 (Next.js) — port to'qnashsa avtomatik boshqasini tanlaydi
 ```
+
+Yoki repo tepasidan: `pnpm dev` / `pnpm lint` / `pnpm test` — Turborepo barcha workspace'larda mos buyruqni ishga tushiradi.
 
 Test: `pnpm lint && pnpm test` (backend), `pnpm test` (web, agar mavjud bo'lsa) — PR ochishdan oldin ikkalasi ham xatosiz o'tishi shart.
 

@@ -2,6 +2,12 @@
 
 > Ushbu hujjat loyihaning to'liq arxitekturasini belgilaydi. O'zgartirish kerak bo'lsa — shu faylni tahrirlang, chunki `AGENTS.md` va `CLAUDE.md` shu yerdagi qarorlarga tayanadi.
 
+## 0. Holat (2026-09-13)
+
+✅ Bajarildi (§7.3 roadmap 1-bosqich): Turborepo+pnpm monorepo, `apps/backend` (NestJS, Prisma 6 schema+migratsiya, global response/error format, Swagger, seed: 14 viloyat + 8 kategoriya + Toshkent shahri tumanlari), `apps/web` (Next.js skeleton), `docker-compose.yml` (Postgres/Redis/MinIO), git repo + birinchi commit.
+
+⏳ Navbatda: GitHub'ga private repo yaratish (`gh auth login` foydalanuvchi tomonidan bajarilishi kerak — pastga qarang), so'ng 2-bosqich: Auth modul (Claude) + Regions/Districts/Categories CRUD va qolgan 13 viloyat tumanlari (Gemini).
+
 ## 1. Loyiha haqida
 
 **UstaTop** — O'zbekistondagi usta/mutaxassislarni mijozlar bilan bog'lovchi platforma. Uchta komponentdan iborat:
@@ -18,7 +24,7 @@ Backend bitta bo'lib, `role` (CLIENT / MASTER / ADMIN) orqali huquqlar farqlanad
 
 ### Backend (`apps/backend`)
 - **Framework**: NestJS + TypeScript
-- **ORM**: Prisma + PostgreSQL 16
+- **ORM**: Prisma **6.x** (7.x emas — datasource/config paradigmasi keskin o'zgargan, 6.x barqaror va keng hujjatlashtirilgan) + PostgreSQL 16
 - **Cache/Session**: Redis (ioredis) — OTP saqlash, rate-limiting
 - **Fayl saqlash**: MinIO (S3-compatible), dev'da docker-compose ichida, production'da Contabo VPS'dagi konteynerda
 - **Auth**: Telefon + SMS OTP (hozircha **mock**, test kodi `123456`) + JWT (access + refresh)
@@ -38,7 +44,7 @@ Backend bitta bo'lib, `role` (CLIENT / MASTER / ADMIN) orqali huquqlar farqlanad
 
 ### Infratuzilma
 - **Monorepo tool**: Turborepo + **pnpm** workspaces (tez, disk tejamkor, keshlash bilan build)
-- **Dev muhit**: Docker Compose (Postgres, Redis, MinIO — bitta buyruq bilan)
+- **Dev muhit**: Docker Compose (Postgres — `localhost:5455` (5432/5433 shu mashinada band edi), Redis — `6379`, MinIO — `9000`/konsol `9001`)
 - **Production**: Contabo VPS, Docker Compose (backend, web, postgres, redis, minio konteynerlari) + Nginx reverse proxy + Let's Encrypt (certbot)
 - **CI**: GitHub Actions — har PR'da lint + test + build
 - **Version control**: Git + GitHub (private repo, `gh` CLI orqali yaratiladi)

@@ -4,10 +4,20 @@ Ushbu fayl shu repoda ishlaydigan **har qanday AI agent** (Claude, Gemini yoki b
 
 ## 1. Loyiha stek (qisqacha)
 
-- Backend: `apps/backend` — NestJS + TypeScript + Prisma + PostgreSQL + Redis
-- Admin panel: `apps/web` — Next.js (App Router) + TypeScript + TailwindCSS
+- Backend: `apps/backend` — NestJS + TypeScript + Prisma 6 (**7 emas** — sabab pastda) + PostgreSQL + Redis
+- Admin panel: `apps/web` — Next.js 16 (App Router) + TypeScript + TailwindCSS
 - Umumiy tiplar: `packages/shared-types`
 - Monorepo: Turborepo + pnpm workspaces
+
+### Muhim texnik holatlar (scaffold vaqtida aniqlangan)
+
+- **Prisma versiyasi qat'iy 6.x'ga pin qilingan** (`6.19.3`). Prisma 7 `datasource.url`ni schema'dan olib tashlagan va `prisma.config.ts` + driver adapter talab qiladi — bu katta paradigma o'zgarishi va ikkala AI agent uchun ham xato xavfini oshiradi. **Hech qachon `prisma`/`@prisma/client`ni 7.x ga yangilamang**, agar bu haqda alohida qaror qabul qilinmagan bo'lsa.
+- **Backend ESM (`"type": "module"`, `moduleResolution: nodenext`) rejimida ishlaydi.** Har qanday lokal (relative) import `.js` kengaytmasi bilan yozilishi SHART, hatto manba `.ts` bo'lsa ham: `import { Foo } from './foo.service.js';`. Buni unutish build xatosiga olib keladi.
+- Backend test/lint stack: **vitest** (Jest emas) va **oxlint** (ESLint emas) — `nest new` shablonining joriy versiyasi shunday keladi. Buyruqlar bir xil (`pnpm test`, `pnpm lint`), faqat asboblar zamonaviyroq.
+- Global API prefix `api/v1` (`app.setGlobalPrefix('api/v1')`) — barcha endpointlar `docs/TZ.md`dagi kabi `/api/v1/...` ko'rinishida ishlaydi, Swagger `/api/docs`da.
+- Global response format, xato filter va validatsiya allaqachon tayyor: `apps/backend/src/common/{interceptors,filters,pipes,decorators,prisma}/`. Yangi controller yozganda buni qayta yaratmang — mavjudidan foydalaning. Custom xabar kerak bo'lsa `@ResponseMessage('...')` dekoratoridan foydalaning.
+- Dockerdagi Postgres porti **5455** (5432 va 5433 shu mashinada boshqa xizmatlar tomonidan band edi) — `docker-compose.yml` va `apps/backend/.env.example`ga qarang.
+- `apps/web` ichida Next.js o'zi avtomatik yaratgan alohida `AGENTS.md`/`CLAUDE.md` bor (Next 16'ning training data'dan farqlari haqida ogohlantirish) — Next.js kodiga tegishli ishni boshlashdan oldin albatta shuni ham o'qing, uni o'chirmang yoki qo'lda tahrirlamang (`next dev` uni avtomatik qayta yozadi).
 
 ## 2. Modul tuzilishi (NestJS)
 
