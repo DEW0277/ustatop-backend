@@ -1,7 +1,6 @@
 import { NestFactory, Reflector } from '@nestjs/core';
-import { NotFoundException, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module.js';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
@@ -34,11 +33,6 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
-
-  // Hech qanday controller mos kelmagan yo'llar ham standart JSON error formatida qaytsin.
-  app.use((req: Request, _res: Response, next: NextFunction) => {
-    next(new NotFoundException(`${req.method} ${req.originalUrl} topilmadi`));
-  });
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
