@@ -6,6 +6,9 @@ import { AppService } from './app.service.js';
 import { PrismaModule } from './common/prisma/prisma.module.js';
 import { RedisModule } from './common/redis/redis.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { CategoriesModule } from './modules/categories/categories.module.js';
+import { DistrictsModule } from './modules/districts/districts.module.js';
+import { RegionsModule } from './modules/regions/regions.module.js';
 
 @Module({
   imports: [
@@ -14,6 +17,9 @@ import { AuthModule } from './modules/auth/auth.module.js';
     PrismaModule,
     RedisModule,
     AuthModule,
+    RegionsModule,
+    DistrictsModule,
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
