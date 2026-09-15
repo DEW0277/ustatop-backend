@@ -2,11 +2,13 @@
 
 > Ushbu hujjat loyihaning to'liq arxitekturasini belgilaydi. O'zgartirish kerak bo'lsa — shu faylni tahrirlang, chunki `AGENTS.md` va `CLAUDE.md` shu yerdagi qarorlarga tayanadi.
 
-## 0. Holat (2026-09-13)
+## 0. Holat (2026-09-15)
 
-✅ Bajarildi (§7.3 roadmap 1-bosqich): Turborepo+pnpm monorepo, `apps/backend` (NestJS, Prisma 6 schema+migratsiya, global response/error format, Swagger, seed: 14 viloyat + 8 kategoriya + Toshkent shahri tumanlari), `apps/web` (Next.js skeleton), `docker-compose.yml` (Postgres/Redis/MinIO), git repo + birinchi commit.
+✅ Bajarildi (§7.3 roadmap 1-bosqich): Turborepo+pnpm monorepo, `apps/backend` (NestJS, Prisma 6 schema+migratsiya, global response/error format, Swagger, seed: 14 viloyat + 8 kategoriya + Toshkent shahri tumanlari), `apps/web` (Next.js skeleton), `docker-compose.yml` (Postgres/Redis/MinIO), GitHub private repo (https://github.com/DEW0277/ustatop-backend).
 
-⏳ Navbatda: GitHub'ga private repo yaratish (`gh auth login` foydalanuvchi tomonidan bajarilishi kerak — pastga qarang), so'ng 2-bosqich: Auth modul (Claude) + Regions/Districts/Categories CRUD va qolgan 13 viloyat tumanlari (Gemini).
+✅ Bajarildi (2-bosqich, Claude qismi): Auth modul — `POST /auth/send-otp`, `POST /auth/verify-otp`, `GET /auth/me`, `PUT /auth/profile` (PR #1, merge qilindi). Shared infra: `JwtAuthGuard`, `RolesGuard`, `@Roles`, `@CurrentUser` (`apps/backend/src/common/`) — keyingi barcha modullar shulardan foydalanadi.
+
+⏳ Navbatda (2-bosqich, Gemini qismi): Regions/Districts/Categories CRUD + admin endpointlar (TZ §4.1) va qolgan 13 viloyat tumanlarini `prisma/seed.ts`ga to'ldirish. Navbat almashish protokoli uchun `AGENTS.md` §5-6ga qarang.
 
 ## 1. Loyiha haqida
 
