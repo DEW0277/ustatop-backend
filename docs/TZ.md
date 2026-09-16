@@ -8,7 +8,9 @@
 
 ✅ Bajarildi (2-bosqich, Claude qismi): Auth modul — `POST /auth/send-otp`, `POST /auth/verify-otp`, `GET /auth/me`, `PUT /auth/profile` (PR #1, merge qilindi). Shared infra: `JwtAuthGuard`, `RolesGuard`, `@Roles`, `@CurrentUser` (`apps/backend/src/common/`) — keyingi barcha modullar shulardan foydalanadi.
 
-⏳ Navbatda (2-bosqich, Gemini qismi): Regions/Districts/Categories CRUD + admin endpointlar (TZ §4.1) va qolgan 13 viloyat tumanlarini `prisma/seed.ts`ga to'ldirish. Navbat almashish protokoli uchun `AGENTS.md` §5-6ga qarang.
+✅ Bajarildi (2-bosqich, Gemini qismi): Regions/Districts/Categories CRUD + admin endpointlar (PR #3, merge qilindi). Seed'ga barcha 14 viloyat uchun haqiqiy tumanlar qo'shildi (jami 207 ta). Review paytida topilgan `PassportModule` scoping xatosi (`JwtAuthGuard` boshqa modullarda ishlamayotgan edi) `common/auth/shared-auth.module.ts` bilan tuzatildi.
+
+⏳ Navbatda (3-bosqich): Masters modul + Upload modul (TZ §7.3 roadmap).
 
 ## 1. Loyiha haqida
 
