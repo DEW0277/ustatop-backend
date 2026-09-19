@@ -2,7 +2,7 @@
 
 > Ushbu hujjat loyihaning to'liq arxitekturasini belgilaydi. O'zgartirish kerak bo'lsa — shu faylni tahrirlang, chunki `AGENTS.md` va `CLAUDE.md` shu yerdagi qarorlarga tayanadi.
 
-## 0. Holat (2026-09-15)
+## 0. Holat (2026-09-19)
 
 ✅ Bajarildi (§7.3 roadmap 1-bosqich): Turborepo+pnpm monorepo, `apps/backend` (NestJS, Prisma 6 schema+migratsiya, global response/error format, Swagger, seed: 14 viloyat + 8 kategoriya + Toshkent shahri tumanlari), `apps/web` (Next.js skeleton), `docker-compose.yml` (Postgres/Redis/MinIO), GitHub private repo (https://github.com/DEW0277/ustatop-backend).
 
@@ -10,7 +10,9 @@
 
 ✅ Bajarildi (2-bosqich, Gemini qismi): Regions/Districts/Categories CRUD + admin endpointlar (PR #3, merge qilindi). Seed'ga barcha 14 viloyat uchun haqiqiy tumanlar qo'shildi (jami 207 ta). Review paytida topilgan `PassportModule` scoping xatosi (`JwtAuthGuard` boshqa modullarda ishlamayotgan edi) `common/auth/shared-auth.module.ts` bilan tuzatildi.
 
-🔄 3-bosqich: Masters modul (Claude, `feat/masters-claude`) — kod tayyor, 50/50 test, jonli tekshirilgan; PR ochilishi GitHub auth'ni (`gh auth login`) yangilashni kutmoqda. Upload modul (Gemini) — issue tayyorlanadi, navbat Masters merge bo'lgach.
+✅ Bajarildi (3-bosqich, Claude qismi): Masters modul (PR #4, merge qilindi) — mobil ilova tiplariga moslashtirilgan (§4.0).
+
+⏳ Navbatda: Upload modul (Gemini, issue #5, branch `feat/upload-gemini`). Undan keyin 4-bosqich: Orders + Reviews (Claude).
 
 ## 1. Loyiha haqida
 
