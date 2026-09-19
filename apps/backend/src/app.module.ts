@@ -9,6 +9,7 @@ import { RedisModule } from './common/redis/redis.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { DistrictsModule } from './modules/districts/districts.module.js';
+import { MastersModule } from './modules/masters/masters.module.js';
 import { RegionsModule } from './modules/regions/regions.module.js';
 
 @Module({
@@ -22,6 +23,7 @@ import { RegionsModule } from './modules/regions/regions.module.js';
     RegionsModule,
     DistrictsModule,
     CategoriesModule,
+    MastersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
