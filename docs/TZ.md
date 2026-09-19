@@ -10,7 +10,7 @@
 
 ✅ Bajarildi (2-bosqich, Gemini qismi): Regions/Districts/Categories CRUD + admin endpointlar (PR #3, merge qilindi). Seed'ga barcha 14 viloyat uchun haqiqiy tumanlar qo'shildi (jami 207 ta). Review paytida topilgan `PassportModule` scoping xatosi (`JwtAuthGuard` boshqa modullarda ishlamayotgan edi) `common/auth/shared-auth.module.ts` bilan tuzatildi.
 
-⏳ Navbatda (3-bosqich): Masters modul + Upload modul (TZ §7.3 roadmap).
+🔄 3-bosqich: Masters modul (Claude, `feat/masters-claude`) — kod tayyor, 50/50 test, jonli tekshirilgan; PR ochilishi GitHub auth'ni (`gh auth login`) yangilashni kutmoqda. Upload modul (Gemini) — issue tayyorlanadi, navbat Masters merge bo'lgach.
 
 ## 1. Loyiha haqida
 
@@ -94,6 +94,17 @@ ustatop/
 Prisma schema va barcha REST endpoint kontraktlari **avvalgi spetsifikatsiya hujjatida** (`UstaTop Mobile App — Backend Blueprint`) to'liq belgilangan va **o'zgarishsiz kuchda qoladi**:
 - `User`, `Region`, `District`, `Category`, `MasterProfile`, `MasterCategory`, `MasterService`, `PortfolioImage`, `Order`, `Review`, `FavoriteMaster` modellari
 - `/api/v1/auth/*`, `/api/v1/regions`, `/api/v1/districts`, `/api/v1/categories`, `/api/v1/masters/*`, `/api/v1/orders/*`, `/api/v1/masters/:id/reviews`, `/api/v1/upload/single`
+
+### 4.0. Masters modulida original spec'ga kiritilgan aniqlashtirishlar (2026-09-19)
+
+Original spec §4.3 ba'zi joylarda jim edi — quyidagi qarorlar qabul qilindi (**⚠️ Mobile app contract impact**: mobil ilovaning `src/types` va API client'i bilan solishtirib tekshirilishi kerak):
+
+- **Usta bo'lish**: alohida endpoint yo'q edi. `PUT /masters/me/profile` — *upsert*: CLIENT yoki MASTER roli chaqira oladi; profil birinchi marta yaratilganda majburiy maydonlar (`firstName, lastName, bio, regionId, districtId, address, workingHours`) talab qilinadi, foydalanuvchi roli avtomatik `MASTER` ga o'tadi va `User.name` = `firstName lastName` bo'ladi. `phone` berilmasa foydalanuvchi telefoni olinadi. `categoryIds` berilsa mavjud kategoriyalar to'liq almashtiriladi.
+- **Qo'shimcha endpoint**: `GET /masters/me/profile` — o'z profilini olish (profil yo'q bo'lsa 404).
+- `POST/DELETE /masters/me/services`, `POST /masters/me/portfolio`, `PATCH /masters/me/availability` — faqat MASTER roli. Xizmat o'chirishda egalik tekshiriladi (boshqa ustaning xizmati → 404).
+- **Master javob shakli**: `id` (= MasterProfile.id, buyurtmalarda `masterId` shu), `firstName, lastName, phone, telegram, bio, experienceYears, rating, reviewCount, completedOrdersCount, isVerified, isAvailable, region{}, district{}, address, workingHours, categories[{id,nameUz,nameRu,icon,slug}], services[], portfolioImages[{id,url,sortOrder}], reviews[]`. Ro'yxatda portfolio 3 ta, sharh 3 ta bilan cheklanadi; `GET /masters/:id`da sharhlar oxirgi 10 ta.
+- `GET /masters` bloklangan foydalanuvchilarning ustalarini ko'rsatmaydi; saralash: `rating|reviews|orders|experience|newest` (default `rating`), `limit` maks. 100.
+- `DELETE` portfolio va usta profilini o'chirish spec'da yo'q — hozircha qo'shilmagan.
 
 ### 4.1. Admin panel uchun qo'shimcha endpointlar (yangi)
 
