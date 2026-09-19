@@ -18,7 +18,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import { UZ_PHONE_REGEX } from '../../../common/constants/phone.constant.js';
+import { NormalizedPhone } from '../../../common/decorators/normalized-phone.decorator.js';
 
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -56,7 +56,7 @@ export class UpsertMasterProfileDto {
 
   @ApiPropertyOptional({ example: '+998901234567', description: "Berilmasa foydalanuvchi telefoni ishlatiladi" })
   @IsOptional()
-  @Matches(UZ_PHONE_REGEX, { message: "Telefon raqami formati noto'g'ri (+998XXXXXXXXX)" })
+  @NormalizedPhone()
   phone?: string;
 
   @ApiPropertyOptional({ example: '@alisher_usta' })

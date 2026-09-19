@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -8,7 +8,9 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.type.js';
 import { AddPortfolioDto } from './dto/add-portfolio.dto.js';
 import { CreateServiceDto } from './dto/create-service.dto.js';
+import { RemovePortfolioQueryDto } from './dto/remove-portfolio-query.dto.js';
 import { UpdateAvailabilityDto } from './dto/update-availability.dto.js';
+import { UpdateServiceDto } from './dto/update-service.dto.js';
 import { UpsertMasterProfileDto } from './dto/upsert-master-profile.dto.js';
 import { MasterProfileService } from './master-profile.service.js';
 
@@ -42,6 +44,17 @@ export class MyMasterController {
     return this.masterProfileService.addService(user.id, dto);
   }
 
+  @Put('services/:serviceId')
+  @Roles(Role.MASTER)
+  @ApiOperation({ summary: "O'z xizmatini tahrirlash" })
+  updateService(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('serviceId') serviceId: string,
+    @Body() dto: UpdateServiceDto,
+  ) {
+    return this.masterProfileService.updateService(user.id, serviceId, dto);
+  }
+
   @Delete('services/:serviceId')
   @Roles(Role.MASTER)
   @ApiOperation({ summary: "O'z xizmatini o'chirish" })
@@ -54,6 +67,13 @@ export class MyMasterController {
   @ApiOperation({ summary: "Portfolio rasmini ro'yxatga qo'shish" })
   addPortfolio(@CurrentUser() user: AuthenticatedUser, @Body() dto: AddPortfolioDto) {
     return this.masterProfileService.addPortfolioImage(user.id, dto);
+  }
+
+  @Delete('portfolio')
+  @Roles(Role.MASTER)
+  @ApiOperation({ summary: "Portfolio rasmini URL bo'yicha o'chirish (?url=...)" })
+  removePortfolio(@CurrentUser() user: AuthenticatedUser, @Query() query: RemovePortfolioQueryDto) {
+    return this.masterProfileService.removePortfolioImage(user.id, query.url);
   }
 
   @Patch('availability')

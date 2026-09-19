@@ -3,8 +3,9 @@ import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { AddPortfolioDto } from './dto/add-portfolio.dto.js';
 import type { CreateServiceDto } from './dto/create-service.dto.js';
+import type { UpdateServiceDto } from './dto/update-service.dto.js';
 import type { UpsertMasterProfileDto } from './dto/upsert-master-profile.dto.js';
-import { masterDetailInclude, toMasterResponse } from './master.mapper.js';
+import { masterDetailInclude, toMasterResponse, toServiceResponse } from './master.mapper.js';
 
 const REQUIRED_ON_CREATE = [
   'firstName',
@@ -134,13 +135,31 @@ export class MasterProfileService {
       },
     });
 
-    return {
-      id: service.id,
-      title: service.title,
-      price: service.price,
-      priceType: service.priceType,
-      currency: service.currency,
-    };
+    return toServiceResponse(service);
+  }
+
+  async updateService(userId: string, serviceId: string, dto: UpdateServiceDto) {
+    const profile = await this.requireProfile(userId);
+
+    const service = await this.prisma.masterService.findFirst({
+      where: { id: serviceId, masterId: profile.id },
+    });
+
+    if (!service) {
+      throw new NotFoundException(`Xizmat topilmadi: ${serviceId}`);
+    }
+
+    const updated = await this.prisma.masterService.update({
+      where: { id: service.id },
+      data: {
+        title: dto.title,
+        price: dto.price,
+        priceType: dto.priceType,
+        currency: dto.currency,
+      },
+    });
+
+    return toServiceResponse(updated);
   }
 
   async removeService(userId: string, serviceId: string) {
@@ -176,6 +195,20 @@ export class MasterProfileService {
     });
 
     return { id: image.id, url: image.url, sortOrder: image.sortOrder };
+  }
+
+  async removePortfolioImage(userId: string, url: string) {
+    const profile = await this.requireProfile(userId);
+
+    const { count } = await this.prisma.portfolioImage.deleteMany({
+      where: { masterId: profile.id, url },
+    });
+
+    if (count === 0) {
+      throw new NotFoundException('Portfolio rasmi topilmadi');
+    }
+
+    return { url };
   }
 
   async setAvailability(userId: string, isAvailable: boolean) {

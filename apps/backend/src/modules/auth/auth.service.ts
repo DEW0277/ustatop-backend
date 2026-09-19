@@ -10,6 +10,8 @@ import { SmsProvider } from './sms/sms-provider.js';
 import type { UserSession } from './types/user-session.type.js';
 
 const MOCK_OTP_CODE = '123456';
+const MIN_OTP_LENGTH = 4;
+const MAX_OTP_LENGTH = MOCK_OTP_CODE.length;
 
 function otpRedisKey(phone: string): string {
   return `otp:${phone}`;
@@ -22,6 +24,7 @@ function roleToApi(role: Role): UserSession['role'] {
 @Injectable()
 export class AuthService {
   private readonly otpTtlSeconds: number;
+  private readonly otpLength: number;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -31,6 +34,8 @@ export class AuthService {
     configService: ConfigService,
   ) {
     this.otpTtlSeconds = Number(configService.get('OTP_TTL_SECONDS') ?? 120);
+    const configuredLength = Number(configService.get('OTP_LENGTH') ?? MAX_OTP_LENGTH);
+    this.otpLength = Math.min(MAX_OTP_LENGTH, Math.max(MIN_OTP_LENGTH, configuredLength));
   }
 
   async sendOtp(phone: string): Promise<{ message: string; timeoutSeconds: number }> {
@@ -43,9 +48,9 @@ export class AuthService {
       );
     }
 
-    // Hozircha SMS_MODE=mock: kod doim ${MOCK_OTP_CODE}. Real provayder ulanganda
-    // bu yerda tasodifiy 6 xonali kod generatsiya qilinadi.
-    const code = MOCK_OTP_CODE;
+    // Hozircha SMS_MODE=mock: kod doim '123456'ning OTP_LENGTH xonali boshi (6 -> 123456, 4 -> 1234).
+    // Real provayder ulanganda bu yerda OTP_LENGTH xonali tasodifiy kod generatsiya qilinadi.
+    const code = MOCK_OTP_CODE.slice(0, this.otpLength);
     await this.redis.set(key, code, 'EX', this.otpTtlSeconds);
     await this.smsProvider.sendOtp(phone, code);
 
@@ -111,8 +116,9 @@ export class AuthService {
       phone: user.phone,
       name: user.name,
       role: roleToApi(user.role),
-      avatarUrl: user.avatarUrl,
+      avatarUrl: user.avatarUrl ?? undefined,
       token,
+      createdAt: user.createdAt.toISOString(),
     };
   }
 }

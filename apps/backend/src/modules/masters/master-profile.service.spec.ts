@@ -27,8 +27,8 @@ function createDeps() {
     },
     district: { findUnique: vi.fn() },
     category: { count: vi.fn() },
-    masterService: { create: vi.fn(), findFirst: vi.fn(), delete: vi.fn() },
-    portfolioImage: { aggregate: vi.fn(), create: vi.fn() },
+    masterService: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    portfolioImage: { aggregate: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   return { prisma, tx };
@@ -48,8 +48,9 @@ const fullProfile = {
   completedOrdersCount: 0,
   isVerified: false,
   isAvailable: true,
-  region: null,
-  district: null,
+  user: { avatarUrl: null },
+  regionId: 'r-1',
+  districtId: 'd-1',
   address: 'a',
   workingHours: {},
   categories: [],
@@ -170,7 +171,46 @@ describe('MasterProfileService', () => {
     });
   });
 
+  describe('xizmatni tahrirlash', () => {
+    it("boshqa ustaning xizmatini tahrirlab bo'lmaydi", async () => {
+      deps.prisma.masterProfile.findUnique.mockResolvedValue({ id: 'm-1' });
+      deps.prisma.masterService.findFirst.mockResolvedValue(null);
+
+      await expect(service.updateService('u-1', 's-other', { price: 1 })).rejects.toBeInstanceOf(NotFoundException);
+      expect(deps.prisma.masterService.update).not.toHaveBeenCalled();
+    });
+
+    it("o'z xizmatini qisman yangilaydi", async () => {
+      deps.prisma.masterProfile.findUnique.mockResolvedValue({ id: 'm-1' });
+      deps.prisma.masterService.findFirst.mockResolvedValue({ id: 's-1' });
+      deps.prisma.masterService.update.mockResolvedValue({
+        id: 's-1',
+        title: 'Rozetka',
+        price: 70000,
+        priceType: 'fixed',
+        currency: 'UZS',
+      });
+
+      const result = await service.updateService('u-1', 's-1', { price: 70000 });
+
+      expect(deps.prisma.masterService.update.mock.calls[0][0].where).toEqual({ id: 's-1' });
+      expect(result.price).toBe(70000);
+    });
+  });
+
   describe('portfolio', () => {
+    it("URL bo'yicha faqat o'z rasmini o'chiradi, topilmasa NotFound", async () => {
+      deps.prisma.masterProfile.findUnique.mockResolvedValue({ id: 'm-1' });
+      deps.prisma.portfolioImage.deleteMany.mockResolvedValueOnce({ count: 1 });
+      deps.prisma.portfolioImage.deleteMany.mockResolvedValueOnce({ count: 0 });
+
+      await expect(service.removePortfolioImage('u-1', 'https://x/y.jpg')).resolves.toEqual({ url: 'https://x/y.jpg' });
+      expect(deps.prisma.portfolioImage.deleteMany).toHaveBeenCalledWith({
+        where: { masterId: 'm-1', url: 'https://x/y.jpg' },
+      });
+      await expect(service.removePortfolioImage('u-1', 'https://x/none.jpg')).rejects.toBeInstanceOf(NotFoundException);
+    });
+
     it("sortOrder ni mavjud maksimumdan keyingisiga qo'yadi", async () => {
       deps.prisma.masterProfile.findUnique.mockResolvedValue({ id: 'm-1' });
       deps.prisma.portfolioImage.aggregate.mockResolvedValue({ _max: { sortOrder: 4 } });

@@ -48,6 +48,22 @@ describe('AuthService', () => {
       expect(deps.smsProvider.sendOtp).not.toHaveBeenCalled();
     });
 
+    it("OTP_LENGTH=4 bo'lsa mock kod 4 xonali bo'ladi (mobil ilovadagi 4 katak uchun)", async () => {
+      deps.configService.get.mockImplementation((key: string) => (key === 'OTP_LENGTH' ? 4 : 120));
+      const shortService = new AuthService(
+        deps.prisma as never,
+        deps.redis as never,
+        deps.jwtService as never,
+        deps.smsProvider as never,
+        deps.configService as never,
+      );
+      deps.redis.ttl.mockResolvedValue(-2);
+
+      await shortService.sendOtp('+998901234567');
+
+      expect(deps.redis.set).toHaveBeenCalledWith('otp:+998901234567', '1234', 'EX', 120);
+    });
+
     it("kod yo'q bo'lsa yangi OTP saqlaydi va SMS yuboradi", async () => {
       deps.redis.ttl.mockResolvedValue(-2);
 
@@ -87,6 +103,7 @@ describe('AuthService', () => {
         role: 'CLIENT',
         avatarUrl: null,
         isPhoneVerified: true,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
       });
 
       const result = await service.verifyOtp('+998901234567', '123456');
@@ -106,6 +123,7 @@ describe('AuthService', () => {
         role: 'MASTER',
         avatarUrl: null,
         isPhoneVerified: true,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
       });
 
       const result = await service.verifyOtp('+998901234567', '123456');
@@ -124,6 +142,7 @@ describe('AuthService', () => {
         name: 'Yangi ism',
         role: 'CLIENT',
         avatarUrl: null,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
       });
 
       await service.updateProfile('user-1', { name: 'Yangi ism' });

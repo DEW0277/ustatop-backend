@@ -3,6 +3,7 @@ export interface UserSession {
   phone: string;
   name: string;
   role: 'client' | 'master' | 'admin';
-  avatarUrl: string | null;
+  avatarUrl?: string;
   token: string;
+  createdAt: string;
 }

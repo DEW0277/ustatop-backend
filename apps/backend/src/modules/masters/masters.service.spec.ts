@@ -18,14 +18,25 @@ function masterFixture(overrides: Record<string, unknown> = {}) {
     completedOrdersCount: 7,
     isVerified: false,
     isAvailable: true,
-    region: { id: 'r-1', nameUz: 'Toshkent shahri', nameRu: 'г. Ташкент', code: 'TAS' },
-    district: { id: 'd-1', regionId: 'r-1', nameUz: 'Chilonzor tumani', nameRu: 'Чиланзарский район' },
+    user: { avatarUrl: null },
+    regionId: 'r-1',
+    districtId: 'd-1',
     address: 'Chilonzor 9',
     workingHours: { start: '09:00', end: '18:00', workDays: ['mon'] },
-    categories: [{ category: { id: 'c-1', nameUz: 'Elektrik', nameRu: 'Электрик', icon: 'flash', slug: 'electrician' } }],
+    categories: [{ categoryId: 'c-1' }],
     services: [{ id: 's-1', title: 'Rozetka', price: 50000, priceType: 'fixed', currency: 'UZS' }],
     portfolio: [{ id: 'p-1', url: 'https://x/y.jpg', sortOrder: 0 }],
-    reviews: [],
+    reviews: [
+      {
+        id: 'rv-1',
+        masterId: 'm-1',
+        userId: 'u-9',
+        rating: 5,
+        comment: 'Zo`r',
+        createdAt: new Date('2026-02-01'),
+        user: { name: 'Sardor', avatarUrl: 'https://x/a.jpg' },
+      },
+    ],
     createdAt: new Date('2026-01-01'),
     ...overrides,
   };
@@ -44,15 +55,42 @@ describe('MastersService', () => {
     it("standart bo'yicha reyting bo'yicha saralaydi va 1-sahifa/20 limit qo'llaydi", async () => {
       prisma.masterProfile.findMany.mockResolvedValue([masterFixture()]);
 
-      const result = await service.findAll({});
+      await service.findAll({});
 
       const args = prisma.masterProfile.findMany.mock.calls[0][0];
       expect(args.orderBy[0]).toEqual({ rating: 'desc' });
       expect(args.skip).toBe(0);
       expect(args.take).toBe(20);
       expect(args.where.user).toEqual({ isBlocked: false });
-      expect(result[0].portfolioImages).toHaveLength(1);
-      expect(result[0].categories[0].slug).toBe('electrician');
+    });
+
+    it('mobil ilovadagi Master tipi shaklida javob qaytaradi', async () => {
+      prisma.masterProfile.findMany.mockResolvedValue([masterFixture({ telegram: null })]);
+
+      const [master] = await service.findAll({});
+
+      expect(master).toMatchObject({
+        id: 'm-1',
+        fullName: 'Alisher Valiyev',
+        avatarUrl: '',
+        regionId: 'r-1',
+        districtId: 'd-1',
+        categoryIds: ['c-1'],
+        portfolioImages: ['https://x/y.jpg'],
+        createdAt: '2026-01-01T00:00:00.000Z',
+      });
+      expect(master.telegram).toBeUndefined();
+      expect(master.reviews[0]).toEqual({
+        id: 'rv-1',
+        masterId: 'm-1',
+        userId: 'u-9',
+        userName: 'Sardor',
+        userAvatar: 'https://x/a.jpg',
+        rating: 5,
+        comment: 'Zo`r',
+        createdAt: '2026-02-01T00:00:00.000Z',
+      });
+      expect(master).not.toHaveProperty('region');
     });
 
     it('filtrlar va sahifalashni where/skip/take ga aylantiradi', async () => {
