@@ -35,6 +35,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message = exception.message;
     }
 
+    if (statusCode === HttpStatus.PAYLOAD_TOO_LARGE || message === 'File too large') {
+      message = 'Fayl hajmi 10MB dan oshmasligi kerak';
+    }
+
     if (!isHttpException) {
       // eslint-disable-next-line no-console
       console.error(exception);
