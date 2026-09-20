@@ -21,12 +21,12 @@ pnpm --filter backend exec prisma migrate dev
 pnpm --filter backend exec prisma db seed
 pnpm --filter backend start:dev    # http://localhost:3000/api/v1, Swagger: /api/docs
 
-pnpm --filter web dev              # http://localhost:3000 (Next.js) — port to'qnashsa avtomatik boshqasini tanlaydi
+pnpm --filter web dev              # http://localhost:3001 (Next.js admin panel; kirish: ADMIN_PHONE + OTP 123456)
 ```
 
 Yoki repo tepasidan: `pnpm dev` / `pnpm lint` / `pnpm test` — Turborepo barcha workspace'larda mos buyruqni ishga tushiradi.
 
-Test: `pnpm lint && pnpm test` (backend), `pnpm test` (web, agar mavjud bo'lsa) — PR ochishdan oldin ikkalasi ham xatosiz o'tishi shart.
+Test: `pnpm lint && pnpm test` (backend), `pnpm --filter web lint && pnpm --filter web test` — PR ochishdan oldin ikkalasi ham xatosiz o'tishi shart.
 
 ## PR review checklist (Gemini'ning kodini tekshirganda)
 

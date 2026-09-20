@@ -86,3 +86,17 @@ O'z zonangizdan tashqari modulga tegishli faylni o'zgartirishdan oldin, agar bos
 - Spec'da yo'q yangi endpoint yoki DB ustun qo'shmang — avval `docs/TZ.md`ni yangilang, keyin kod yozing.
 - `node_modules`, `.env`, `dist`, `.next` kabi fayllarni commit qilmang (`.gitignore`da bor).
 - Hech qachon `prisma migrate reset` yoki production DB'ga bevosita ulanishni so'ramasdan bajarmang.
+
+## Admin panel (`apps/web`) — auth arxitekturasi
+
+Bu qism Claude zonasi (xavfsizlik-muhim); sahifa yozuvchilar shu qoidalarga amal qiladi:
+
+- **Token brauzerga chiqmaydi.** Login `/api/auth/*` route handler'lari orqali: backend `verify-otp` javobidagi JWT `httpOnly` cookie'ga (`ustatop_admin_token`, `SameSite=Lax`, prod'da `Secure`) yoziladi. Faqat `role: admin` uchun sessiya ochiladi.
+- **Backend'ga faqat proksi orqali.** Klient komponentlarda `import { api } from '@/lib/api-client'` → `api<Paginated<T>>('/admin/users', { query: { page: 1 } })`. Bu `/api/backend/*` ga boradi va cookie'dan `Authorization` qo'shadi. `fetch('http://localhost:3000/...')` ni brauzerdan **hech qachon** chaqirmang; `NEXT_PUBLIC_*` bilan backend URL yoki token bermang.
+- **Proksi allow-list** (`lib/request-guard.ts`): `admin/*` (barcha metodlar) + `regions|districts|categories` (faqat GET). Yangi yo'l kerak bo'lsa — Claude'ga so'rang, o'zingiz kengaytirmang.
+- **Server component'da** ma'lumot kerak bo'lsa: `lib/backend.ts` `backendRequest(path, { token })` + `getToken()` (`lib/session.ts`). Ular `server-only`.
+- **Himoya**: `app/(admin)/layout.tsx` har so'rovda `getAdminUser()` (backend `/auth/me` + role) bilan tekshiradi. Yangi sahifalarni `app/(admin)/...` ichiga qo'ying — auth avtomatik. `proxy.ts` (Next 16'da `middleware` nomi `proxy`) faqat cookie mavjudligini ko'radi, u himoya emas.
+- **Nav**: yangi bo'lim `lib/nav.ts` dagi `NAV_ITEMS`ga qo'shiladi.
+- **Xato/format**: backend javobi `{ success, data, message }`; `api()` `data`ni qaytaradi, xatoda `ApiError` (`message`, `status`, `errors` maydonlar bo'yicha) tashlaydi, 401 da login'ga yo'naltiradi.
+- **Dev**: web `http://localhost:3001` (backend 3000), `apps/web/.env.local` (`BACKEND_URL`, namuna `.env.example`). Admin telefon: `ADMIN_PHONE` (`prisma db seed`), OTP `123456`.
+- **Test**: `pnpm --filter web test` (vitest, `lib/**/*.test.ts`).
