@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import { reviewUserSelect, toReviewResponse } from '../reviews/review.mapper.js';
 
 export function buildMasterInclude(reviewsTake: number, portfolioTake?: number) {
   return {
@@ -9,7 +10,7 @@ export function buildMasterInclude(reviewsTake: number, portfolioTake?: number) 
     reviews: {
       orderBy: { createdAt: 'desc' },
       take: reviewsTake,
-      include: { user: { select: { name: true, avatarUrl: true } } },
+      include: { user: reviewUserSelect },
     },
   } satisfies Prisma.MasterProfileInclude;
 }
@@ -45,16 +46,7 @@ export function toMasterResponse(master: MasterWithRelations) {
     services: master.services.map(toServiceResponse),
     workingHours: master.workingHours,
     portfolioImages: master.portfolio.map((image) => image.url),
-    reviews: master.reviews.map((review) => ({
-      id: review.id,
-      masterId: review.masterId,
-      userId: review.userId,
-      userName: review.user.name,
-      userAvatar: review.user.avatarUrl ?? '',
-      rating: review.rating,
-      comment: review.comment,
-      createdAt: review.createdAt.toISOString(),
-    })),
+    reviews: master.reviews.map(toReviewResponse),
     createdAt: master.createdAt.toISOString(),
   };
 }

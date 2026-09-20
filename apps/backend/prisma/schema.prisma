@@ -179,6 +179,7 @@ model Order {
   preferredTime String
   comment       String?
   status        OrderStatus   @default(pending)
+  cancelledBy   Role?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -196,6 +197,7 @@ model Review {
   comment   String
   createdAt DateTime      @default(now())
 
+  @@unique([masterId, userId])
   @@map("reviews")
 }
 

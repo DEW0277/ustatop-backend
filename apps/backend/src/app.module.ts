@@ -10,7 +10,9 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { DistrictsModule } from './modules/districts/districts.module.js';
 import { MastersModule } from './modules/masters/masters.module.js';
+import { OrdersModule } from './modules/orders/orders.module.js';
 import { RegionsModule } from './modules/regions/regions.module.js';
+import { ReviewsModule } from './modules/reviews/reviews.module.js';
 import { UploadModule } from './modules/upload/upload.module.js';
 
 @Module({
@@ -25,6 +27,8 @@ import { UploadModule } from './modules/upload/upload.module.js';
     DistrictsModule,
     CategoriesModule,
     MastersModule,
+    OrdersModule,
+    ReviewsModule,
     UploadModule,
   ],
   controllers: [AppController],
