@@ -16,7 +16,9 @@
 
 ✅ Bajarildi (4-bosqich, Claude qismi): Orders + Reviews + Notifications (mock push) — mobil `OrderItem`/`Review` shakllariga moslashtirilgan (§4.0).
 
-⏳ Navbatda: 5-bosqich — `admin` modul endpointlari (§4.1: statistika, foydalanuvchilar, ustalarni tasdiqlash, buyurtmalar, sharh moderatsiyasi) va Next.js admin panel.
+✅ Bajarildi (5-bosqich, Claude qismi, backend): `admin` modul — statistika, foydalanuvchilar/bloklash, ustalarni tasdiqlash, buyurtmalar, sharh moderatsiyasi (§4.1). `prisma db seed` `ADMIN_PHONE` env bo'yicha birinchi ADMIN'ni yaratadi.
+
+⏳ Navbatda: 6-bosqich — Next.js admin panel: avval Claude (auth: OTP login, httpOnly cookie proxy, middleware, layout, API client), keyin Gemini (dashboard/users/masters/orders/regions/categories sahifalari).
 
 ## 1. Loyiha haqida
 
@@ -148,7 +150,18 @@ Original spec faqat mobil ilova uchun edi — admin panelga quyidagi qo'shimcha 
 | `POST /api/v1/admin/categories`, `PUT .../:id`, `DELETE .../:id` | Kategoriyalarni boshqarish |
 | `DELETE /api/v1/admin/reviews/:id` | Nomaqbul sharhni o'chirish (moderatsiya) |
 
-**Xavfsizlik qoidasi**: `/api/v1/admin/*` barcha endpointlar `JwtAuthGuard` + `RolesGuard(Role.ADMIN)` bilan himoyalanadi. ADMIN role'ga ega foydalanuvchi faqat qo'lda (seed yoki to'g'ridan-to'g'ri DB orqali) yaratiladi — ochiq ro'yxatdan o'tish orqali ADMIN bo'lib bo'lmaydi.
+**Javob shakllari (admin)** — ro'yxatlar `{ items, total, page, limit }` (`page` standart 1, `limit` standart 20, max 100); mobil kontraktga bog'liq emas, admin panelga moslangan:
+
+- `GET /admin/users?role&isBlocked&query&page&limit` → `items[]`: `{ id, phone, name, role, avatarUrl?, isBlocked, isPhoneVerified, masterId?, createdAt }`. `query` — ism yoki telefon bo'yicha.
+- `PATCH /admin/users/:id/block` body `{ isBlocked: boolean }` → `{ id, isBlocked }`. O'zini va boshqa ADMIN'ni bloklab bo'lmaydi (400/403). Bloklangan foydalanuvchining token'i keyingi so'rovdayoq 401 beradi (`JwtStrategy` har so'rovda DB'ni tekshiradi).
+- `GET /admin/masters/pending?page&limit` → `items[]`: `{ id, userId, fullName, phone, telegram?, avatarUrl?, bio, experienceYears, isVerified, isBlocked, region{id,nameUz}, district{id,nameUz}, address, categories[{id,nameUz}], createdAt }`, eng eski so'rov birinchi.
+- `PATCH /admin/masters/:id/verify` body `{ isVerified?: boolean }` (standart `true`, `false` — tasdiqni bekor qilish) → `{ id, isVerified }`. Birinchi tasdiqlashda ustaga push yuboriladi (mock).
+- `GET /admin/orders?status&regionId&from&to&page&limit` → `items[]`: `{ id, orderNumber, masterId, masterName, masterPhone, clientId?, clientName, clientPhone, serviceTitle, price, region{id,nameUz}, districtId, districtName, address, preferredDate, preferredTime, comment?, status, cancelledBy?, createdAt }`. `regionId` — buyurtma manzili (tumani) shu viloyatda. `from`/`to` — `createdAt` bo'yicha; `to=2026-09-30` butun kunni qamrab oladi; `from > to` → 400.
+- `GET /admin/stats/dashboard` → `{ users{total,clients,masters,admins,blocked}, masters{total,verified,pending}, orders{total,pending,in_progress,completed,cancelled}, trend[30]{date,orders,newUsers} }`. Trend — so'nggi 30 kun (bugun ham), Toshkent vaqti (UTC+5) bo'yicha, bo'sh kunlar 0.
+- `DELETE /admin/reviews/:id` → `{ id, masterId }`; usta `rating`/`reviewCount` qayta hisoblanadi (oxirgi sharh o'chirilsa 0).
+- Auth eslatma: admin `verify-otp` orqali kirganda sessiya `role: 'admin'` (kichik harf) qaytadi; panel shu bo'yicha tekshiradi, lekin haqiqiy himoya backend'dagi `RolesGuard`.
+
+**Xavfsizlik qoidasi**: `/api/v1/admin/*` barcha endpointlar `JwtAuthGuard` + `RolesGuard(Role.ADMIN)` bilan himoyalanadi. ADMIN role'ga ega foydalanuvchi faqat qo'lda (seed yoki to'g'ridan-to'g'ri DB orqali) yaratiladi — ochiq ro'yxatdan o'tish orqali ADMIN bo'lib bo'lmaydi. Dev'da `apps/backend/.env`dagi `ADMIN_PHONE` bo'yicha `prisma db seed` uni yaratadi (OTP mock: `123456`).
 
 ## 5. Xavfsizlik va operatsion qoidalar
 

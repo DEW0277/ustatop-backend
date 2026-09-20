@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { CreateReviewDto } from './dto/create-review.dto.js';
 import type { ListReviewsQueryDto } from './dto/list-reviews-query.dto.js';
@@ -44,21 +45,41 @@ export class ReviewsService {
         include: { user: reviewUserSelect },
       });
 
-      const stats = await tx.review.aggregate({
-        where: { masterId },
-        _avg: { rating: true },
-        _count: { _all: true },
-      });
-
-      await tx.masterProfile.update({
-        where: { id: masterId },
-        data: {
-          rating: Math.round((stats._avg.rating ?? 0) * 100) / 100,
-          reviewCount: stats._count._all,
-        },
-      });
+      await this.recalculateRating(tx, masterId);
 
       return toReviewResponse(review);
+    });
+  }
+
+  // Moderatsiya: nomaqbul sharhni o'chiradi va usta reytingini qayta hisoblaydi.
+  async remove(reviewId: string): Promise<{ id: string; masterId: string }> {
+    return this.prisma.$transaction(async (tx) => {
+      const review = await tx.review.findUnique({ where: { id: reviewId }, select: { id: true, masterId: true } });
+
+      if (!review) {
+        throw new NotFoundException(`Sharh topilmadi: ${reviewId}`);
+      }
+
+      await tx.review.delete({ where: { id: reviewId } });
+      await this.recalculateRating(tx, review.masterId);
+
+      return review;
+    });
+  }
+
+  private async recalculateRating(tx: Prisma.TransactionClient, masterId: string): Promise<void> {
+    const stats = await tx.review.aggregate({
+      where: { masterId },
+      _avg: { rating: true },
+      _count: { _all: true },
+    });
+
+    await tx.masterProfile.update({
+      where: { id: masterId },
+      data: {
+        rating: Math.round((stats._avg.rating ?? 0) * 100) / 100,
+        reviewCount: stats._count._all,
+      },
     });
   }
 

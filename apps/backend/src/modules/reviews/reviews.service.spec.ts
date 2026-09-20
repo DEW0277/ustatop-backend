@@ -14,7 +14,7 @@ const reviewRow = {
 
 function createDeps() {
   const tx = {
-    review: { upsert: vi.fn().mockResolvedValue(reviewRow), aggregate: vi.fn() },
+    review: { upsert: vi.fn().mockResolvedValue(reviewRow), aggregate: vi.fn(), findUnique: vi.fn(), delete: vi.fn() },
     masterProfile: { update: vi.fn() },
   };
   const prisma = {
@@ -85,6 +85,39 @@ describe('ReviewsService', () => {
       expect(deps.tx.masterProfile.update).toHaveBeenCalledWith({
         where: { id: 'm-1' },
         data: { rating: 4.33, reviewCount: 3 },
+      });
+    });
+  });
+
+  describe('remove (moderatsiya)', () => {
+    it("mavjud bo'lmagan sharh uchun 404 va hech narsa o'chirilmaydi", async () => {
+      deps.tx.review.findUnique.mockResolvedValue(null);
+
+      await expect(service.remove('nope')).rejects.toBeInstanceOf(NotFoundException);
+      expect(deps.tx.review.delete).not.toHaveBeenCalled();
+    });
+
+    it("sharhni o'chirib, usta reytingini qayta hisoblaydi", async () => {
+      deps.tx.review.findUnique.mockResolvedValue({ id: 'rv-1', masterId: 'm-1' });
+      deps.tx.review.aggregate.mockResolvedValue({ _avg: { rating: 4.5 }, _count: { _all: 2 } });
+
+      expect(await service.remove('rv-1')).toEqual({ id: 'rv-1', masterId: 'm-1' });
+      expect(deps.tx.review.delete).toHaveBeenCalledWith({ where: { id: 'rv-1' } });
+      expect(deps.tx.masterProfile.update).toHaveBeenCalledWith({
+        where: { id: 'm-1' },
+        data: { rating: 4.5, reviewCount: 2 },
+      });
+    });
+
+    it("oxirgi sharh o'chirilganda reyting 0 ga tushadi", async () => {
+      deps.tx.review.findUnique.mockResolvedValue({ id: 'rv-1', masterId: 'm-1' });
+      deps.tx.review.aggregate.mockResolvedValue({ _avg: { rating: null }, _count: { _all: 0 } });
+
+      await service.remove('rv-1');
+
+      expect(deps.tx.masterProfile.update).toHaveBeenCalledWith({
+        where: { id: 'm-1' },
+        data: { rating: 0, reviewCount: 0 },
       });
     });
   });

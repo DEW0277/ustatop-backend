@@ -369,6 +369,20 @@ async function main() {
     });
   }
 
+  // ADMIN rolini ochiq ro'yxatdan o'tish orqali olib bo'lmaydi (docs/TZ.md §4.1) — faqat shu yerda beriladi.
+  const adminPhone = process.env.ADMIN_PHONE;
+  if (adminPhone) {
+    if (!/^\+998\d{9}$/.test(adminPhone)) {
+      throw new Error('ADMIN_PHONE +998XXXXXXXXX formatida bo\'lishi kerak');
+    }
+    console.log(`Seeding admin user ${adminPhone}...`);
+    await prisma.user.upsert({
+      where: { phone: adminPhone },
+      update: { role: 'ADMIN', isBlocked: false },
+      create: { phone: adminPhone, name: 'Administrator', role: 'ADMIN', isPhoneVerified: true },
+    });
+  }
+
   console.log('Seed complete for all regions, districts, and categories.');
 }
 
