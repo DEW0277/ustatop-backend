@@ -1,6 +1,12 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import type { Response } from 'express';
 
+// Express middleware (masalan body-parser) Nest HttpException emas, `status` maydonli http-errors xatolarini tashlaydi.
+function getClientErrorStatus(exception: unknown): number | null {
+  const status = (exception as { status?: unknown } | null)?.status;
+  return typeof status === 'number' && status >= 400 && status < 500 ? status : null;
+}
+
 interface ErrorResponseBody {
   message?: string | string[];
   errors?: Record<string, string[]>;
@@ -13,7 +19,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
 
     const isHttpException = exception instanceof HttpException;
-    const statusCode = isHttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+    const clientErrorStatus = isHttpException ? null : getClientErrorStatus(exception);
+    const statusCode = isHttpException
+      ? exception.getStatus()
+      : (clientErrorStatus ?? HttpStatus.INTERNAL_SERVER_ERROR);
     const exceptionResponse = isHttpException ? exception.getResponse() : null;
 
     let message = 'Ichki server xatosi';
@@ -35,7 +44,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message = exception.message;
     }
 
-    if (!isHttpException) {
+    if (message === 'File too large') {
+      message = 'Fayl hajmi 10MB dan oshmasligi kerak';
+    } else if (clientErrorStatus === HttpStatus.PAYLOAD_TOO_LARGE) {
+      message = "So'rov hajmi juda katta";
+    } else if (clientErrorStatus) {
+      message = (exception as Error).message;
+    }
+
+    if (!isHttpException && !clientErrorStatus) {
       // eslint-disable-next-line no-console
       console.error(exception);
     }

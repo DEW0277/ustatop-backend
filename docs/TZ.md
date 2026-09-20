@@ -12,7 +12,9 @@
 
 ✅ Bajarildi (3-bosqich, Claude qismi): Masters modul (PR #4, merge qilindi) — mobil ilova tiplariga moslashtirilgan (§4.0).
 
-⏳ Navbatda: Upload modul (Gemini, issue #5, branch `feat/upload-gemini`). Undan keyin 4-bosqich: Orders + Reviews (Claude).
+✅ Bajarildi (3-bosqich, Gemini qismi): Upload modul (issue #5, branch `feat/upload-gemini`) — MinIO S3 integration, magic bytes tekshiruvi, `POST /api/v1/upload/single`.
+
+⏳ Navbatda: 4-bosqich: Orders + Reviews (Claude).
 
 ## 1. Loyiha haqida
 

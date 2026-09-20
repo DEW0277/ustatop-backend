@@ -11,6 +11,7 @@ import { CategoriesModule } from './modules/categories/categories.module.js';
 import { DistrictsModule } from './modules/districts/districts.module.js';
 import { MastersModule } from './modules/masters/masters.module.js';
 import { RegionsModule } from './modules/regions/regions.module.js';
+import { UploadModule } from './modules/upload/upload.module.js';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { RegionsModule } from './modules/regions/regions.module.js';
     DistrictsModule,
     CategoriesModule,
     MastersModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],
