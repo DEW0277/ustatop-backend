@@ -2,7 +2,7 @@
 
 > Ushbu hujjat loyihaning to'liq arxitekturasini belgilaydi. O'zgartirish kerak bo'lsa — shu faylni tahrirlang, chunki `AGENTS.md` va `CLAUDE.md` shu yerdagi qarorlarga tayanadi.
 
-## 0. Holat (2026-09-19)
+## 0. Holat (2026-09-20)
 
 ✅ Bajarildi (§7.3 roadmap 1-bosqich): Turborepo+pnpm monorepo, `apps/backend` (NestJS, Prisma 6 schema+migratsiya, global response/error format, Swagger, seed: 14 viloyat + 8 kategoriya + Toshkent shahri tumanlari), `apps/web` (Next.js skeleton), `docker-compose.yml` (Postgres/Redis/MinIO), GitHub private repo (https://github.com/DEW0277/ustatop-backend).
 
@@ -14,7 +14,9 @@
 
 ✅ Bajarildi (3-bosqich, Gemini qismi): Upload modul (issue #5, branch `feat/upload-gemini`) — MinIO S3 integration, magic bytes tekshiruvi, `POST /api/v1/upload/single`.
 
-⏳ Navbatda: 4-bosqich: Orders + Reviews (Claude).
+✅ Bajarildi (4-bosqich, Claude qismi): Orders + Reviews + Notifications (mock push) — mobil `OrderItem`/`Review` shakllariga moslashtirilgan (§4.0).
+
+⏳ Navbatda: 5-bosqich — `admin` modul endpointlari (§4.1: statistika, foydalanuvchilar, ustalarni tasdiqlash, buyurtmalar, sharh moderatsiyasi) va Next.js admin panel.
 
 ## 1. Loyiha haqida
 
@@ -111,6 +113,16 @@ Mobil ilova kodi (`/Users/macstore.uz/Desktop/mobile-app/src/types/index.ts`, `s
 - **Usta bo'lish**: `PUT /masters/me/profile` — *upsert*; CLIENT/MASTER chaqira oladi; birinchi yaratilganda majburiy maydonlar (`firstName, lastName, bio, regionId, districtId, address, workingHours`), rol avtomatik `MASTER` ga o'tadi, `User.name` = `firstName lastName`. `categoryIds` berilsa kategoriyalar to'liq almashtiriladi. Qo'shimcha: `GET /masters/me/profile`.
 - **Ilova ishlatadigan, spec'da yo'q endpointlar (qo'shildi)**: `PUT /masters/me/services/:serviceId` (xizmatni tahrirlash), `DELETE /masters/me/portfolio?url=...` (rasm URL bo'yicha o'chiriladi — ilovada rasmlar ID'siz).
 - Qolganlari: `POST/DELETE /masters/me/services`, `POST /masters/me/portfolio`, `PATCH /masters/me/availability` — faqat MASTER; xizmat egaligi tekshiriladi. `GET /masters` bloklangan ustalarni ko'rsatmaydi; `sortBy`: `rating|reviews|orders|experience|newest`.
+
+**Orders va Reviews (4-bosqich) — qarorlar:**
+- **Buyurtma javobi** mobil `OrderItem` bilan bir xil (`statusTextUz`, `masterName`, `masterAvatar`, `masterPhone`). `preferredDate`/`preferredTime` ilovada erkin matn (`"Bugun"`, `"12:00 - 15:00"`) — spec'dagi `2026-09-10`/`14:00` formatidan farqli, shuning uchun backend faqat uzunlikni tekshiradi, formatni emas. `statusTextUz`: `Kutilmoqda | Qabul qilindi | Bajarildi | Bekor qilindi | Rad etildi` (usta bekor qilsa "Rad etildi", mijoz bekor qilsa "Bekor qilindi" — `orders.cancelledBy` ustuni).
+- **Yaratish**: `serviceId` berilsa narx va sarlavha bazadagi xizmatdan olinadi (mijoz yuborgan qiymatga ishonilmaydi); o'ziga buyurtma bera olmaydi; band (`isAvailable=false`) yoki bloklangan ustaga buyurtma rad etiladi. Ustaga push yuboriladi.
+- **`GET /orders/my`**: MASTER roli uchun kelib tushganlar, qolganlar uchun o'zi bergan buyurtmalar (spec bo'yicha). Qo'shimcha `?as=client|master` — ilovadagi "usta rejimi" foydalanuvchisi ikkala ro'yxatni ola olishi uchun.
+- **`PUT /orders/:id/status`** → `{ orderId, status }` (mobil `ordersApi` shunday kutadi). O'tishlar: usta — `pending→in_progress|cancelled`, `in_progress→completed|cancelled`; mijoz — faqat `pending→cancelled`; tugagan buyurtma o'zgarmaydi. Begona foydalanuvchi uchun 404. `completed` da `completedOrdersCount +1` (parallel so'rovda ikki marta oshmaydi — ikkinchisi 409). Qarshi tomonga push.
+- **Sharhlar**: `GET /masters/:id/reviews` public (tekis mobil `Review`, `page/limit`, default 50). `POST` — bitta foydalanuvchi bitta ustaga bitta sharh: qayta yuborsa avvalgisi **yangilanadi** (reytingni takroriy ovozlar bilan buzib bo'lmasin; `reviews(masterId,userId)` unique). Ilova sharhni usta sahifasidan istalgan foydalanuvchi qoldirishiga ruxsat beradi, shuning uchun "tugallangan buyurtma bo'lishi shart" sharti qo'yilmadi — **qaror kerak**: qat'iyroq qoida (faqat `completed` buyurtmasi bor mijoz sharh qoldira oladi) tavsiya etiladi, lekin ilova UI'si bilan kelishilishi kerak. O'ziga sharh qoldirib bo'lmaydi. `rating` va `reviewCount` har safar qayta hisoblanadi (2 xonagacha yaxlitlanadi).
+- **Push (FCM)**: `NotificationsModule` tayyor, hozir `LogPushProvider` (mock, faqat log). Haqiqiy FCM uchun: `FcmPushProvider` + Firebase kalitlari + qurilma tokenini saqlash endpointi kerak (`users.fcmToken` ustuni bor, lekin spec'da ham, ilovada ham token yuboradigan endpoint yo'q) — alohida vazifa.
+- **Migratsiya**: `orders.cancelledBy` (nullable) va `reviews(masterId,userId)` unique qo'shildi (additiv).
+- **Eslatma**: buyurtmasi bor ustani (foydalanuvchini) bazadan o'chirib bo'lmaydi (`orders.masterId` FK, tarix saqlanadi) — admin panelda o'chirish emas, bloklash ishlatiladi.
 
 **Mobil ilova tomonida o'zgarishi kerak (backend'ga bog'liq emas):**
 1. `API_BASE_URL` hozir `https://api.ustatop.uz/v1` — backend prefiksi `/api/v1` (yoki Nginx'da `/v1` → `/api/v1` rewrite).
