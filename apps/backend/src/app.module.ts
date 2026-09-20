@@ -6,6 +6,7 @@ import { AppService } from './app.service.js';
 import { SharedAuthModule } from './common/auth/shared-auth.module.js';
 import { PrismaModule } from './common/prisma/prisma.module.js';
 import { RedisModule } from './common/redis/redis.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { DistrictsModule } from './modules/districts/districts.module.js';
@@ -23,6 +24,7 @@ import { UploadModule } from './modules/upload/upload.module.js';
     RedisModule,
     SharedAuthModule,
     AuthModule,
+    AdminModule,
     RegionsModule,
     DistrictsModule,
     CategoriesModule,
