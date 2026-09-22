@@ -28,3 +28,18 @@ export interface Paginated<T> {
   page: number;
   limit: number;
 }
+
+export type UserRole = 'CLIENT' | 'MASTER' | 'ADMIN';
+
+// `GET /admin/users` qatori.
+export interface ManagedUser {
+  id: string;
+  phone: string;
+  name: string;
+  role: UserRole;
+  avatarUrl?: string;
+  isBlocked: boolean;
+  isPhoneVerified: boolean;
+  masterId?: string;
+  createdAt: string;
+}

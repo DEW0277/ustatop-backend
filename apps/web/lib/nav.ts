@@ -4,4 +4,7 @@ export interface NavItem {
   label: string;
 }
 
-export const NAV_ITEMS: NavItem[] = [{ href: '/', label: 'Bosh sahifa' }];
+export const NAV_ITEMS: NavItem[] = [
+  { href: '/', label: 'Bosh sahifa' },
+  { href: '/users', label: 'Foydalanuvchilar' },
+];
