@@ -1,8 +1,21 @@
+import { Suspense } from 'react';
+import { DashboardView } from '@/components/dashboard/dashboard-view';
+
+export const metadata = { title: "Bosh sahifa — UstaTop Admin" };
+
 export default function DashboardPage() {
   return (
-    <div>
-      <h1 className="text-2xl font-bold">Bosh sahifa</h1>
-      <p className="mt-2 text-slate-500">Statistika va boshqaruv bo&apos;limlari tez orada shu yerda paydo bo&apos;ladi.</p>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold">Bosh sahifa</h1>
+        <p className="text-sm text-muted-foreground">
+          Platformadagi asosiy ko&apos;rsatkichlar va dinamika
+        </p>
+      </div>
+      <Suspense fallback={<div className="text-muted-foreground">Yuklanmoqda...</div>}>
+        <DashboardView />
+      </Suspense>
     </div>
   );
 }
+
