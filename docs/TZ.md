@@ -227,3 +227,18 @@ Loyiha **Antigravity** muharririda ikkita AI yordamida quriladi: **Claude Sonnet
 6. Admin panel: regions/categories CRUD sahifalari
 7. Swagger to'liqlashtirish, e2e testlar, xavfsizlik review
 8. Contabo VPS'ga birinchi deploy
+
+### 7.4. Loyihani to'liq yakunlash uchun qolgan ishlar (2026-09-22 holatiga ko'ra)
+
+1-7-bosqichlar bo'yicha backend **to'liq tayyor** (barcha modullar, xavfsizlik, e2e, Swagger — yuqoridagi holat yozuvlariga qarang). Qolgan ishlar quyida, ustuvorlik tartibida, agent bo'yicha taqsimlangan:
+
+| # | Ish | Agent | Holat / bog'liqlik |
+|---|---|---|---|
+| 1 | Admin panel: dashboard, masters, orders, regions/districts/categories sahifalari | **Gemini** | Jarayonda (issue #11). Claude tugagach review qiladi va merge qiladi. |
+| 2 | **Favorites moduli (yangi, yetishmayapti)**: `GET /favorites`, `POST /favorites/:masterId`, `DELETE /favorites/:masterId` — `FavoriteMaster` modeli sxemada bor, lekin hech qanday endpoint yozilmagan. Mobil ilovada butun ekran (`FavoritesScreen`) va tugma bor, lekin hozir faqat lokal, saqlanmaydigan mock holat (`useFavoritesStore`, boshlang'ich qiymat `['m1','m3']`) — hech qanday API chaqirmaydi. | **Gemini** | Mustaqil, kichik, boshqa ishga bog'liq emas — hoziroq boshlash mumkin (issue #11 bilan bir vaqtda emas, undan keyin; parallel branch xohlansa mumkin). |
+| 3 | **FCM real push**: qurilma tokenini saqlash endpointi (`users.fcmToken` ustuni allaqachon bor) + `FcmPushProvider` (strategy pattern — `PushProvider` interfeysi tayyor, faqat implementatsiya almashtiriladi). | **Claude** (endpoint+wiring) → **Gemini** (mexanik almashtirish, Claude ko'rsatmasi bilan) | **Bloklangan: Firebase loyihasi kalitlari (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`) foydalanuvchidan kerak.** |
+| 4 | **Ochiq qarorlar** (§4.0): (a) OTP uzunligi — ilova 4 katak, backend standart 6 (`OTP_LENGTH` env bilan sozlanadi, qaror kerak); (b) sharh qoldirish qoidasi — hozir cheklovsiz, "faqat tugallangan buyurtma bo'lgan mijoz" qoidasi tavsiya etiladi. | **Foydalanuvchi qarori**, keyin mos agent (b — Claude, `reviews.service.ts`) | Kod yozishdan oldin javob kerak. |
+| 5 | **Mobil ilova integratsiyasi** (`/Users/macstore.uz/Desktop/mobile-app`, alohida repo): kod tekshirildi — arxitektura aslida tayyor (`authApi`/`mastersApi`/`ordersApi`/`reviewsApi` real backend yo'llarini chaqiradi, tarmoq xatosida `mockAdapter`ga qaytadi). Qolgan aniq tuzatishlar: `services/api/client.ts`dagi `API_BASE_URL` (`https://api.ustatop.uz/v1`) haqiqiy backend manziliga + `/api/v1` prefiksiga o'zgartirilishi; `mastersApi` so'rovlariga `limit=100` (yoki sahifalash UI) qo'shilishi; `authApi.updateProfile` faqat `name`/`avatarUrl` yuborishi; (2)-band tugagach `favoritesApi.ts` yozib `useFavoritesStore`ni backendga ulash. | **Foydalanuvchi ruxsati bilan Claude yoki mobil dasturchi** | Alohida repo — bu monorepo ishchi jarayoniga kirmaydi, tegishdan oldin aniq ruxsat so'raladi. |
+| 6 | **Contabo VPS'ga deploy** (8-bosqich): `docker-compose.prod.yml`, Nginx reverse proxy + SSL (Let's Encrypt), muhit sirlarini boshqarish, backup strategiyasi. Konfiguratsiya fayllarini **VPS'siz ham tayyorlash mumkin**; haqiqiy deploy uchun VPS'ga SSH kirish va domen kerak. | **Claude** (konfiguratsiya) → foydalanuvchi (VPS kirish, tasdiqlash) | CLAUDE.md qoidasi: production'ga tegadigan amal oldindan tasdiqlanishi shart. |
+
+**Tavsiya etilgan tartib**: 1 → 2 (Gemini band bo'lmasa parallel) → 4-band bo'yicha qaror → 3 va 5 (agar Firebase/mobil ruxsat berilsa) → 6 eng oxirida (mahsulot to'liq ishlagach).
