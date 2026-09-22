@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { SharedAuthModule } from './common/auth/shared-auth.module.js';
@@ -34,6 +35,11 @@ import { UploadModule } from './modules/upload/upload.module.js';
     UploadModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // `ThrottlerModule.forRoot` faqat konfiguratsiya beradi — guard sifatida ro'yxatdan
+    // o'tkazilmasa hech qanday endpoint haqiqatda cheklanmaydi. Global qo'llash uchun shu shart.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

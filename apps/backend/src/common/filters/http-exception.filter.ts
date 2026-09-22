@@ -46,6 +46,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     if (message === 'File too large') {
       message = 'Fayl hajmi 10MB dan oshmasligi kerak';
+    } else if (statusCode === HttpStatus.TOO_MANY_REQUESTS) {
+      message = "So'rovlar soni juda ko'p, birozdan so'ng qayta urinib ko'ring";
     } else if (clientErrorStatus === HttpStatus.PAYLOAD_TOO_LARGE) {
       message = "So'rov hajmi juda katta";
     } else if (clientErrorStatus) {
