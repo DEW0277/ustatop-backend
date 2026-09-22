@@ -6,6 +6,7 @@ import { ResponseMessage } from '../../common/decorators/response-message.decora
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
+import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.type.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { AdminService } from './admin.service.js';
@@ -20,6 +21,8 @@ import { VerifyMasterDto } from './dto/verify-master.dto.js';
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
+// Shu controllerdagi BARCHA endpoint uchun umumiy: tokensiz 401, ADMIN bo'lmasa 403.
+@ApiErrorResponses(401, 403)
 @Controller('admin')
 export class AdminController {
   constructor(
@@ -43,6 +46,7 @@ export class AdminController {
   @Patch('users/:id/block')
   @ResponseMessage('Foydalanuvchi holati yangilandi')
   @ApiOperation({ summary: 'Foydalanuvchini bloklash yoki blokdan chiqarish (Admin)' })
+  @ApiErrorResponses(400, 404)
   setUserBlocked(
     @CurrentUser() admin: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -60,12 +64,14 @@ export class AdminController {
   @Patch('masters/:id/verify')
   @ResponseMessage('Usta holati yangilandi')
   @ApiOperation({ summary: 'Ustani tasdiqlash (yoki tasdiqni bekor qilish) (Admin)' })
+  @ApiErrorResponses(404)
   verifyMaster(@Param('id', ParseUUIDPipe) id: string, @Body() dto: VerifyMasterDto) {
     return this.adminService.setMasterVerified(id, dto.isVerified ?? true);
   }
 
   @Get('orders')
   @ApiOperation({ summary: 'Barcha buyurtmalar: status, sana oralig\'i, viloyat (Admin)' })
+  @ApiErrorResponses(400)
   listOrders(@Query() query: ListAdminOrdersQueryDto) {
     return this.adminService.listOrders(query);
   }
@@ -73,6 +79,7 @@ export class AdminController {
   @Delete('reviews/:id')
   @ResponseMessage('Sharh o\'chirildi')
   @ApiOperation({ summary: 'Nomaqbul sharhni o\'chirish va usta reytingini qayta hisoblash (Admin)' })
+  @ApiErrorResponses(404)
   removeReview(@Param('id', ParseUUIDPipe) id: string) {
     return this.reviewsService.remove(id);
   }

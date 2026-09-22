@@ -24,6 +24,12 @@
 
 ⏳ Navbatda: 6-bosqich, Gemini qismi — dashboard, masters (pending/verify), orders, regions/districts/categories CRUD sahifalari, users sahifasidagi naqsh bo'yicha (GitHub issue brief'da).
 
+✅ Bajarildi (7-bosqich, Claude qismi): xavfsizlik review + e2e testlar + Swagger to'liqlashtirish (issue #12).
+- **Xavfsizlik**: `ThrottlerGuard` global ulandi (avval sozlangan, lekin hech qayerda qo'llanilmagan edi — hech qanday endpoint cheklanmagan bo'lib chiqdi); `/auth/send-otp`+`/auth/verify-otp` uchun qo'shimcha 5/daq IP chegarasi; Redis'da OTP urinishlar hisoblagichi (5 marta noto'g'ridan keyin kod bekor qilinadi); CORS `CORS_ORIGINS` env bilan cheklanadi (prod'da standart — yopiq); `helmet` sarlavhalari. `pnpm audit`: 23 → 0 (ishlatilmagan `@nestjs/mau` olib tashlandi, `multer`/`deepmerge-ts`/`uuid` `pnpm-workspace.yaml` `overrides` bilan yangilandi).
+- **Bonus tuzatish**: `admin/regions`, `admin/districts` `DELETE`da bog'liq qatorlar (ustalar/buyurtmalar/tumanlar) bo'lsa endi 500 emas, aniq 409 xabar bilan qaytadi (`common/prisma/delete-or-conflict.ts`) — bu Gemini'ning admin panel CRUD sahifalarida (issue #11) xato ko'rsatishga bevosita ta'sir qiladi.
+- **E2e testlar**: `apps/backend/test/*.e2e-spec.ts` — real Postgres (`?schema=test`, `test:e2e` avtomatik migratsiya qiladi) va Redis bilan; auth (OTP oqimi, bruteforce, throttle, bloklangan user), admin (RolesGuard, block/verify/review moderatsiyasi), orders (to'liq lifecycle, ruxsatsiz o'tishlar, begona user 404). `pnpm --filter backend test:e2e`.
+- **Swagger**: barcha controllerlarda asosiy xato javoblari (`@ApiErrorResponses` — `common/swagger/`) hujjatlangan; `auth`da yetishmayotgan `@ApiOperation`lar qo'shildi.
+
 ## 1. Loyiha haqida
 
 **UstaTop** — O'zbekistondagi usta/mutaxassislarni mijozlar bilan bog'lovchi platforma. Uchta komponentdan iborat:

@@ -5,6 +5,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
+import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.type.js';
 import { AddPortfolioDto } from './dto/add-portfolio.dto.js';
 import { CreateServiceDto } from './dto/create-service.dto.js';
@@ -17,6 +18,8 @@ import { MasterProfileService } from './master-profile.service.js';
 @ApiTags('masters/me')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
+// Shu controllerdagi BARCHA endpoint uchun umumiy: tokensiz 401, roli mos kelmasa 403.
+@ApiErrorResponses(401, 403)
 @Controller('masters/me')
 export class MyMasterController {
   constructor(private readonly masterProfileService: MasterProfileService) {}
@@ -24,6 +27,7 @@ export class MyMasterController {
   @Get('profile')
   @Roles(Role.CLIENT, Role.MASTER)
   @ApiOperation({ summary: "O'z usta profilimni olish" })
+  @ApiErrorResponses(404)
   getProfile(@CurrentUser() user: AuthenticatedUser) {
     return this.masterProfileService.getMine(user.id);
   }
@@ -33,6 +37,7 @@ export class MyMasterController {
   @ApiOperation({
     summary: "Usta profilini yaratish/tahrirlash (birinchi marta yaratilganda foydalanuvchi MASTER roliga o'tadi)",
   })
+  @ApiErrorResponses(400)
   upsertProfile(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpsertMasterProfileDto) {
     return this.masterProfileService.upsert(user.id, dto);
   }
@@ -47,6 +52,7 @@ export class MyMasterController {
   @Put('services/:serviceId')
   @Roles(Role.MASTER)
   @ApiOperation({ summary: "O'z xizmatini tahrirlash" })
+  @ApiErrorResponses(404)
   updateService(
     @CurrentUser() user: AuthenticatedUser,
     @Param('serviceId') serviceId: string,
@@ -58,6 +64,7 @@ export class MyMasterController {
   @Delete('services/:serviceId')
   @Roles(Role.MASTER)
   @ApiOperation({ summary: "O'z xizmatini o'chirish" })
+  @ApiErrorResponses(404)
   removeService(@CurrentUser() user: AuthenticatedUser, @Param('serviceId') serviceId: string) {
     return this.masterProfileService.removeService(user.id, serviceId);
   }
@@ -72,6 +79,7 @@ export class MyMasterController {
   @Delete('portfolio')
   @Roles(Role.MASTER)
   @ApiOperation({ summary: "Portfolio rasmini URL bo'yicha o'chirish (?url=...)" })
+  @ApiErrorResponses(404)
   removePortfolio(@CurrentUser() user: AuthenticatedUser, @Query() query: RemovePortfolioQueryDto) {
     return this.masterProfileService.removePortfolioImage(user.id, query.url);
   }
@@ -79,6 +87,7 @@ export class MyMasterController {
   @Patch('availability')
   @Roles(Role.MASTER)
   @ApiOperation({ summary: 'Mavjud/band holatini almashtirish' })
+  @ApiErrorResponses(404)
   setAvailability(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateAvailabilityDto) {
     return this.masterProfileService.setAvailability(user.id, dto.isAvailable);
   }

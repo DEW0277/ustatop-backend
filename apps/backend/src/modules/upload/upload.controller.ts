@@ -17,6 +17,7 @@ import {
 import 'multer';
 import { ResponseMessage } from '../../common/decorators/response-message.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
+import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { UploadResponseDto } from './dto/upload-response.dto.js';
 import { MAX_FILE_SIZE } from './upload.constants.js';
 import { UploadService } from './upload.service.js';
@@ -24,6 +25,7 @@ import { UploadService } from './upload.service.js';
 @ApiTags('upload')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
+@ApiErrorResponses(401)
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
