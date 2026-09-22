@@ -20,7 +20,9 @@
 
 ✅ Bajarildi (6-bosqich, Claude qismi): Next.js admin panel auth — OTP login (faqat ADMIN), JWT httpOnly cookie, `/api/backend/*` proksi, `proxy.ts`, himoyalangan layout, `lib/api-client.ts` (arxitektura: AGENTS.md "Admin panel").
 
-⏳ Navbatda: 6-bosqich, Gemini qismi — dashboard, users, masters (pending/verify), orders, regions/districts/categories CRUD sahifalari. Boshlashdan oldin UI kutubxonalari (§2: shadcn/ui, TanStack Query, react-hook-form+zod) qo'shilishi kerak — brief'da belgilanadi.
+✅ Bajarildi (6-bosqich, Claude qismi, UI stack): shadcn/ui (Base UI asosidagi yangi avlod, `base-nova` preset), TanStack Query, react-hook-form+zod o'rnatildi; namunaviy ro'yxat sahifasi `apps/web/app/(admin)/users/page.tsx` (filtr+qidiruv+sahifalash+bloklash) — naqsh AGENTS.md "UI stack va namunaviy sahifa"da.
+
+⏳ Navbatda: 6-bosqich, Gemini qismi — dashboard, masters (pending/verify), orders, regions/districts/categories CRUD sahifalari, users sahifasidagi naqsh bo'yicha (GitHub issue brief'da).
 
 ## 1. Loyiha haqida
 
