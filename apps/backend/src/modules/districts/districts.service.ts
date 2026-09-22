@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { deleteOrConflict } from '../../common/prisma/delete-or-conflict.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { CreateDistrictDto } from './dto/create-district.dto.js';
 import type { UpdateDistrictDto } from './dto/update-district.dto.js';
@@ -74,8 +75,9 @@ export class DistrictsService {
   async remove(id: string) {
     await this.findOne(id);
 
-    return this.prisma.district.delete({
-      where: { id },
-    });
+    return deleteOrConflict(
+      () => this.prisma.district.delete({ where: { id } }),
+      "Bu tumanda ustalar yoki buyurtmalar mavjud — avval ularni o'chiring yoki ko'chiring",
+    );
   }
 }

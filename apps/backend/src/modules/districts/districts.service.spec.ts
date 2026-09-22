@@ -1,4 +1,5 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DistrictsService } from './districts.service.js';
 
@@ -128,6 +129,15 @@ describe('DistrictsService', () => {
       const result = await service.remove('dist-1');
       expect(result.id).toBe('dist-1');
       expect(deps.prisma.district.delete).toHaveBeenCalledWith({ where: { id: 'dist-1' } });
+    });
+
+    it("bog'liq ustalar/buyurtmalar bo'lsa 409 (Conflict) qaytaradi, 500 emas", async () => {
+      deps.prisma.district.findUnique.mockResolvedValue({ id: 'dist-1' });
+      deps.prisma.district.delete.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('FK constraint', { code: 'P2003', clientVersion: '6.19.3' }),
+      );
+
+      await expect(service.remove('dist-1')).rejects.toBeInstanceOf(ConflictException);
     });
   });
 });

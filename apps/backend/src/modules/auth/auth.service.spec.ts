@@ -16,6 +16,8 @@ function createDeps() {
     set: vi.fn(),
     get: vi.fn(),
     del: vi.fn(),
+    incr: vi.fn().mockResolvedValue(1),
+    expire: vi.fn(),
   };
   const jwtService = { sign: vi.fn().mockReturnValue('signed.jwt.token') };
   const smsProvider = { sendOtp: vi.fn() };
@@ -91,6 +93,25 @@ describe('AuthService', () => {
         BadRequestException,
       );
       expect(deps.prisma.user.create).not.toHaveBeenCalled();
+      expect(deps.redis.del).not.toHaveBeenCalledWith('otp:+998901234567');
+    });
+
+    it("birinchi noto'g'ri urinishda hisoblagichga TTL qo'yiladi", async () => {
+      deps.redis.get.mockResolvedValue('123456');
+      deps.redis.incr.mockResolvedValue(1);
+
+      await expect(service.verifyOtp('+998901234567', '000000')).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(deps.redis.expire).toHaveBeenCalledWith('otp:attempts:+998901234567', 120);
+    });
+
+    it("5-urinishdan keyin kodni bekor qiladi (bruteforce himoyasi)", async () => {
+      deps.redis.get.mockResolvedValue('123456');
+      deps.redis.incr.mockResolvedValue(5);
+
+      await expect(service.verifyOtp('+998901234567', '000000')).rejects.toThrow(/Urinishlar soni oshib ketdi/);
+
+      expect(deps.redis.del).toHaveBeenCalledWith('otp:+998901234567');
     });
 
     it("to'g'ri kod va yangi telefon uchun foydalanuvchi yaratadi", async () => {

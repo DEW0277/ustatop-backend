@@ -1,5 +1,6 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { CategoriesService } from './categories.service.js';
 
 @ApiTags('categories')
@@ -15,6 +16,7 @@ export class CategoriesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Bitta kategoriyani ID bo‘yicha olish (Public)' })
+  @ApiErrorResponses(404)
   findOne(@Param('id') id: string) {
     return this.categoriesService.findOne(id);
   }

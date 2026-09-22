@@ -12,9 +12,17 @@ import type { UserSession } from './types/user-session.type.js';
 const MOCK_OTP_CODE = '123456';
 const MIN_OTP_LENGTH = 4;
 const MAX_OTP_LENGTH = MOCK_OTP_CODE.length;
+// Kod bo'shligi kichik (4-6 xona) bo'lgani uchun urinishlar cheklanmasa, `POST /auth/verify-otp`ni
+// qayta-qayta chaqirib kodni taxmin qilib topish mumkin (ThrottlerGuard IP bo'yicha cheklaydi, bu esa
+// bitta OTP kod uchun urinishlar sonini cheklaydi — ikkalasi birga ishlaydi).
+const MAX_OTP_ATTEMPTS = 5;
 
 function otpRedisKey(phone: string): string {
   return `otp:${phone}`;
+}
+
+function otpAttemptsKey(phone: string): string {
+  return `otp:attempts:${phone}`;
 }
 
 function roleToApi(role: Role): UserSession['role'] {
@@ -52,6 +60,8 @@ export class AuthService {
     // Real provayder ulanganda bu yerda OTP_LENGTH xonali tasodifiy kod generatsiya qilinadi.
     const code = MOCK_OTP_CODE.slice(0, this.otpLength);
     await this.redis.set(key, code, 'EX', this.otpTtlSeconds);
+    // Yangi kod uchun urinishlar hisobi tozalanadi (eskisi tabiiy tugagan yoki limitga yetib o'chirilgan bo'lishi mumkin).
+    await this.redis.del(otpAttemptsKey(phone));
     await this.smsProvider.sendOtp(phone, code);
 
     return {
@@ -69,10 +79,25 @@ export class AuthService {
     }
 
     if (storedCode !== code) {
+      const attemptsKey = otpAttemptsKey(phone);
+      const attempts = await this.redis.incr(attemptsKey);
+
+      if (attempts === 1) {
+        await this.redis.expire(attemptsKey, this.otpTtlSeconds);
+      }
+
+      if (attempts >= MAX_OTP_ATTEMPTS) {
+        // Kodni bekor qilamiz: qolgan TTL davomida taxmin qilishning ma'nosi qolmaydi,
+        // foydalanuvchi darhol yangi kod so'rashi mumkin.
+        await this.redis.del(key);
+        throw new BadRequestException("Urinishlar soni oshib ketdi, yangi kod so'rang");
+      }
+
       throw new BadRequestException("Kod noto'g'ri");
     }
 
     await this.redis.del(key);
+    await this.redis.del(otpAttemptsKey(phone));
 
     let user = await this.prisma.user.findUnique({ where: { phone } });
 

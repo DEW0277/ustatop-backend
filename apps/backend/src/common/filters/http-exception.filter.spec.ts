@@ -1,4 +1,4 @@
-import { BadRequestException, PayloadTooLargeException } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, PayloadTooLargeException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { HttpExceptionFilter } from './http-exception.filter.js';
 
@@ -39,6 +39,15 @@ describe('HttpExceptionFilter', () => {
 
     expect(status).toBe(413);
     expect(body.message).toBe("So'rov hajmi juda katta");
+  });
+
+  it("ThrottlerException (429) o'qish oson xabarga o'giradi", () => {
+    const { status, body } = run(
+      new HttpException('ThrottlerException: Too Many Requests', HttpStatus.TOO_MANY_REQUESTS),
+    );
+
+    expect(status).toBe(429);
+    expect(body.message).toBe("So'rovlar soni juda ko'p, birozdan so'ng qayta urinib ko'ring");
   });
 
   it("kutilmagan xato 500 va umumiy xabar bilan qaytadi", () => {
