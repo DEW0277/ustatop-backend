@@ -43,16 +43,19 @@ export function CategoryDialog({ category }: { category?: Category }) {
       nameRu: category?.nameRu ?? '',
       slug: category?.slug ?? '',
       icon: category?.icon ?? '',
+      description: category?.description ?? '',
     },
   });
 
   const mutation = useMutation({
     mutationFn: (values: CategoryFormValues) => {
+      // Backend (`CreateCategoryDto`) `icon` va `description`ni majburiy qiladi — ikkalasi ham yuboriladi.
       const payload = {
         nameUz: values.nameUz,
         nameRu: values.nameRu,
         slug: values.slug,
-        icon: values.icon ? values.icon : undefined,
+        icon: values.icon,
+        description: values.description,
       };
 
       if (isEdit) {
@@ -185,7 +188,7 @@ export function CategoryDialog({ category }: { category?: Category }) {
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="icon">Ikonka (Ixtiyoriy nom yoki emoji)</FieldLabel>
+            <FieldLabel htmlFor="icon">Ikonka (nom yoki emoji)</FieldLabel>
             <FieldContent>
               <Controller
                 control={control}
@@ -193,6 +196,26 @@ export function CategoryDialog({ category }: { category?: Category }) {
                 render={({ field, fieldState }) => (
                   <>
                     <Input id="icon" placeholder="Masalan: wrench yoki 🔧" {...field} />
+                    <FieldError errors={fieldState.error ? [fieldState.error] : undefined} />
+                  </>
+                )}
+              />
+            </FieldContent>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="description">Tavsif</FieldLabel>
+            <FieldContent>
+              <Controller
+                control={control}
+                name="description"
+                render={({ field, fieldState }) => (
+                  <>
+                    <Input
+                      id="description"
+                      placeholder="Masalan: Elektr montaj, rozetka va tuzatishlar"
+                      {...field}
+                    />
                     <FieldError errors={fieldState.error ? [fieldState.error] : undefined} />
                   </>
                 )}

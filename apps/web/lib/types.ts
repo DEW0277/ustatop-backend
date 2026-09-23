@@ -150,7 +150,7 @@ export interface Category {
   nameUz: string;
   nameRu: string;
   slug: string;
-  icon: string | null;
-  createdAt: string;
+  icon: string;
+  description: string;
 }
 
