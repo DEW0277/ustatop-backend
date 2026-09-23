@@ -22,7 +22,7 @@
 
 ✅ Bajarildi (6-bosqich, Claude qismi, UI stack): shadcn/ui (Base UI asosidagi yangi avlod, `base-nova` preset), TanStack Query, react-hook-form+zod o'rnatildi; namunaviy ro'yxat sahifasi `apps/web/app/(admin)/users/page.tsx` (filtr+qidiruv+sahifalash+bloklash) — naqsh AGENTS.md "UI stack va namunaviy sahifa"da.
 
-⏳ Navbatda: 6-bosqich, Gemini qismi — dashboard, masters (pending/verify), orders, regions/districts/categories CRUD sahifalari, users sahifasidagi naqsh bo'yicha (GitHub issue brief'da).
+✅ Bajarildi (6-bosqich, Gemini qismi, issue #11): Admin panel sahifalari — Dashboard (statistika + recharts trend), Masters (kutilayotganlar + tasdiqlash dialogi), Orders (status/viloyat/sana filtrlari), Regions CRUD, Districts CRUD (viloyat filtri bilan), Categories CRUD; barcha bo'limlar `NAV_ITEMS`ga ulandi.
 
 ✅ Bajarildi (7-bosqich, Claude qismi): xavfsizlik review + e2e testlar + Swagger to'liqlashtirish (issue #12).
 - **Xavfsizlik**: `ThrottlerGuard` global ulandi (avval sozlangan, lekin hech qayerda qo'llanilmagan edi — hech qanday endpoint cheklanmagan bo'lib chiqdi); `/auth/send-otp`+`/auth/verify-otp` uchun qo'shimcha 5/daq IP chegarasi; Redis'da OTP urinishlar hisoblagichi (5 marta noto'g'ridan keyin kod bekor qilinadi); CORS `CORS_ORIGINS` env bilan cheklanadi (prod'da standart — yopiq); `helmet` sarlavhalari. `pnpm audit`: 23 → 0 (ishlatilmagan `@nestjs/mau` olib tashlandi, `multer`/`deepmerge-ts`/`uuid` `pnpm-workspace.yaml` `overrides` bilan yangilandi).
