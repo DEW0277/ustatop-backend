@@ -11,6 +11,7 @@ import { AdminModule } from './modules/admin/admin.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { DistrictsModule } from './modules/districts/districts.module.js';
+import { FavoritesModule } from './modules/favorites/favorites.module.js';
 import { MastersModule } from './modules/masters/masters.module.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
 import { RegionsModule } from './modules/regions/regions.module.js';
@@ -33,6 +34,7 @@ import { UploadModule } from './modules/upload/upload.module.js';
     OrdersModule,
     ReviewsModule,
     UploadModule,
+    FavoritesModule,
   ],
   controllers: [AppController],
   providers: [
