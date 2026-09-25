@@ -39,7 +39,8 @@ export class FavoritesController {
   @Post(':masterId')
   @ApiOperation({ summary: "Ustani sevimlilarga qo'shish (idempotent)" })
   @ApiErrorResponses(400, 404)
-  @ApiResponse({ status: 200, type: ToggleFavoriteResponseDto })
+  // Nest'da POST standart 201 qaytaradi.
+  @ApiResponse({ status: 201, type: ToggleFavoriteResponseDto })
   addFavorite(
     @CurrentUser() user: AuthenticatedUser,
     @Param('masterId', ParseUUIDPipe) masterId: string,
