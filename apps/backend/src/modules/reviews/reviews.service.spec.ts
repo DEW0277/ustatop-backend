@@ -12,6 +12,17 @@ const reviewRow = {
   user: { name: 'Sardor', avatarUrl: null },
 };
 
+const adminReviewRow = {
+  id: 'rv-1',
+  masterId: 'm-1',
+  userId: 'u-1',
+  rating: 4,
+  comment: 'Yaxshi',
+  createdAt: new Date('2026-04-01T00:00:00.000Z'),
+  user: { id: 'u-1', name: 'Sardor', phone: '+998901112233', avatarUrl: null },
+  master: { id: 'm-1', firstName: 'Ali', lastName: 'Valiyev', phone: '+998909998877' },
+};
+
 function createDeps() {
   const tx = {
     review: { upsert: vi.fn().mockResolvedValue(reviewRow), aggregate: vi.fn(), findUnique: vi.fn(), delete: vi.fn() },
@@ -19,7 +30,7 @@ function createDeps() {
   };
   const prisma = {
     masterProfile: { findFirst: vi.fn().mockResolvedValue({ id: 'm-1', userId: 'master-user' }) },
-    review: { findMany: vi.fn().mockResolvedValue([reviewRow]) },
+    review: { findMany: vi.fn().mockResolvedValue([reviewRow]), count: vi.fn().mockResolvedValue(1) },
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   return { prisma, tx };
@@ -118,6 +129,68 @@ describe('ReviewsService', () => {
       expect(deps.tx.masterProfile.update).toHaveBeenCalledWith({
         where: { id: 'm-1' },
         data: { rating: 0, reviewCount: 0 },
+      });
+    });
+  });
+
+  describe('listForAdmin', () => {
+    it('admin uchun sharhlar ro`yxatini sahifalab va formatlab qaytaradi', async () => {
+      deps.prisma.review.findMany.mockResolvedValue([adminReviewRow]);
+      deps.prisma.review.count.mockResolvedValue(1);
+
+      const result = await service.listForAdmin({});
+
+      expect(result).toEqual({
+        items: [
+          {
+            id: 'rv-1',
+            masterId: 'm-1',
+            masterName: 'Ali Valiyev',
+            masterPhone: '+998909998877',
+            userId: 'u-1',
+            userName: 'Sardor',
+            userPhone: '+998901112233',
+            userAvatar: undefined,
+            rating: 4,
+            comment: 'Yaxshi',
+            createdAt: '2026-04-01T00:00:00.000Z',
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 20,
+      });
+
+      expect(deps.prisma.review.findMany).toHaveBeenCalledWith({
+        where: {},
+        include: {
+          user: { select: { id: true, name: true, phone: true, avatarUrl: true } },
+          master: { select: { id: true, firstName: true, lastName: true, phone: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    it('masterId va rating bo`yicha filtrlaydi va sahifalash parametrlarini hisobga oladi', async () => {
+      deps.prisma.review.findMany.mockResolvedValue([]);
+      deps.prisma.review.count.mockResolvedValue(0);
+
+      await service.listForAdmin({ masterId: 'm-1', rating: 5, page: 3, limit: 10 });
+
+      expect(deps.prisma.review.findMany).toHaveBeenCalledWith({
+        where: { masterId: 'm-1', rating: 5 },
+        include: {
+          user: { select: { id: true, name: true, phone: true, avatarUrl: true } },
+          master: { select: { id: true, firstName: true, lastName: true, phone: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: 20,
+        take: 10,
+      });
+      expect(deps.prisma.review.count).toHaveBeenCalledWith({
+        where: { masterId: 'm-1', rating: 5 },
       });
     });
   });
