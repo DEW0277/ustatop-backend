@@ -162,6 +162,30 @@ describe('Admin (e2e)', () => {
       expect(masterBefore.body.data.reviewCount).toBe(1);
       expect(masterBefore.body.data.rating).toBe(2);
 
+      await request(app.getHttpServer()).get('/api/v1/admin/reviews').expect(401);
+
+      await request(app.getHttpServer())
+        .get('/api/v1/admin/reviews')
+        .set(...authHeader(clientToken))
+        .expect(403);
+
+      const listRes = await request(app.getHttpServer())
+        .get(`/api/v1/admin/reviews?masterId=${masterProfileId}&rating=2`)
+        .set(...authHeader(adminToken))
+        .expect(200);
+
+      expect(listRes.body.data.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: review.body.data.id,
+            masterId: masterProfileId,
+            rating: 2,
+            comment: "E2E test sharhi — o'chiriladi",
+          }),
+        ]),
+      );
+      expect(listRes.body.data.total).toBeGreaterThanOrEqual(1);
+
       await request(app.getHttpServer())
         .delete(`/api/v1/admin/reviews/${review.body.data.id}`)
         .set(...authHeader(clientToken))

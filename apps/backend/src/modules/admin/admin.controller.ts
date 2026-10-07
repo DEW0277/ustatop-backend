@@ -13,6 +13,7 @@ import { AdminService } from './admin.service.js';
 import { AdminStatsService } from './admin-stats.service.js';
 import { BlockUserDto } from './dto/block-user.dto.js';
 import { ListAdminOrdersQueryDto } from './dto/list-admin-orders-query.dto.js';
+import { ListAdminReviewsQueryDto } from './dto/list-admin-reviews-query.dto.js';
 import { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 import { PaginationQueryDto } from './dto/pagination-query.dto.js';
 import { VerifyMasterDto } from './dto/verify-master.dto.js';
@@ -74,6 +75,13 @@ export class AdminController {
   @ApiErrorResponses(400)
   listOrders(@Query() query: ListAdminOrdersQueryDto) {
     return this.adminService.listOrders(query);
+  }
+
+  @Get('reviews')
+  @ApiOperation({ summary: 'Barcha sharhlar ro\'yxati: usta, reyting va sahifalash (Admin)' })
+  @ApiErrorResponses(400)
+  listReviews(@Query() query: ListAdminReviewsQueryDto) {
+    return this.reviewsService.listForAdmin(query);
   }
 
   @Delete('reviews/:id')
