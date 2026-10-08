@@ -9,6 +9,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/users', label: 'Foydalanuvchilar' },
   { href: '/masters', label: 'Ustalar' },
   { href: '/orders', label: 'Buyurtmalar' },
+  { href: '/reviews', label: 'Sharhlar' },
   { href: '/regions', label: 'Viloyatlar' },
   { href: '/districts', label: 'Tumanlar' },
   { href: '/categories', label: 'Kategoriyalar' },
