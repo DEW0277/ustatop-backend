@@ -45,6 +45,8 @@ export function ReviewsView() {
     reviewsFiltersFromSearchParams(searchParams),
   );
   const [page, setPage] = useState(() => Math.max(1, Number(searchParams.get('page')) || 1));
+  // Filtr jadvaldan ("Faqat shu usta") o'rnatilganda forma yangi qiymat bilan qayta yaratiladi.
+  const [filtersFormKey, setFiltersFormKey] = useState(0);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -70,7 +72,9 @@ export function ReviewsView() {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const showBackToFirstPage = !query.isLoading && !query.isError && items.length === 0 && page > 1;
 
+  // Forma mount bo'lganda ham `onChange` chaqiradi — qiymat o'zgarmagan bo'lsa, URL'dagi sahifa saqlanadi.
   function handleFiltersChange(next: ReviewsFilterValues) {
+    if (next.masterId === filters.masterId && next.rating === filters.rating) return;
     setFilters(next);
     setPage(1);
   }
@@ -78,11 +82,12 @@ export function ReviewsView() {
   function handleFilterByMaster(masterId: string) {
     setFilters((prev) => ({ ...prev, masterId }));
     setPage(1);
+    setFiltersFormKey((key) => key + 1);
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <ReviewFilters initial={filters} onChange={handleFiltersChange} />
+      <ReviewFilters key={filtersFormKey} initial={filters} onChange={handleFiltersChange} />
 
       <Card>
         <CardContent className="p-0">

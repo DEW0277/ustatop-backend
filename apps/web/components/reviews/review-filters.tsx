@@ -16,6 +16,7 @@ import {
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import {
   DEFAULT_REVIEWS_FILTERS,
+  isMasterId,
   reviewsFilterSchema,
   type ReviewsFilterValues,
 } from '@/lib/schemas/reviews-filter';
@@ -36,7 +37,7 @@ export function ReviewFilters({
   initial: ReviewsFilterValues;
   onChange: (filters: ReviewsFilterValues) => void;
 }) {
-  const { control, reset, setValue } = useForm<ReviewsFilterValues>({
+  const { control, reset } = useForm<ReviewsFilterValues>({
     resolver: zodResolver(reviewsFilterSchema),
     defaultValues: initial,
     mode: 'onChange',
@@ -46,8 +47,9 @@ export function ReviewFilters({
   const rating = useWatch({ control, name: 'rating' });
   const debouncedMasterId = useDebouncedValue(masterId, 350);
 
+  // Chala kiritilgan ID filtr sifatida qo'llanmaydi (backend 400 qaytaradi) — maydon ostida xato ko'rsatiladi.
   useEffect(() => {
-    onChange({ masterId: debouncedMasterId, rating });
+    onChange({ masterId: isMasterId(debouncedMasterId) ? debouncedMasterId.trim() : '', rating });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedMasterId, rating]);
 
@@ -55,8 +57,6 @@ export function ReviewFilters({
 
   function handleReset() {
     reset(DEFAULT_REVIEWS_FILTERS);
-    setValue('masterId', '');
-    setValue('rating', 'ALL');
   }
 
   return (
