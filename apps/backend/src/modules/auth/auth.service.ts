@@ -133,6 +133,26 @@ export class AuthService {
     return this.buildSession(user);
   }
 
+  // Bitta qurilma — bitta akkaunt: token boshqa foydalanuvchida turgan bo'lsa (shu telefonda avval boshqa
+  // akkaunt bilan kirilgan), undan olib tashlanadi — aks holda begona bildirishnomalar shu qurilmaga kelardi.
+  async registerFcmToken(userId: string, fcmToken: string): Promise<{ registered: true }> {
+    await this.prisma.$transaction([
+      this.prisma.user.updateMany({
+        where: { fcmToken, NOT: { id: userId } },
+        data: { fcmToken: null },
+      }),
+      this.prisma.user.update({ where: { id: userId }, data: { fcmToken } }),
+    ]);
+
+    return { registered: true };
+  }
+
+  async removeFcmToken(userId: string): Promise<{ registered: false }> {
+    await this.prisma.user.update({ where: { id: userId }, data: { fcmToken: null } });
+
+    return { registered: false };
+  }
+
   private buildSession(user: User): UserSession {
     const token = this.jwtService.sign({ sub: user.id });
 
