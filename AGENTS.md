@@ -1,6 +1,6 @@
 # AGENTS.md — UstaTop repo qoidalari
 
-Ushbu fayl shu repoda ishlaydigan **har qanday AI agent** (Claude, Gemini yoki boshqa) uchun umumiy qoidalarni belgilaydi. To'liq arxitektura uchun [`docs/TZ.md`](docs/TZ.md)ga qarang. Claude'ga xos qo'shimcha qoidalar [`CLAUDE.md`](CLAUDE.md)da.
+Ushbu fayl shu repoda ishlaydigan **har qanday AI agent** (Claude, Gemini, Codex yoki boshqa) uchun umumiy qoidalarni belgilaydi. To'liq arxitektura uchun [`docs/TZ.md`](docs/TZ.md)ga qarang. Claude'ga xos qo'shimcha qoidalar [`CLAUDE.md`](CLAUDE.md)da.
 
 ## 1. Loyiha stek (qisqacha)
 
@@ -64,15 +64,18 @@ Bu `common/interceptors/response.interceptor.ts` va `common/filters/http-excepti
 
 ## 5. Git va commit qoidalari
 
-- Branch nomlash: `feat/<module>-<agent>` (masalan `feat/orders-claude`, `feat/regions-gemini`)
+- **Har agent o'z git worktree'sida ishlaydi** — bir papkada bir nechta agent branch almashtirsa, bir-birining ishini buzadi. Asosiy papka (`texnozor/`) Claude'niki; Gemini va Codex: `git fetch origin && git worktree add ../texnozor-<agent> -b <branch> origin/main`, so'ng o'sha papkada `pnpm install`, `cp ../texnozor/apps/backend/.env apps/backend/.env`, `cp ../texnozor/apps/web/.env.local apps/web/.env.local`. Keyingi vazifada: `git fetch origin && git switch -c <yangi-branch> origin/main`.
+- Vazifalar GitHub issue sifatida beriladi (`[Gemini] ...`, `[Codex] ...`). Ish tugagach: branch'ni push qiling, `gh pr create --base main` bilan PR oching (tavsifda `Closes #<issue>`), **o'zingiz merge qilmang** — Claude review qilib merge qiladi. Review izohlari kelsa, o'sha branch'ga yangi commit qo'shing (force-push emas).
+- Branch nomlash: `feat/<module>-<agent>` (`claude` | `gemini` | `codex`; masalan `feat/orders-claude`, `feat/regions-gemini`, `feat/ci-codex`)
 - Commit format — Conventional Commits: `feat(scope): ...`, `fix(scope): ...`, `chore(scope): ...`, `refactor(scope): ...`
 - Har bir PR tavsifida: nima o'zgardi, qaysi modulga tegishli, agar backend DTO o'zgargan bo'lsa — **"⚠️ Mobile app contract impact"** deb alohida belgilang (chunki mobil ilova alohida repoda, qo'lda sync qilinadi).
 - `main` branch'ga to'g'ridan-to'g'ri commit qilinmaydi, faqat PR orqali.
 
 ## 6. Vazifa taqsimoti (murakkablik bo'yicha — batafsili `docs/TZ.md` §7.1)
 
-- **Claude Sonnet 5**: Auth, Orders, Reviews, Masters biznes-mantiq, xavfsizlik-muhim kod, barcha PR review.
+- **Claude**: Auth, Orders, Reviews, Masters biznes-mantiq, xavfsizlik-muhim kod, barcha PR review va `main`ga merge.
 - **Gemini Flash**: Regions/Districts/Categories CRUD, DTO/Swagger boilerplate, seed data, Upload wiring, admin panelning oddiy CRUD sahifalari.
+- **Codex**: CI (GitHub Actions), Dockerfile'lar, production compose/Nginx konfiguratsiyasi, deploy hujjatlari, Claude topshirgan aniq spetsifikatsiyali backend vazifalari.
 
 O'z zonangizdan tashqari modulga tegishli faylni o'zgartirishdan oldin, agar boshqa agent shu modulda ochiq branch/PR'ga ega bo'lsa — konflikt oldini olish uchun avval mavjud branch'larni tekshiring (`git branch -a`, `git log --all --oneline`).
 
