@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReviewsService } from './reviews.service.js';
 
@@ -31,6 +31,7 @@ function createDeps() {
   const prisma = {
     masterProfile: { findFirst: vi.fn().mockResolvedValue({ id: 'm-1', userId: 'master-user' }) },
     review: { findMany: vi.fn().mockResolvedValue([reviewRow]), count: vi.fn().mockResolvedValue(1) },
+    order: { findFirst: vi.fn().mockResolvedValue({ id: 'o-1' }) },
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   return { prisma, tx };
@@ -78,6 +79,27 @@ describe('ReviewsService', () => {
         BadRequestException,
       );
       expect(deps.prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("shu ustada tugallangan buyurtmasi yo'q foydalanuvchi sharh qoldira olmaydi (403)", async () => {
+      deps.prisma.order.findFirst.mockResolvedValue(null);
+
+      await expect(service.createOrUpdate('u-1', 'm-1', { rating: 5, comment: 'Zo`r' })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(deps.prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("buyurtma aynan shu usta, shu mijoz va completed holati bo'yicha qidiriladi", async () => {
+      deps.tx.review.aggregate.mockResolvedValue({ _avg: { rating: 4 }, _count: { _all: 1 } });
+
+      await service.createOrUpdate('u-1', 'm-1', { rating: 4, comment: 'Yaxshi' });
+
+      expect(deps.prisma.order.findFirst.mock.calls[0][0].where).toEqual({
+        masterId: 'm-1',
+        clientId: 'u-1',
+        status: 'completed',
+      });
     });
 
     it("bir foydalanuvchi bir usta uchun upsert qiladi (dublikat yaratmaydi)", async () => {

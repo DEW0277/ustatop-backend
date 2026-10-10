@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { ListAdminReviewsQueryDto } from '../admin/dto/list-admin-reviews-query.dto.js';
@@ -75,12 +75,24 @@ export class ReviewsService {
   }
 
   // Bitta foydalanuvchi bitta ustaga bitta sharh qoldiradi: qayta yuborsa avvalgisi yangilanadi
-  // (reytingni takroriy ovozlar bilan buzib bo'lmasligi uchun).
+  // (reytingni takroriy ovozlar bilan buzib bo'lmasligi uchun). Faqat shu ustada tugallangan
+  // buyurtmasi bor mijoz sharh qoldira oladi — soxta sharhlar bilan reytingni ko'tarib/tushirib bo'lmasin.
   async createOrUpdate(userId: string, masterId: string, dto: CreateReviewDto) {
     const master = await this.requireMaster(masterId);
 
     if (master.userId === userId) {
       throw new BadRequestException("O'zingizga sharh qoldira olmaysiz");
+    }
+
+    const completedOrder = await this.prisma.order.findFirst({
+      where: { masterId, clientId: userId, status: 'completed' },
+      select: { id: true },
+    });
+
+    if (!completedOrder) {
+      throw new ForbiddenException(
+        "Sharh qoldirish uchun shu ustada tugallangan buyurtmangiz bo'lishi kerak",
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
