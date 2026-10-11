@@ -27,7 +27,7 @@ export class ReviewsController {
     summary: "Ustaga 1-5 baho va sharh qoldirish (qayta yuborilsa foydalanuvchining avvalgi sharhi yangilanadi)",
   })
   // 400: o'z profiliga sharh qoldirishga urinish.
-  @ApiErrorResponses(400, 401, 404)
+  @ApiErrorResponses(400, 401, 403, 404)
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Param('masterId') masterId: string,

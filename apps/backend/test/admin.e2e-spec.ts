@@ -68,6 +68,7 @@ describe('Admin (e2e)', () => {
 
   afterAll(async () => {
     await prisma.review.deleteMany({ where: { masterId: masterProfileId } });
+    await prisma.order.deleteMany({ where: { masterId: masterProfileId } });
     await prisma.user.deleteMany({ where: { phone: { startsWith: testPhonePrefix(TAG) } } });
     await prisma.district.delete({ where: { id: districtId } });
     await prisma.region.delete({ where: { id: regionId } });
@@ -152,6 +153,31 @@ describe('Admin (e2e)', () => {
   describe('reviews', () => {
     it("sharhni o'chiradi va usta reytingini qayta hisoblaydi", async () => {
       const client = await otpLogin(app, testPhone(TAG, 2));
+      const reviewBody = { rating: 2, comment: "E2E test sharhi — o'chiriladi" };
+
+      // Tugallangan buyurtmasiz sharh qoldirib bo'lmaydi; `pending` buyurtma ham yetarli emas.
+      const order = await prisma.order.create({
+        data: {
+          masterId: masterProfileId,
+          clientId: client.userId,
+          serviceTitle: 'E2E xizmat',
+          price: 100000,
+          clientName: 'E2E mijoz',
+          clientPhone: testPhone(TAG, 2),
+          districtId,
+          address: 'Test manzil',
+          preferredDate: 'Bugun',
+          preferredTime: '12:00 - 15:00',
+        },
+      });
+      const forbidden = await request(app.getHttpServer())
+        .post(`/api/v1/masters/${masterProfileId}/reviews`)
+        .set(...authHeader(client.token))
+        .send(reviewBody)
+        .expect(403);
+      expect(forbidden.body.success).toBe(false);
+      await prisma.order.update({ where: { id: order.id }, data: { status: 'completed' } });
+
       const review = await request(app.getHttpServer())
         .post(`/api/v1/masters/${masterProfileId}/reviews`)
         .set(...authHeader(client.token))
