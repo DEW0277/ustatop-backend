@@ -154,3 +154,19 @@ export interface Category {
   description: string;
 }
 
+// `GET /admin/reviews`
+export interface AdminReview {
+  id: string;
+  masterId: string;
+  masterName: string;
+  masterPhone: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  userAvatar?: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+
