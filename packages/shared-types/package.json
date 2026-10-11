@@ -6,6 +6,7 @@
   "types": "./src/index.ts",
   "scripts": {
     "lint": "echo \"no-op\"",
+    "typecheck": "echo \"no-op\"",
     "test": "echo \"no-op\""
   }
 }
