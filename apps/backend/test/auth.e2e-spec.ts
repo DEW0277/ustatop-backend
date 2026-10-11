@@ -150,4 +150,41 @@ describe('Auth throttle (e2e)', () => {
     expect(removed.body.data).toEqual({ registered: false });
     expect(await tokenOf(second.userId)).toBeNull();
   });
+
+  it("TRUST_PROXY=1: rate limit proxy ortidagi haqiqiy mijoz IP'si bo'yicha hisoblanadi", async () => {
+    await app.close();
+    process.env.TRUST_PROXY = '1';
+    try {
+      ({ app } = await createTestApp());
+    } finally {
+      delete process.env.TRUST_PROXY;
+    }
+    const sendOtp = (ip: string, n: number) =>
+      request(app.getHttpServer())
+        .post('/api/v1/auth/send-otp')
+        .set('X-Forwarded-For', ip)
+        .send({ phone: testPhone(TAG, n) });
+
+    for (let n = 60; n < 65; n += 1) {
+      await sendOtp('203.0.113.10', n).expect(201);
+    }
+    await sendOtp('203.0.113.10', 65).expect(429);
+    // Boshqa mijoz birinchisining limitiga tushib qolmaydi.
+    await sendOtp('203.0.113.20', 66).expect(201);
+  });
+
+  it("TRUST_PROXY'siz X-Forwarded-For e'tiborga olinmaydi (sarlavhani almashtirib limitdan qochib bo'lmaydi)", async () => {
+    for (let n = 70; n < 75; n += 1) {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/send-otp')
+        .set('X-Forwarded-For', `198.51.100.${n}`)
+        .send({ phone: testPhone(TAG, n) })
+        .expect(201);
+    }
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/send-otp')
+      .set('X-Forwarded-For', '198.51.100.99')
+      .send({ phone: testPhone(TAG, 75) })
+      .expect(429);
+  });
 });

@@ -1,8 +1,10 @@
 import type { INestApplication } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { parseTrustProxy } from './common/config/production-guard.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor.js';
 import { validationExceptionFactory } from './common/pipes/validation-exception.factory.js';
@@ -16,6 +18,11 @@ export interface ConfigureAppOptions {
 // pipe/filter/interceptor bilan ishlashi kerak, aks holda testlar production xatti-harakatini aks ettirmaydi.
 export function configureApp(app: INestApplication, options: ConfigureAppOptions = {}): void {
   const { swagger = true } = options;
+
+  const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
+  if (trustProxy !== undefined) {
+    (app as NestExpressApplication).set('trust proxy', trustProxy);
+  }
 
   // Swagger UI o'ziga xos inline script/style'larga tayanadi — qattiq CSP uni sindirib qo'yadi.
   // Bu API HTML render qilmaydi (faqat JSON + Swagger sahifasi), shuning uchun CSP xavfi past;

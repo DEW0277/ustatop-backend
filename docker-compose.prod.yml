@@ -1,0 +1,159 @@
+# Production (Contabo VPS). Ishga tushirish va yangilash: docs/DEPLOY.md
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# Barcha sirlar .env.production'da (namuna: .env.production.example) — bu faylda hech qanday sir yo'q.
+name: ustatop
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-backend: &backend
+  image: ustatop-backend:${IMAGE_TAG:-latest}
+  build:
+    context: .
+    dockerfile: apps/backend/Dockerfile
+  env_file: .env.production
+  environment:
+    NODE_ENV: production
+    PORT: "3000"
+    # Bitta ishonchli proxy — nginx (rate limit haqiqiy mijoz IP'si bo'yicha).
+    TRUST_PROXY: "1"
+    DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+    REDIS_URL: redis://redis:6379
+    MINIO_ENDPOINT: minio
+    MINIO_PORT: "9000"
+    MINIO_USE_SSL: "false"
+    MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+    MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+    MINIO_BUCKET: ${MINIO_BUCKET:-ustatop-uploads}
+    STORAGE_PUBLIC_URL: https://${DOMAIN}/uploads
+    CORS_ORIGINS: https://${DOMAIN}
+  networks: [internal]
+  logging: *logging
+
+services:
+  nginx:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      MINIO_BUCKET: ${MINIO_BUCKET:-ustatop-uploads}
+    volumes:
+      - ./deploy/nginx/templates:/etc/nginx/templates:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    networks: [internal]
+    logging: *logging
+
+  # Sertifikatni yangilab turadi (har 12 soatda tekshiradi). Birinchi sertifikat qo'lda olinadi — docs/DEPLOY.md.
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    logging: *logging
+
+  # Bir martalik: har `up`da kutilayotgan migratsiyalarni qo'llaydi, backend undan keyin ko'tariladi.
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: ["node_modules/.bin/prisma", "migrate", "deploy"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    <<: *backend
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  web:
+    image: ustatop-web:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      BACKEND_URL: http://backend:3000/api/v1
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [internal]
+    logging: *logging
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+    logging: *logging
+
+  minio:
+    image: quay.io/minio/minio:latest
+    restart: unless-stopped
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+    logging: *logging
+
+# postgres/redis/minio tashqariga port ochmaydi — faqat ichki tarmoqda. Tashqariga faqat nginx (80/443).
+networks:
+  internal:
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  letsencrypt:
+  certbot_webroot:

@@ -208,11 +208,15 @@ Ikkalasi ham `JwtAuthGuard` bilan. Provider `PUSH_PROVIDER` env orqali tanlanadi
 
 ```
 Internet → Nginx (TLS, reverse proxy)
-              ├── /api/*  → backend konteyner (NestJS, port 3000)
-              ├── /       → web konteyner (Next.js, port 3001)
-              └── /uploads/* → MinIO konteyner (yoki MinIO'ning o'z public endpoint'i)
-Docker tarmog'i ichida: postgres, redis, minio
+              ├── /api/v1/*  → backend konteyner (NestJS, port 3000)
+              ├── /uploads/* → MinIO konteyner (bucket, faqat o'qish)
+              └── /*         → web konteyner (Next.js, port 3001)
+Docker tarmog'i ichida: postgres, redis, minio (tashqariga port ochilmaydi)
 ```
+
+Backend'ga faqat `/api/v1/` yo'naltiriladi (butun `/api/` emas): `/api/auth/*` va `/api/backend/*` — admin panelning o'z route handler'lari.
+
+Konfiguratsiya tayyor (`docker-compose.prod.yml`, Dockerfile'lar, `deploy/nginx/`, `.env.production.example`), to'liq yo'riqnoma — [`docs/DEPLOY.md`](DEPLOY.md). Production himoyalari (backend ishga tushishda tekshiradi, `common/config/production-guard.ts`): `JWT_SECRET` kamida 32 belgi; `SMS_MODE=mock` faqat `ALLOW_MOCK_SMS_IN_PRODUCTION=true` bilan (mock'da OTP doim `123456`); `CORS_ORIGINS` majburiy. `TRUST_PROXY=1` — rate limit Nginx ortidagi haqiqiy mijoz IP'si bo'yicha. Swagger production'da yopiq (`SWAGGER_ENABLED=true` bilan yoqiladi).
 
 CI/CD (keyingi bosqich, hozircha rejalashtiriladi): GitHub Actions → `main` branch'ga merge bo'lganda Contabo'ga SSH orqali `docker compose pull && up -d`.
 
@@ -262,7 +266,7 @@ Loyiha ikkita AI agent yordamida quriladi: **Claude** (arxitektor + reviewer, PR
 | # | Ish | Agent | Branch | Holat / bog'liqlik |
 |---|---|---|---|---|
 | 1 | **CI**: GitHub Actions — har PR va `main` push'da lint + typecheck + unit test + build; alohida job'da e2e (Postgres/Redis service konteynerlari) | **Claude** | `feat/ci-claude` | ✅ Bajarildi (issue #20) |
-| 2 | **Production konfiguratsiya** (8-bosqichning VPS'siz qismi): `apps/backend/Dockerfile`, `apps/web/Dockerfile`, `docker-compose.prod.yml`, Nginx (TLS, `/api` → backend, `/` → web, `/uploads` → MinIO), `.env.production.example`, `docs/DEPLOY.md` (birinchi deploy, yangilash, backup/restore) | **Claude** | `feat/deploy-config-claude` | 1-banddan keyin. Haqiqiy deploy **qilinmaydi** |
+| 2 | **Production konfiguratsiya** (8-bosqichning VPS'siz qismi): `apps/backend/Dockerfile`, `apps/web/Dockerfile`, `docker-compose.prod.yml`, Nginx (TLS, `/api` → backend, `/` → web, `/uploads` → MinIO), `.env.production.example`, `docs/DEPLOY.md` (birinchi deploy, yangilash, backup/restore) | **Claude** | `feat/deploy-config-claude` | ✅ Bajarildi (issue #21). Haqiqiy deploy qilinmagan |
 | 3 | **Admin panel UI tuzatishlari**: `Select` qiymat o'rniga yorliq ko'rsatsin (`ALL` emas), sana formati (`2026 M10 9` → `9-okt, 2026`, umumiy `lib/format.ts`), users/orders/masters sahifalarida URL'dagi `page` saqlansin | **Gemini** | `fix/web-polish-gemini` | Bog'liqlik yo'q |
 | 4 | **Admin: barcha ustalar ro'yxati** — `GET /admin/masters` (§4.1) + Ustalar sahifasida "Kutilayotganlar / Barchasi" ko'rinishi, filtrlar, tasdiqni bekor qilish | **Gemini** | `feat/admin-masters-list-gemini` | 3-banddan keyin |
 | 5 | **FCM**: `PUT`/`DELETE /auth/fcm-token` + `FcmPushProvider` (`PUSH_PROVIDER` env, §4.2) | **Claude** | `feat/fcm-claude` | Kod kalitlarsiz yoziladi va testlanadi; haqiqiy yuborishni yoqish uchun Firebase kalitlari foydalanuvchidan kerak |
