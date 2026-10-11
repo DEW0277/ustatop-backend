@@ -3,13 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from './auth.service.js';
 
 function createDeps() {
+  const $transaction = vi.fn(async (operations: unknown[]) => Promise.all(operations));
   const prisma = {
     user: {
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       findUniqueOrThrow: vi.fn(),
     },
+    $transaction,
   };
   const redis = {
     ttl: vi.fn(),
@@ -172,6 +175,33 @@ describe('AuthService', () => {
         where: { id: 'user-1' },
         data: { name: 'Yangi ism' },
       });
+    });
+  });
+
+  describe('fcm token', () => {
+    it("tokenni saqlaydi va shu token turgan boshqa akkauntlardan olib tashlaydi (bitta tranzaksiyada)", async () => {
+      const result = await service.registerFcmToken('u-1', 'device-token');
+
+      expect(deps.prisma.user.updateMany).toHaveBeenCalledWith({
+        where: { fcmToken: 'device-token', NOT: { id: 'u-1' } },
+        data: { fcmToken: null },
+      });
+      expect(deps.prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u-1' },
+        data: { fcmToken: 'device-token' },
+      });
+      expect(deps.prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ registered: true });
+    });
+
+    it("removeFcmToken faqat joriy foydalanuvchining tokenini tozalaydi", async () => {
+      const result = await service.removeFcmToken('u-1');
+
+      expect(deps.prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u-1' },
+        data: { fcmToken: null },
+      });
+      expect(result).toEqual({ registered: false });
     });
   });
 });
