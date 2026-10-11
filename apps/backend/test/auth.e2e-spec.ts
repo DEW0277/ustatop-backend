@@ -116,4 +116,38 @@ describe('Auth throttle (e2e)', () => {
 
     expect(blocked.body.message).toMatch(/juda ko'p/);
   });
+
+  it("fcm-token: saqlaydi, boshqa akkauntga o'tganda eskisidan olib tashlaydi, DELETE tozalaydi", async () => {
+    const first = await otpLogin(app, testPhone(TAG, 50));
+    const second = await otpLogin(app, testPhone(TAG, 51));
+    const server = app.getHttpServer();
+    const fcmToken = `e2e-device-token-${TAG}`;
+    const tokenOf = async (id: string) =>
+      (await cleanup.user.findUniqueOrThrow({ where: { id }, select: { fcmToken: true } })).fcmToken;
+
+    await request(server).put('/api/v1/auth/fcm-token').send({ fcmToken }).expect(401);
+    await request(server).put('/api/v1/auth/fcm-token').set(...authHeader(first.token)).send({}).expect(400);
+    await request(server)
+      .put('/api/v1/auth/fcm-token')
+      .set(...authHeader(first.token))
+      .send({ fcmToken, userId: second.userId })
+      .expect(400);
+
+    const registered = await request(server)
+      .put('/api/v1/auth/fcm-token')
+      .set(...authHeader(first.token))
+      .send({ fcmToken })
+      .expect(200);
+    expect(registered.body.data).toEqual({ registered: true });
+    expect(await tokenOf(first.userId)).toBe(fcmToken);
+
+    // Shu qurilmada ikkinchi akkaunt bilan kirildi — token ko'chadi.
+    await request(server).put('/api/v1/auth/fcm-token').set(...authHeader(second.token)).send({ fcmToken }).expect(200);
+    expect(await tokenOf(first.userId)).toBeNull();
+    expect(await tokenOf(second.userId)).toBe(fcmToken);
+
+    const removed = await request(server).delete('/api/v1/auth/fcm-token').set(...authHeader(second.token)).expect(200);
+    expect(removed.body.data).toEqual({ registered: false });
+    expect(await tokenOf(second.userId)).toBeNull();
+  });
 });

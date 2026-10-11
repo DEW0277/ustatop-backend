@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.type.js';
 import { AuthService } from './auth.service.js';
+import { RegisterFcmTokenDto } from './dto/register-fcm-token.dto.js';
 import { SendOtpDto } from './dto/send-otp.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { VerifyOtpDto } from './dto/verify-otp.dto.js';
@@ -51,5 +52,23 @@ export class AuthController {
   @ApiErrorResponses(400, 401)
   updateProfile(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateProfileDto) {
     return this.authService.updateProfile(user.id, dto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Put('fcm-token')
+  @ApiOperation({ summary: "Qurilma push (FCM) tokenini ro'yxatdan o'tkazish" })
+  @ApiErrorResponses(400, 401)
+  registerFcmToken(@CurrentUser() user: AuthenticatedUser, @Body() dto: RegisterFcmTokenDto) {
+    return this.authService.registerFcmToken(user.id, dto.fcmToken);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Delete('fcm-token')
+  @ApiOperation({ summary: "Qurilma push tokenini o'chirish (logout'da chaqiriladi)" })
+  @ApiErrorResponses(401)
+  removeFcmToken(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.removeFcmToken(user.id);
   }
 }

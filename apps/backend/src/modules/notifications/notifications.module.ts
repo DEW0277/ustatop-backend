@@ -1,11 +1,14 @@
 import { Module } from '@nestjs/common';
-import { LogPushProvider } from './log-push.provider.js';
+import { ConfigService } from '@nestjs/config';
 import { NotificationsService } from './notifications.service.js';
+import { createPushProvider } from './push-provider.factory.js';
 import { PushProvider } from './push.provider.js';
 
 @Module({
-  // FCM ulanganda faqat shu useClass FcmPushProvider'ga almashtiriladi.
-  providers: [NotificationsService, { provide: PushProvider, useClass: LogPushProvider }],
+  providers: [
+    NotificationsService,
+    { provide: PushProvider, useFactory: createPushProvider, inject: [ConfigService] },
+  ],
   exports: [NotificationsService],
 })
 export class NotificationsModule {}
