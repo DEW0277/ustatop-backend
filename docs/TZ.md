@@ -2,7 +2,7 @@
 
 > Ushbu hujjat loyihaning to'liq arxitekturasini belgilaydi. O'zgartirish kerak bo'lsa — shu faylni tahrirlang, chunki `AGENTS.md` va `CLAUDE.md` shu yerdagi qarorlarga tayanadi.
 
-## 0. Holat (2026-09-20)
+## 0. Holat (2026-10-09)
 
 ✅ Bajarildi (§7.3 roadmap 1-bosqich): Turborepo+pnpm monorepo, `apps/backend` (NestJS, Prisma 6 schema+migratsiya, global response/error format, Swagger, seed: 14 viloyat + 8 kategoriya + Toshkent shahri tumanlari), `apps/web` (Next.js skeleton), `docker-compose.yml` (Postgres/Redis/MinIO), GitHub private repo (https://github.com/DEW0277/ustatop-backend).
 
@@ -30,6 +30,12 @@
 - **E2e testlar**: `apps/backend/test/*.e2e-spec.ts` — real Postgres (`?schema=test`, `test:e2e` avtomatik migratsiya qiladi) va Redis bilan; auth (OTP oqimi, bruteforce, throttle, bloklangan user), admin (RolesGuard, block/verify/review moderatsiyasi), orders (to'liq lifecycle, ruxsatsiz o'tishlar, begona user 404). `pnpm --filter backend test:e2e`.
 - **Swagger**: barcha controllerlarda asosiy xato javoblari (`@ApiErrorResponses` — `common/swagger/`) hujjatlangan; `auth`da yetishmayotgan `@ApiOperation`lar qo'shildi.
 
+✅ Bajarildi (Gemini, issue #14 → PR #16): Favorites moduli — `GET /favorites`, `GET /favorites/ids`, `POST /favorites/:masterId`, `DELETE /favorites/:masterId`.
+
+✅ Bajarildi (Gemini, PR #17 + PR #18): `GET /admin/reviews` (sahifalash, `masterId`/`rating` filtrlari) va admin panel **Sharhlar** sahifasi (filtr, jadval, o'chirish dialogi). Review paytida topilgan xatolar (UUID bo'lmagan `masterId` 400 berardi, "Faqat shu usta" forma bilan sinxron emas edi, URL'dagi `page` yo'qolardi) Claude tomonidan tuzatildi.
+
+🔄 Jarayonda (2026-10-09 dan, uch agent — §7.4): CI, production Docker konfiguratsiyasi, admin "barcha ustalar" ro'yxati, admin panel UI tuzatishlari, FCM token endpointi.
+
 ## 1. Loyiha haqida
 
 **UstaTop** — O'zbekistondagi usta/mutaxassislarni mijozlar bilan bog'lovchi platforma. Uchta komponentdan iborat:
@@ -49,12 +55,12 @@ Backend bitta bo'lib, `role` (CLIENT / MASTER / ADMIN) orqali huquqlar farqlanad
 - **ORM**: Prisma **6.x** (7.x emas — datasource/config paradigmasi keskin o'zgargan, 6.x barqaror va keng hujjatlashtirilgan) + PostgreSQL 16
 - **Cache/Session**: Redis (ioredis) — OTP saqlash, rate-limiting
 - **Fayl saqlash**: MinIO (S3-compatible), dev'da docker-compose ichida, production'da Contabo VPS'dagi konteynerda
-- **Auth**: Telefon + SMS OTP (hozircha **mock**, test kodi `123456`) + JWT (access + refresh)
+- **Auth**: Telefon + SMS OTP (hozircha **mock**, test kodi `123456`) + JWT — bitta access token (`JWT_EXPIRES_IN`, standart 30 kun); original spec va mobil ilova refresh endpointini ko'zda tutmaydi, shuning uchun refresh token **yo'q**
 - **Validatsiya**: class-validator / class-transformer, global `ValidationPipe`
 - **API docs**: `@nestjs/swagger` → `/api/docs`
 - **Push**: firebase-admin (FCM) — mobil ilovaga bildirishnoma
 - **Rate limiting**: `@nestjs/throttler` + Redis store
-- **Test**: Jest (unit) + Supertest (e2e)
+- **Test**: Vitest (unit) + Supertest (e2e, haqiqiy Postgres/Redis); lint — oxlint
 
 ### Admin Panel (`apps/web`)
 - **Framework**: Next.js (App Router) + TypeScript
@@ -79,14 +85,15 @@ ustatop/
 │   ├── backend/            # NestJS API
 │   │   ├── src/
 │   │   │   ├── modules/
-│   │   │   │   ├── auth/
-│   │   │   │   ├── users/
+│   │   │   │   ├── auth/           # profil (`/auth/me`, `/auth/profile`) ham shu yerda — alohida `users` moduli yo'q
 │   │   │   │   ├── regions/
 │   │   │   │   ├── categories/
 │   │   │   │   ├── masters/
 │   │   │   │   ├── orders/
 │   │   │   │   ├── reviews/
 │   │   │   │   ├── upload/
+│   │   │   │   ├── favorites/
+│   │   │   │   ├── notifications/  # PushProvider (strategy), hozircha mock
 │   │   │   │   └── admin/          # faqat ADMIN role uchun endpointlar
 │   │   │   ├── common/             # global filter, interceptor, guard, decorator
 │   │   │   └── main.ts
@@ -95,7 +102,7 @@ ustatop/
 │       ├── app/
 │       └── components/
 ├── packages/
-│   └── shared-types/        # Backend DTO'lari bilan bir xil TS interfeyslar (admin panel import qiladi)
+│   └── shared-types/        # Hozircha bo'sh (faqat package.json) — admin panel tiplari `apps/web/lib/types.ts`da; to'ldirish MVP'dan keyinga qoldirilgan
 ├── docker-compose.yml
 ├── turbo.json
 ├── package.json
@@ -153,6 +160,7 @@ Original spec faqat mobil ilova uchun edi — admin panelga quyidagi qo'shimcha 
 | `GET /api/v1/admin/users` | Foydalanuvchilar ro'yxati (filter: role, isBlocked, qidiruv) |
 | `PATCH /api/v1/admin/users/:id/block` | Foydalanuvchini bloklash/blokdan chiqarish |
 | `GET /api/v1/admin/masters/pending` | Tasdiqlanmagan (`isVerified: false`) ustalar ro'yxati |
+| `GET /api/v1/admin/masters` | Barcha ustalar ro'yxati (filter: isVerified, viloyat, qidiruv) — tasdiqni bekor qilish va umumiy ko'rish uchun |
 | `PATCH /api/v1/admin/masters/:id/verify` | Ustani tasdiqlash (`isVerified: true`) |
 | `GET /api/v1/admin/orders` | Barcha buyurtmalar (filter: status, sana oralig'i, viloyat) |
 | `POST /api/v1/admin/regions`, `PUT .../:id`, `DELETE .../:id` | Viloyatlarni boshqarish (original spec'da faqat GET bor edi) |
@@ -166,12 +174,24 @@ Original spec faqat mobil ilova uchun edi — admin panelga quyidagi qo'shimcha 
 - `GET /admin/users?role&isBlocked&query&page&limit` → `items[]`: `{ id, phone, name, role, avatarUrl?, isBlocked, isPhoneVerified, masterId?, createdAt }`. `query` — ism yoki telefon bo'yicha.
 - `PATCH /admin/users/:id/block` body `{ isBlocked: boolean }` → `{ id, isBlocked }`. O'zini va boshqa ADMIN'ni bloklab bo'lmaydi (400/403). Bloklangan foydalanuvchining token'i keyingi so'rovdayoq 401 beradi (`JwtStrategy` har so'rovda DB'ni tekshiradi).
 - `GET /admin/masters/pending?page&limit` → `items[]`: `{ id, userId, fullName, phone, telegram?, avatarUrl?, bio, experienceYears, isVerified, isBlocked, region{id,nameUz}, district{id,nameUz}, address, categories[{id,nameUz}], createdAt }`, eng eski so'rov birinchi.
+- `GET /admin/masters?isVerified&regionId&query&page&limit` → `items[]`: `masters/pending` bilan bir xil maydonlar **+** `rating`, `reviewCount`, `completedOrdersCount`, `isAvailable`. `isVerified` — `true|false` (berilmasa hammasi); `regionId` — UUID; `query` — ism (`firstName`/`lastName`) yoki telefon bo'yicha, 1–100 belgi. Tartib: eng yangi birinchi (`createdAt desc`). Bloklangan ustalar ham ko'rinadi (`isBlocked: true`).
 - `PATCH /admin/masters/:id/verify` body `{ isVerified?: boolean }` (standart `true`, `false` — tasdiqni bekor qilish) → `{ id, isVerified }`. Birinchi tasdiqlashda ustaga push yuboriladi (mock).
 - `GET /admin/orders?status&regionId&from&to&page&limit` → `items[]`: `{ id, orderNumber, masterId, masterName, masterPhone, clientId?, clientName, clientPhone, serviceTitle, price, region{id,nameUz}, districtId, districtName, address, preferredDate, preferredTime, comment?, status, cancelledBy?, createdAt }`. `regionId` — buyurtma manzili (tumani) shu viloyatda. `from`/`to` — `createdAt` bo'yicha; `to=2026-09-30` butun kunni qamrab oladi; `from > to` → 400.
 - `GET /admin/reviews?masterId&rating&page&limit` → `items[]`: `{ id, masterId, masterName, masterPhone, userId, userName, userPhone, userAvatar?, rating, comment, createdAt }`.
 - `GET /admin/stats/dashboard` → `{ users{total,clients,masters,admins,blocked}, masters{total,verified,pending}, orders{total,pending,in_progress,completed,cancelled}, trend[30]{date,orders,newUsers} }`. Trend — so'nggi 30 kun (bugun ham), Toshkent vaqti (UTC+5) bo'yicha, bo'sh kunlar 0.
 - `DELETE /admin/reviews/:id` → `{ id, masterId }`; usta `rating`/`reviewCount` qayta hisoblanadi (oxirgi sharh o'chirilsa 0).
 - Auth eslatma: admin `verify-otp` orqali kirganda sessiya `role: 'admin'` (kichik harf) qaytadi; panel shu bo'yicha tekshiradi, lekin haqiqiy himoya backend'dagi `RolesGuard`.
+
+### 4.2. Qurilma push tokeni (yangi, FCM uchun)
+
+Original spec'da ham, ilovada ham token yuboradigan endpoint yo'q edi — haqiqiy push uchun qo'shiladi (additiv, mavjud kontraktni buzmaydi; `users.fcmToken` ustuni allaqachon bor, migratsiya kerak emas):
+
+| Endpoint | Tavsif |
+|---|---|
+| `PUT /api/v1/auth/fcm-token` | Body `{ fcmToken: string }` (1–4096 belgi) → `{ registered: true }`. Joriy foydalanuvchining qurilma tokenini saqlaydi; shu token boshqa foydalanuvchida turgan bo'lsa, undan olib tashlanadi (bitta qurilma — bitta akkaunt). |
+| `DELETE /api/v1/auth/fcm-token` | → `{ registered: false }`. Logout'da chaqiriladi — token tozalanadi. |
+
+Ikkalasi ham `JwtAuthGuard` bilan. Provider `PUSH_PROVIDER` env orqali tanlanadi: `log` (standart, mock) yoki `fcm` (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` majburiy — bo'lmasa ilova ishga tushmaydi). FCM "token yaroqsiz" xatosini qaytarsa, token bazadan o'chiriladi. Push yuborishdagi xato hech qachon asosiy amalni (buyurtma yaratish va h.k.) buzmaydi.
 
 **Xavfsizlik qoidasi**: `/api/v1/admin/*` barcha endpointlar `JwtAuthGuard` + `RolesGuard(Role.ADMIN)` bilan himoyalanadi. ADMIN role'ga ega foydalanuvchi faqat qo'lda (seed yoki to'g'ridan-to'g'ri DB orqali) yaratiladi — ochiq ro'yxatdan o'tish orqali ADMIN bo'lib bo'lmaydi. Dev'da `apps/backend/.env`dagi `ADMIN_PHONE` bo'yicha `prisma db seed` uni yaratadi (OTP mock: `123456`).
 
@@ -198,7 +218,7 @@ CI/CD (keyingi bosqich, hozircha rejalashtiriladi): GitHub Actions → `main` br
 
 ## 7. Ikki AI agent bilan ishlash workflow'i
 
-Loyiha **Antigravity** muharririda ikkita AI yordamida quriladi: **Claude Sonnet 5 (High)** va **Gemini (Flash)**. Batafsil qoidalar `AGENTS.md` va `CLAUDE.md`da, quyida — umumiy sxema:
+Loyiha uchta AI agent yordamida quriladi: **Claude** (arxitektor + reviewer, PR'larni qabul qilib `main`ga merge qiladi), **Gemini (Flash)** va **Codex** (2026-10-09 dan). Har bir agent alohida terminalda, **o'zining git worktree'sida** ishlaydi (§7.2). Batafsil qoidalar `AGENTS.md` va `CLAUDE.md`da, quyida — umumiy sxema:
 
 ### 7.1. Vazifa taqsimoti (murakkablik bo'yicha)
 
@@ -212,10 +232,15 @@ Loyiha **Antigravity** muharririda ikkita AI yordamida quriladi: **Claude Sonnet
 | Admin auth/middleware (Next.js) | Admin panel oddiy CRUD sahifalari (jadval, forma) |
 | **Barcha Gemini PR'larini review qilish va merge qilishdan oldin tasdiqlash** | Oddiy modullar uchun unit test boilerplate |
 
+**Codex** (2026-10-09 dan): infratuzilma va DevOps — GitHub Actions CI, Dockerfile'lar, production `docker compose`, Nginx konfiguratsiyasi, deploy hujjatlari; shuningdek Claude topshirgan, aniq spetsifikatsiyali backend vazifalari. Codex PR'lari ham Claude review'idan o'tadi.
+
 ### 7.2. Git workflow
 
+- **Har agent o'z worktree'sida**: uch agent bitta papkada branch almashtirsa, bir-birining fayllarini buzadi. Shuning uchun: `git fetch origin && git worktree add ../texnozor-<agent> -b <branch> origin/main`, keyin shu papkada `pnpm install` va `cp ../texnozor/apps/backend/.env apps/backend/.env` (web uchun `apps/web/.env.local` ham). Asosiy papka (`texnozor/`) — Claude'niki.
+- Vazifa GitHub issue sifatida beriladi (`[Gemini] ...`, `[Codex] ...`); PR tavsifida `Closes #<issue>` yoziladi. Agent o'z PR'ini **o'zi merge qilmaydi** — Claude review qilib merge qiladi.
+
 - `main` — himoyalangan, faqat PR orqali
-- Branch nomlash: `feat/<module>-claude` yoki `feat/<module>-gemini` (masalan `feat/auth-claude`, `feat/regions-gemini`)
+- Branch nomlash: `feat/<module>-<agent>` (`claude` | `gemini` | `codex`), masalan `feat/auth-claude`, `feat/regions-gemini`, `feat/ci-codex`
 - Har bir PR: kamida bitta boshqa agent (yoki foydalanuvchi) tomonidan review qilinishi kerak
 - Commit format: Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`) + scope, masalan `feat(orders): add status transition guard`
 
@@ -230,17 +255,18 @@ Loyiha **Antigravity** muharririda ikkita AI yordamida quriladi: **Claude Sonnet
 7. Swagger to'liqlashtirish, e2e testlar, xavfsizlik review
 8. Contabo VPS'ga birinchi deploy
 
-### 7.4. Loyihani to'liq yakunlash uchun qolgan ishlar (2026-09-22 holatiga ko'ra)
+### 7.4. Qolgan ishlar (2026-10-09 holatiga ko'ra)
 
-1-7-bosqichlar bo'yicha backend **to'liq tayyor** (barcha modullar, xavfsizlik, e2e, Swagger — yuqoridagi holat yozuvlariga qarang). Qolgan ishlar quyida, ustuvorlik tartibida, agent bo'yicha taqsimlangan:
+1–7-bosqichlar yopilgan (backend, admin panel, xavfsizlik, e2e, Swagger, Favorites, Sharhlar sahifasi). Joriy raund:
 
-| # | Ish | Agent | Holat / bog'liqlik |
-|---|---|---|---|
-| 1 | ~~Admin panel: dashboard, masters, orders, regions/districts/categories sahifalari~~ | **Gemini** | ✅ Bajarildi (PR #15). |
-| 2 | ~~**Favorites moduli**~~: `GET /favorites`, `GET /favorites/ids`, `POST /favorites/:masterId`, `DELETE /favorites/:masterId` | **Gemini** | ✅ Bajarildi (issue #14, branch `feat/favorites-gemini`). |
-| 3 | **FCM real push**: qurilma tokenini saqlash endpointi (`users.fcmToken` ustuni allaqachon bor) + `FcmPushProvider` (strategy pattern — `PushProvider` interfeysi tayyor, faqat implementatsiya almashtiriladi). | **Claude** (endpoint+wiring) → **Gemini** (mexanik almashtirish, Claude ko'rsatmasi bilan) | **Bloklangan: Firebase loyihasi kalitlari (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`) foydalanuvchidan kerak.** |
-| 4 | **Ochiq qarorlar** (§4.0): (a) OTP uzunligi — ilova 4 katak, backend standart 6 (`OTP_LENGTH` env bilan sozlanadi, qaror kerak); (b) sharh qoldirish qoidasi — hozir cheklovsiz, "faqat tugallangan buyurtma bo'lgan mijoz" qoidasi tavsiya etiladi. | **Foydalanuvchi qarori**, keyin mos agent (b — Claude, `reviews.service.ts`) | Kod yozishdan oldin javob kerak. |
-| 5 | **Mobil ilova integratsiyasi** (`/Users/macstore.uz/Desktop/mobile-app`, alohida repo): kod tekshirildi — arxitektura aslida tayyor (`authApi`/`mastersApi`/`ordersApi`/`reviewsApi` real backend yo'llarini chaqiradi, tarmoq xatosida `mockAdapter`ga qaytadi). Qolgan aniq tuzatishlar: `services/api/client.ts`dagi `API_BASE_URL` (`https://api.ustatop.uz/v1`) haqiqiy backend manziliga + `/api/v1` prefiksiga o'zgartirilishi; `mastersApi` so'rovlariga `limit=100` (yoki sahifalash UI) qo'shilishi; `authApi.updateProfile` faqat `name`/`avatarUrl` yuborishi; (2)-band tugagach `favoritesApi.ts` yozib `useFavoritesStore`ni backendga ulash. | **Foydalanuvchi ruxsati bilan Claude yoki mobil dasturchi** | Alohida repo — bu monorepo ishchi jarayoniga kirmaydi, tegishdan oldin aniq ruxsat so'raladi. |
-| 6 | **Contabo VPS'ga deploy** (8-bosqich): `docker-compose.prod.yml`, Nginx reverse proxy + SSL (Let's Encrypt), muhit sirlarini boshqarish, backup strategiyasi. Konfiguratsiya fayllarini **VPS'siz ham tayyorlash mumkin**; haqiqiy deploy uchun VPS'ga SSH kirish va domen kerak. | **Claude** (konfiguratsiya) → foydalanuvchi (VPS kirish, tasdiqlash) | CLAUDE.md qoidasi: production'ga tegadigan amal oldindan tasdiqlanishi shart. |
-
-**Tavsiya etilgan tartib**: 1 → 2 (Gemini band bo'lmasa parallel) → 4-band bo'yicha qaror → 3 va 5 (agar Firebase/mobil ruxsat berilsa) → 6 eng oxirida (mahsulot to'liq ishlagach).
+| # | Ish | Agent | Branch | Holat / bog'liqlik |
+|---|---|---|---|---|
+| 1 | **CI**: GitHub Actions — har PR va `main` push'da lint + typecheck + unit test + build; alohida job'da e2e (Postgres/Redis service konteynerlari) | **Codex** | `feat/ci-codex` | Bog'liqlik yo'q |
+| 2 | **Production konfiguratsiya** (8-bosqichning VPS'siz qismi): `apps/backend/Dockerfile`, `apps/web/Dockerfile`, `docker-compose.prod.yml`, Nginx (TLS, `/api` → backend, `/` → web, `/uploads` → MinIO), `.env.production.example`, `docs/DEPLOY.md` (birinchi deploy, yangilash, backup/restore) | **Codex** | `feat/deploy-config-codex` | 1-banddan keyin. Haqiqiy deploy **qilinmaydi** |
+| 3 | **Admin panel UI tuzatishlari**: `Select` qiymat o'rniga yorliq ko'rsatsin (`ALL` emas), sana formati (`2026 M10 9` → `9-okt, 2026`, umumiy `lib/format.ts`), users/orders/masters sahifalarida URL'dagi `page` saqlansin | **Gemini** | `fix/web-polish-gemini` | Bog'liqlik yo'q |
+| 4 | **Admin: barcha ustalar ro'yxati** — `GET /admin/masters` (§4.1) + Ustalar sahifasida "Kutilayotganlar / Barchasi" ko'rinishi, filtrlar, tasdiqni bekor qilish | **Gemini** | `feat/admin-masters-list-gemini` | 3-banddan keyin |
+| 5 | **FCM**: `PUT`/`DELETE /auth/fcm-token` + `FcmPushProvider` (`PUSH_PROVIDER` env, §4.2) | **Claude** | `feat/fcm-claude` | Kod kalitlarsiz yoziladi va testlanadi; haqiqiy yuborishni yoqish uchun Firebase kalitlari foydalanuvchidan kerak |
+| 6 | **Ochiq qarorlar** (§4.0): (a) OTP uzunligi — ilova 4 katak, backend standart 6; (b) sharh qoldirish qoidasi — hozir cheklovsiz, "faqat tugallangan buyurtmasi bor mijoz" tavsiya etiladi | **Foydalanuvchi qarori** → Claude | — | Kod yozishdan oldin javob kerak |
+| 7 | **Real SMS** (Eskiz.uz): `SmsProvider` implementatsiyasi | Claude | — | Yangi tashqi xizmat — foydalanuvchi tasdig'i va Eskiz hisobi kerak |
+| 8 | **Mobil ilova integratsiyasi** (`/Users/macstore.uz/Desktop/mobile-app`, alohida repo): `API_BASE_URL` + `/api/v1` prefiks, `mastersApi`ga `limit=100`/sahifalash, `updateProfile` faqat `name`/`avatarUrl`, `favoritesApi.ts`, FCM token yuborish (§4.2) | Foydalanuvchi ruxsati bilan Claude yoki mobil dasturchi | — | Alohida repo — tegishdan oldin aniq ruxsat so'raladi |
+| 9 | **Haqiqiy deploy** (Contabo VPS) | Claude + foydalanuvchi | — | 2-band tayyor bo'lgach; VPS'ga SSH, domen va foydalanuvchi tasdig'i kerak (CLAUDE.md) |
