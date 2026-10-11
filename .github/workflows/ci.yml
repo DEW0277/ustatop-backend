@@ -32,6 +32,19 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      # Faqat build (push yo'q) — Dockerfile'lar buzilmaganini tekshiradi.
+      - run: docker build -f apps/backend/Dockerfile -t ustatop-backend:ci .
+      - run: docker build -f apps/web/Dockerfile -t ustatop-web:ci .
+      - run: |
+          printf 'DOMAIN=ci.example\nPOSTGRES_USER=u\nPOSTGRES_PASSWORD=p\nPOSTGRES_DB=d\nMINIO_ROOT_USER=m\nMINIO_ROOT_PASSWORD=mmmmmmmm\n' > .env.production
+          docker compose -f docker-compose.prod.yml --env-file .env.production config -q
+
   e2e:
     name: Backend e2e (Postgres + Redis)
     runs-on: ubuntu-latest

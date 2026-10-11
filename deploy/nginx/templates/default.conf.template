@@ -1,0 +1,78 @@
+# nginx image bu faylni ishga tushishda envsubst qiladi (faqat ${DOMAIN} va ${MINIO_BUCKET} almashtiriladi;
+# $host kabi nginx o'zgaruvchilari tegilmaydi).
+
+# Docker ichki DNS — konteyner qayta yaratilib IP o'zgarsa ham nginx yangi manzilni topadi.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    # Let's Encrypt HTTP-01 challenge (certbot webroot).
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    server_tokens off;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    # Backend yuklash limiti 10MB (upload.constants.ts) — multipart qo'shimchasi uchun biroz zaxira.
+    client_max_body_size 12m;
+
+    proxy_http_version 1.1;
+    # DIQQAT: location ichida bitta bo'lsa ham proxy_set_header yozilsa, shu yerdagilarning HAMMASI meros
+    # bo'lmay qoladi (nginx qoidasi) — admin panelning CSRF tekshiruvi Host'ga tayanadi.
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    # $remote_addr (mijoz yuborgan X-Forwarded-For emas) — backend TRUST_PROXY=1 bilan aynan shu IP'ni oladi,
+    # mijoz sarlavhani soxtalashtirib rate limit'ni aylanib o'ta olmaydi.
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # Backend API. Diqqat: faqat /api/v1/ — /api/auth/* va /api/backend/* admin panelning (Next.js) o'z route'lari.
+    location /api/v1/ {
+        set $backend http://backend:3000;
+        proxy_pass $backend;
+    }
+
+    # Swagger backend'da standart yopiq (SWAGGER_ENABLED=true bilan yoqiladi) — yopiq bo'lsa backend 404 qaytaradi.
+    location /api/docs {
+        set $backend http://backend:3000;
+        proxy_pass $backend;
+    }
+
+    # Yuklangan fayllar: MinIO bucket'i (public-read), faqat o'qish.
+    location /uploads/ {
+        limit_except GET HEAD { deny all; }
+        set $minio http://minio:9000;
+        rewrite ^/uploads/(.*)$ /${MINIO_BUCKET}/$1 break;
+        proxy_pass $minio;
+        proxy_hide_header x-amz-request-id;
+        proxy_hide_header x-amz-id-2;
+        expires 30d;
+    }
+
+    # Admin panel (Next.js).
+    location / {
+        set $web http://web:3001;
+        proxy_pass $web;
+    }
+}
