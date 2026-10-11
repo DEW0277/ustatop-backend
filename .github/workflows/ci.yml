@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Lint, typecheck, unit tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # pnpm versiyasi root package.json `packageManager` maydonidan olinadi.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter backend exec prisma generate
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  e2e:
+    name: Backend e2e (Postgres + Redis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Dev bilan aynan bir xil servislar (docker-compose.yml) — port va hisob ma'lumotlari bitta joyda.
+      - run: docker compose up -d --wait postgres redis
+      - run: cp apps/backend/.env.example apps/backend/.env
+      - run: pnpm --filter backend exec prisma generate
+      # `test:e2e` o'zi `?schema=test`ga `prisma migrate deploy` qiladi. MinIO ko'tarilmaydi:
+      # e2e fayl yuklashni tekshirmaydi, StorageService esa ulanish xatosida ilovani to'xtatmaydi.
+      - run: pnpm --filter backend test:e2e

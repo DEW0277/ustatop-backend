@@ -8,6 +8,11 @@ services:
       POSTGRES_DB: ustatop_db
     ports:
       - "5455:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ustatop -d ustatop_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -16,6 +21,11 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
       - redis_data:/data
 
