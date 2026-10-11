@@ -218,7 +218,7 @@ CI/CD (keyingi bosqich, hozircha rejalashtiriladi): GitHub Actions → `main` br
 
 ## 7. Ikki AI agent bilan ishlash workflow'i
 
-Loyiha uchta AI agent yordamida quriladi: **Claude** (arxitektor + reviewer, PR'larni qabul qilib `main`ga merge qiladi), **Gemini (Flash)** va **Codex** (2026-10-09 dan). Har bir agent alohida terminalda, **o'zining git worktree'sida** ishlaydi (§7.2). Batafsil qoidalar `AGENTS.md` va `CLAUDE.md`da, quyida — umumiy sxema:
+Loyiha ikkita AI agent yordamida quriladi: **Claude** (arxitektor + reviewer, PR'larni qabul qilib `main`ga merge qiladi) va **Gemini (Flash)**. Har bir agent alohida terminalda, **o'zining git worktree'sida** ishlaydi (§7.2). (Codex 2026-10-09 da rejalashtirilgan edi, lekin ishlamadi — uning infratuzilma vazifalari 2026-10-12 da Claude'ga o'tdi.) Batafsil qoidalar `AGENTS.md` va `CLAUDE.md`da, quyida — umumiy sxema:
 
 ### 7.1. Vazifa taqsimoti (murakkablik bo'yicha)
 
@@ -232,15 +232,15 @@ Loyiha uchta AI agent yordamida quriladi: **Claude** (arxitektor + reviewer, PR'
 | Admin auth/middleware (Next.js) | Admin panel oddiy CRUD sahifalari (jadval, forma) |
 | **Barcha Gemini PR'larini review qilish va merge qilishdan oldin tasdiqlash** | Oddiy modullar uchun unit test boilerplate |
 
-**Codex** (2026-10-09 dan): infratuzilma va DevOps — GitHub Actions CI, Dockerfile'lar, production `docker compose`, Nginx konfiguratsiyasi, deploy hujjatlari; shuningdek Claude topshirgan, aniq spetsifikatsiyali backend vazifalari. Codex PR'lari ham Claude review'idan o'tadi.
+**Infratuzilma va DevOps** (GitHub Actions CI, Dockerfile'lar, production `docker compose`, Nginx, deploy hujjatlari) — Claude zonasi.
 
 ### 7.2. Git workflow
 
 - **Har agent o'z worktree'sida**: uch agent bitta papkada branch almashtirsa, bir-birining fayllarini buzadi. Shuning uchun: `git fetch origin && git worktree add ../texnozor-<agent> -b <branch> origin/main`, keyin shu papkada `pnpm install` va `cp ../texnozor/apps/backend/.env apps/backend/.env` (web uchun `apps/web/.env.local` ham). Asosiy papka (`texnozor/`) — Claude'niki.
-- Vazifa GitHub issue sifatida beriladi (`[Gemini] ...`, `[Codex] ...`); PR tavsifida `Closes #<issue>` yoziladi. Agent o'z PR'ini **o'zi merge qilmaydi** — Claude review qilib merge qiladi.
+- Vazifa GitHub issue sifatida beriladi (`[Gemini] ...`, `[Claude] ...`); PR tavsifida `Closes #<issue>` yoziladi. Agent o'z PR'ini **o'zi merge qilmaydi** — Claude review qilib merge qiladi.
 
 - `main` — himoyalangan, faqat PR orqali
-- Branch nomlash: `feat/<module>-<agent>` (`claude` | `gemini` | `codex`), masalan `feat/auth-claude`, `feat/regions-gemini`, `feat/ci-codex`
+- Branch nomlash: `feat/<module>-<agent>` (`claude` | `gemini`), masalan `feat/auth-claude`, `feat/regions-gemini`
 - Har bir PR: kamida bitta boshqa agent (yoki foydalanuvchi) tomonidan review qilinishi kerak
 - Commit format: Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`) + scope, masalan `feat(orders): add status transition guard`
 
@@ -261,8 +261,8 @@ Loyiha uchta AI agent yordamida quriladi: **Claude** (arxitektor + reviewer, PR'
 
 | # | Ish | Agent | Branch | Holat / bog'liqlik |
 |---|---|---|---|---|
-| 1 | **CI**: GitHub Actions — har PR va `main` push'da lint + typecheck + unit test + build; alohida job'da e2e (Postgres/Redis service konteynerlari) | **Codex** | `feat/ci-codex` | Bog'liqlik yo'q |
-| 2 | **Production konfiguratsiya** (8-bosqichning VPS'siz qismi): `apps/backend/Dockerfile`, `apps/web/Dockerfile`, `docker-compose.prod.yml`, Nginx (TLS, `/api` → backend, `/` → web, `/uploads` → MinIO), `.env.production.example`, `docs/DEPLOY.md` (birinchi deploy, yangilash, backup/restore) | **Codex** | `feat/deploy-config-codex` | 1-banddan keyin. Haqiqiy deploy **qilinmaydi** |
+| 1 | **CI**: GitHub Actions — har PR va `main` push'da lint + typecheck + unit test + build; alohida job'da e2e (Postgres/Redis service konteynerlari) | **Claude** | `feat/ci-claude` | ✅ Bajarildi (issue #20) |
+| 2 | **Production konfiguratsiya** (8-bosqichning VPS'siz qismi): `apps/backend/Dockerfile`, `apps/web/Dockerfile`, `docker-compose.prod.yml`, Nginx (TLS, `/api` → backend, `/` → web, `/uploads` → MinIO), `.env.production.example`, `docs/DEPLOY.md` (birinchi deploy, yangilash, backup/restore) | **Claude** | `feat/deploy-config-claude` | 1-banddan keyin. Haqiqiy deploy **qilinmaydi** |
 | 3 | **Admin panel UI tuzatishlari**: `Select` qiymat o'rniga yorliq ko'rsatsin (`ALL` emas), sana formati (`2026 M10 9` → `9-okt, 2026`, umumiy `lib/format.ts`), users/orders/masters sahifalarida URL'dagi `page` saqlansin | **Gemini** | `fix/web-polish-gemini` | Bog'liqlik yo'q |
 | 4 | **Admin: barcha ustalar ro'yxati** — `GET /admin/masters` (§4.1) + Ustalar sahifasida "Kutilayotganlar / Barchasi" ko'rinishi, filtrlar, tasdiqni bekor qilish | **Gemini** | `feat/admin-masters-list-gemini` | 3-banddan keyin |
 | 5 | **FCM**: `PUT`/`DELETE /auth/fcm-token` + `FcmPushProvider` (`PUSH_PROVIDER` env, §4.2) | **Claude** | `feat/fcm-claude` | Kod kalitlarsiz yoziladi va testlanadi; haqiqiy yuborishni yoqish uchun Firebase kalitlari foydalanuvchidan kerak |
