@@ -36,31 +36,6 @@ jobs:
     name: Backend e2e (Postgres + Redis)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    services:
-      # Port va hisob ma'lumotlari dev docker-compose.yml / apps/backend/.env.example bilan bir xil —
-      # bular sir emas, faqat shu job ichidagi vaqtinchalik konteynerlar uchun.
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: ustatop
-          POSTGRES_PASSWORD: ustatop_dev_pass
-          POSTGRES_DB: ustatop_db
-        ports:
-          - 5455:5432
-        options: >-
-          --health-cmd "pg_isready -U ustatop -d ustatop_db"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -69,6 +44,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Dev bilan aynan bir xil servislar (docker-compose.yml) — port va hisob ma'lumotlari bitta joyda.
+      - run: docker compose up -d --wait postgres redis
       - run: cp apps/backend/.env.example apps/backend/.env
       - run: pnpm --filter backend exec prisma generate
       # `test:e2e` o'zi `?schema=test`ga `prisma migrate deploy` qiladi. MinIO ko'tarilmaydi:
