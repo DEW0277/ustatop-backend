@@ -87,7 +87,7 @@ export function ReviewFilters({
           control={control}
           name="rating"
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select items={RATING_LABELS} value={field.value} onValueChange={field.onChange}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>

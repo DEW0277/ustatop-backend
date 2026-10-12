@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Field, FieldContent, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -56,7 +56,15 @@ export function OrderFilters({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, regionId, from, to]);
 
-  const regions = regionsQuery.data ?? [];
+  const regions = useMemo(() => regionsQuery.data ?? [], [regionsQuery.data]);
+
+  const regionItems = useMemo(
+    () => ({
+      ALL: 'Barcha viloyatlar',
+      ...Object.fromEntries(regions.map((reg) => [reg.id, reg.nameUz])),
+    }),
+    [regions],
+  );
 
   return (
     <form
@@ -69,7 +77,7 @@ export function OrderFilters({
           control={control}
           name="status"
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select items={STATUS_LABELS} value={field.value} onValueChange={field.onChange}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -91,7 +99,7 @@ export function OrderFilters({
           control={control}
           name="regionId"
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select items={regionItems} value={field.value} onValueChange={field.onChange}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>

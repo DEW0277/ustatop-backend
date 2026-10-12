@@ -12,15 +12,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ApiError, api } from '@/lib/api-client';
+import { areFiltersEqual } from '@/lib/filters-equal';
+import { formatDate } from '@/lib/format';
 import { filtersFromSearchParams, filtersToApiQuery, type UsersFilterValues } from '@/lib/schemas/users-filter';
 import type { ManagedUser, Paginated } from '@/lib/types';
 
 const ROLE_LABELS: Record<ManagedUser['role'], string> = { CLIENT: 'Mijoz', MASTER: 'Usta', ADMIN: 'Administrator' };
 const SKELETON_ROWS = 6;
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('uz-UZ', { year: 'numeric', month: 'short', day: 'numeric' });
-}
 
 export function UsersView() {
   const router = useRouter();
@@ -56,6 +54,7 @@ export function UsersView() {
   const showBackToFirstPage = !query.isLoading && !query.isError && items.length === 0 && page > 1;
 
   function handleFiltersChange(next: UsersFilterValues) {
+    if (areFiltersEqual(filters, next)) return;
     setFilters(next);
     setPage(1);
   }

@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Plus, SquarePen } from 'lucide-react';
 import { toast } from 'sonner';
@@ -45,7 +45,12 @@ export function DistrictDialog({
     queryFn: () => api<Region[]>('/regions'),
   });
 
-  const regions = regionsQuery.data ?? [];
+  const regions = useMemo(() => regionsQuery.data ?? [], [regionsQuery.data]);
+
+  const regionItems = useMemo(
+    () => Object.fromEntries(regions.map((reg) => [reg.id, reg.nameUz])),
+    [regions],
+  );
 
   const { control, handleSubmit, reset } = useForm<DistrictFormValues>({
     resolver: zodResolver(districtFormSchema),
@@ -130,7 +135,7 @@ export function DistrictDialog({
                 name="regionId"
                 render={({ field, fieldState }) => (
                   <>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select items={regionItems} value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Viloyatni tanlang" />
                       </SelectTrigger>

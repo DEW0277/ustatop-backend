@@ -17,19 +17,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ApiError, api } from '@/lib/api-client';
+import { formatDate } from '@/lib/format';
 import type { Paginated, PendingMaster } from '@/lib/types';
 import { PENDING_MASTERS_QUERY_KEY } from './masters-query';
 import { VerifyMasterAction } from './verify-master-action';
 
 const SKELETON_ROWS = 5;
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('uz-UZ', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
 
 export function MastersView() {
   const router = useRouter();
