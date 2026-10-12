@@ -9,6 +9,7 @@ import type { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 import type { PaginationQueryDto } from './dto/pagination-query.dto.js';
 
 const DEFAULT_LIMIT = 20;
+const MAX_SEARCH_TERMS = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function paginate(query: PaginationQueryDto) {
@@ -171,18 +172,23 @@ export class AdminService {
 
   async listMasters(query: ListMastersQueryDto) {
     const { page, limit, skip, take } = paginate(query);
-    const search = query.query?.trim();
+    // Ism ikki ustunda (firstName/lastName) saqlanadi, jadvalda esa to'liq ism ko'rinadi — butun
+    // qatorni bitta `contains` bilan qidirsak "Ali Valiyev" hech narsa topmaydi. Shuning uchun
+    // har bir so'z alohida mos kelishi kerak (bo'shliqli telefon "+998 90 123" ham shu tufayli ishlaydi).
+    const terms = (query.query ?? '').split(/\s+/).filter(Boolean).slice(0, MAX_SEARCH_TERMS);
 
     const where: Prisma.MasterProfileWhereInput = {
       ...(query.isVerified !== undefined ? { isVerified: query.isVerified } : {}),
       ...(query.regionId ? { regionId: query.regionId } : {}),
-      ...(search
+      ...(terms.length > 0
         ? {
-            OR: [
-              { firstName: { contains: search, mode: 'insensitive' } },
-              { lastName: { contains: search, mode: 'insensitive' } },
-              { phone: { contains: search } },
-            ],
+            AND: terms.map((term) => ({
+              OR: [
+                { firstName: { contains: term, mode: 'insensitive' as const } },
+                { lastName: { contains: term, mode: 'insensitive' as const } },
+                { phone: { contains: term } },
+              ],
+            })),
           }
         : {}),
     };

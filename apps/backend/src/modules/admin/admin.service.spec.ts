@@ -139,10 +139,14 @@ describe('AdminService', () => {
           where: {
             isVerified: true,
             regionId: 'r-1',
-            OR: [
-              { firstName: { contains: 'Ali', mode: 'insensitive' } },
-              { lastName: { contains: 'Ali', mode: 'insensitive' } },
-              { phone: { contains: 'Ali' } },
+            AND: [
+              {
+                OR: [
+                  { firstName: { contains: 'Ali', mode: 'insensitive' } },
+                  { lastName: { contains: 'Ali', mode: 'insensitive' } },
+                  { phone: { contains: 'Ali' } },
+                ],
+              },
             ],
           },
           orderBy: { createdAt: 'desc' },
@@ -150,6 +154,23 @@ describe('AdminService', () => {
           take: 10,
         }),
       );
+    });
+
+    it('to\'liq ism ("Ali  Valiyev") har bir so\'z bo\'yicha alohida qidiriladi, 5 tadan ortiq so\'z tashlab yuboriladi', async () => {
+      await service.listMasters({ query: 'Ali  Valiyev' });
+      const { where } = deps.prisma.masterProfile.findMany.mock.calls[0]![0];
+      expect(where.AND).toHaveLength(2);
+      expect(where.AND[0].OR[0]).toEqual({ firstName: { contains: 'Ali', mode: 'insensitive' } });
+      expect(where.AND[1].OR[1]).toEqual({ lastName: { contains: 'Valiyev', mode: 'insensitive' } });
+      expect(where.AND[1].OR[2]).toEqual({ phone: { contains: 'Valiyev' } });
+
+      await service.listMasters({ query: 'a b c d e f g' });
+      expect(deps.prisma.masterProfile.findMany.mock.calls[1]![0].where.AND).toHaveLength(5);
+    });
+
+    it('isVerified=false filtri tushib qolmaydi (falsy qiymat)', async () => {
+      await service.listMasters({ isVerified: false });
+      expect(deps.prisma.masterProfile.findMany.mock.calls[0]![0].where).toEqual({ isVerified: false });
     });
 
     it('bo\'sh yoki faqat probeldan iborat query uchun OR filtri qo\'shilmaydi', async () => {
