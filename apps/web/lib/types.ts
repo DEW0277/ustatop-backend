@@ -44,6 +44,14 @@ export interface ManagedUser {
   createdAt: string;
 }
 
+// `GET /admin/masters`
+export interface AdminMaster extends PendingMaster {
+  rating: number;
+  reviewCount: number;
+  completedOrdersCount: number;
+  isAvailable: boolean;
+}
+
 // `GET /admin/stats/dashboard`
 export interface DashboardStats {
   users: {

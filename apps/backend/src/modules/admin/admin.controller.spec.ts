@@ -10,6 +10,7 @@ describe('AdminController', () => {
     listUsers: ReturnType<typeof vi.fn>;
     setUserBlocked: ReturnType<typeof vi.fn>;
     listPendingMasters: ReturnType<typeof vi.fn>;
+    listMasters: ReturnType<typeof vi.fn>;
     setMasterVerified: ReturnType<typeof vi.fn>;
     listOrders: ReturnType<typeof vi.fn>;
   };
@@ -26,6 +27,7 @@ describe('AdminController', () => {
       listUsers: vi.fn(),
       setUserBlocked: vi.fn(),
       listPendingMasters: vi.fn(),
+      listMasters: vi.fn(),
       setMasterVerified: vi.fn(),
       listOrders: vi.fn(),
     };
@@ -42,6 +44,19 @@ describe('AdminController', () => {
       statsService as unknown as AdminStatsService,
       reviewsService as unknown as ReviewsService,
     );
+  });
+
+  describe('listMasters', () => {
+    it('adminService.listMasters ni chaqiradi va natijani qaytaradi', async () => {
+      const mockResult = { items: [], total: 0, page: 1, limit: 20 };
+      adminService.listMasters.mockResolvedValueOnce(mockResult);
+
+      const query = { isVerified: true, page: 1, limit: 20 };
+      const result = await controller.listMasters(query);
+
+      expect(adminService.listMasters).toHaveBeenCalledWith(query);
+      expect(result).toEqual(mockResult);
+    });
   });
 
   describe('listReviews', () => {

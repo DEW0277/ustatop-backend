@@ -1,30 +1,31 @@
 import type { INestApplication } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { PrismaService } from '../src/common/prisma/prisma.service.js';
 import { authHeader, createTestApp, otpLogin, testPhone, testPhonePrefix } from './e2e-utils.js';
 
-const TAG = '05';
+// Har bir e2e fayli o'zining unikal 2 xonali tag'idan foydalanadi — parallel testlar
+// bir-birining DB yozuvlarini buzmasligi va afterAll faqat o'zinikini tozalashi uchun.
+const TAG = '93';
 
-describe('Admin (e2e)', () => {
+describe('Admin e2e', () => {
   let app: INestApplication<App>;
-  const prisma = new PrismaClient();
-
-  let regionId: string;
-  let districtId: string;
-  let categoryId: string;
+  let prisma: PrismaService;
   let adminToken: string;
   let adminUserId: string;
   let clientToken: string;
-  let masterProfileId: string;
   let masterUserId: string;
+  let masterProfileId: string;
+  let regionId: string;
+  let districtId: string;
+  let categoryId: string;
 
   beforeAll(async () => {
-    ({ app } = await createTestApp());
-
+    ({ app, prisma } = await createTestApp());
+    
     const region = await prisma.region.create({
-      data: { nameUz: 'E2E admin viloyati', nameRu: 'E2E admin region', code: `E2E-${TAG}` },
+      data: { nameUz: 'E2E admin viloyati', nameRu: 'E2E admin region' },
     });
     regionId = region.id;
     const district = await prisma.district.create({
@@ -128,12 +129,33 @@ describe('Admin (e2e)', () => {
   });
 
   describe('masters', () => {
+    it("barcha ustalar ro'yxatiga ADMIN bo'lmagan (CLIENT) foydalanuvchi kira olmaydi (403)", async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/admin/masters')
+        .set(...authHeader(clientToken))
+        .expect(403);
+    });
+
+    it("yaroqsiz regionId yuborilganda 400 qaytaradi", async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/admin/masters?regionId=not-a-uuid')
+        .set(...authHeader(adminToken))
+        .expect(400);
+    });
+
     it("kutilayotganlar ro'yxatida ko'rinadi va tasdiqlagach ro'yxatdan chiqadi", async () => {
       const pending = await request(app.getHttpServer())
         .get('/api/v1/admin/masters/pending')
         .set(...authHeader(adminToken))
         .expect(200);
       expect(pending.body.data.items.map((m: { id: string }) => m.id)).toContain(masterProfileId);
+
+      // Tasdiqlanmagan holatda GET /admin/masters?isVerified=false ro'yxatida bo'lishi kerak
+      const unverifiedBefore = await request(app.getHttpServer())
+        .get(`/api/v1/admin/masters?isVerified=false&regionId=${regionId}`)
+        .set(...authHeader(adminToken))
+        .expect(200);
+      expect(unverifiedBefore.body.data.items.map((m: { id: string }) => m.id)).toContain(masterProfileId);
 
       await request(app.getHttpServer())
         .patch(`/api/v1/admin/masters/${masterProfileId}/verify`)
@@ -147,6 +169,27 @@ describe('Admin (e2e)', () => {
         .set(...authHeader(adminToken))
         .expect(200);
       expect(pendingAfter.body.data.items.map((m: { id: string }) => m.id)).not.toContain(masterProfileId);
+
+      // Tasdiqlangandan so'ng GET /admin/masters?isVerified=true da stats maydonlari bilan ko'rinadi
+      const verifiedList = await request(app.getHttpServer())
+        .get(`/api/v1/admin/masters?isVerified=true&regionId=${regionId}`)
+        .set(...authHeader(adminToken))
+        .expect(200);
+
+      const found = verifiedList.body.data.items.find((m: { id: string }) => m.id === masterProfileId);
+      expect(found).toBeDefined();
+      expect(found.isVerified).toBe(true);
+      expect(found).toHaveProperty('rating');
+      expect(found).toHaveProperty('reviewCount');
+      expect(found).toHaveProperty('completedOrdersCount');
+      expect(found).toHaveProperty('isAvailable');
+
+      // isVerified=false da endi chiqmaydi
+      const unverifiedAfter = await request(app.getHttpServer())
+        .get(`/api/v1/admin/masters?isVerified=false&regionId=${regionId}`)
+        .set(...authHeader(adminToken))
+        .expect(200);
+      expect(unverifiedAfter.body.data.items.map((m: { id: string }) => m.id)).not.toContain(masterProfileId);
     });
   });
 

@@ -4,6 +4,7 @@ import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.type.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import type { ListAdminOrdersQueryDto } from './dto/list-admin-orders-query.dto.js';
+import type { ListMastersQueryDto } from './dto/list-masters-query.dto.js';
 import type { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 import type { PaginationQueryDto } from './dto/pagination-query.dto.js';
 
@@ -36,6 +37,16 @@ const pendingMasterSelect = {
 
 type MasterRow = Prisma.MasterProfileGetPayload<{ select: typeof pendingMasterSelect }>;
 
+const masterWithStatsSelect = {
+  ...pendingMasterSelect,
+  rating: true,
+  reviewCount: true,
+  completedOrdersCount: true,
+  isAvailable: true,
+} satisfies Prisma.MasterProfileSelect;
+
+type MasterWithStatsRow = Prisma.MasterProfileGetPayload<{ select: typeof masterWithStatsSelect }>;
+
 function toAdminMaster(master: MasterRow) {
   return {
     id: master.id,
@@ -53,6 +64,16 @@ function toAdminMaster(master: MasterRow) {
     address: master.address,
     categories: master.categories.map((item) => item.category),
     createdAt: master.createdAt.toISOString(),
+  };
+}
+
+function toAdminMasterWithStats(master: MasterWithStatsRow) {
+  return {
+    ...toAdminMaster(master),
+    rating: master.rating,
+    reviewCount: master.reviewCount,
+    completedOrdersCount: master.completedOrdersCount,
+    isAvailable: master.isAvailable,
   };
 }
 
@@ -146,6 +167,43 @@ export class AdminService {
     ]);
 
     return { items: masters.map(toAdminMaster), total, page, limit };
+  }
+
+  async listMasters(query: ListMastersQueryDto) {
+    const { page, limit, skip, take } = paginate(query);
+    const search = query.query?.trim();
+
+    const where: Prisma.MasterProfileWhereInput = {
+      ...(query.isVerified !== undefined ? { isVerified: query.isVerified } : {}),
+      ...(query.regionId ? { regionId: query.regionId } : {}),
+      ...(search
+        ? {
+            OR: [
+              { firstName: { contains: search, mode: 'insensitive' } },
+              { lastName: { contains: search, mode: 'insensitive' } },
+              { phone: { contains: search } },
+            ],
+          }
+        : {}),
+    };
+
+    const [masters, total] = await this.prisma.$transaction([
+      this.prisma.masterProfile.findMany({
+        where,
+        select: masterWithStatsSelect,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.masterProfile.count({ where }),
+    ]);
+
+    return {
+      items: masters.map(toAdminMasterWithStats),
+      total,
+      page,
+      limit,
+    };
   }
 
   async setMasterVerified(masterId: string, isVerified: boolean) {
