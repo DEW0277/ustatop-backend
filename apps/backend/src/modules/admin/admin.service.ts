@@ -4,10 +4,12 @@ import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.type.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import type { ListAdminOrdersQueryDto } from './dto/list-admin-orders-query.dto.js';
+import type { ListMastersQueryDto } from './dto/list-masters-query.dto.js';
 import type { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 import type { PaginationQueryDto } from './dto/pagination-query.dto.js';
 
 const DEFAULT_LIMIT = 20;
+const MAX_SEARCH_TERMS = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function paginate(query: PaginationQueryDto) {
@@ -36,6 +38,16 @@ const pendingMasterSelect = {
 
 type MasterRow = Prisma.MasterProfileGetPayload<{ select: typeof pendingMasterSelect }>;
 
+const masterWithStatsSelect = {
+  ...pendingMasterSelect,
+  rating: true,
+  reviewCount: true,
+  completedOrdersCount: true,
+  isAvailable: true,
+} satisfies Prisma.MasterProfileSelect;
+
+type MasterWithStatsRow = Prisma.MasterProfileGetPayload<{ select: typeof masterWithStatsSelect }>;
+
 function toAdminMaster(master: MasterRow) {
   return {
     id: master.id,
@@ -53,6 +65,16 @@ function toAdminMaster(master: MasterRow) {
     address: master.address,
     categories: master.categories.map((item) => item.category),
     createdAt: master.createdAt.toISOString(),
+  };
+}
+
+function toAdminMasterWithStats(master: MasterWithStatsRow) {
+  return {
+    ...toAdminMaster(master),
+    rating: master.rating,
+    reviewCount: master.reviewCount,
+    completedOrdersCount: master.completedOrdersCount,
+    isAvailable: master.isAvailable,
   };
 }
 
@@ -146,6 +168,48 @@ export class AdminService {
     ]);
 
     return { items: masters.map(toAdminMaster), total, page, limit };
+  }
+
+  async listMasters(query: ListMastersQueryDto) {
+    const { page, limit, skip, take } = paginate(query);
+    // Ism ikki ustunda (firstName/lastName) saqlanadi, jadvalda esa to'liq ism ko'rinadi — butun
+    // qatorni bitta `contains` bilan qidirsak "Ali Valiyev" hech narsa topmaydi. Shuning uchun
+    // har bir so'z alohida mos kelishi kerak (bo'shliqli telefon "+998 90 123" ham shu tufayli ishlaydi).
+    const terms = (query.query ?? '').split(/\s+/).filter(Boolean).slice(0, MAX_SEARCH_TERMS);
+
+    const where: Prisma.MasterProfileWhereInput = {
+      ...(query.isVerified !== undefined ? { isVerified: query.isVerified } : {}),
+      ...(query.regionId ? { regionId: query.regionId } : {}),
+      ...(terms.length > 0
+        ? {
+            AND: terms.map((term) => ({
+              OR: [
+                { firstName: { contains: term, mode: 'insensitive' as const } },
+                { lastName: { contains: term, mode: 'insensitive' as const } },
+                { phone: { contains: term } },
+              ],
+            })),
+          }
+        : {}),
+    };
+
+    const [masters, total] = await this.prisma.$transaction([
+      this.prisma.masterProfile.findMany({
+        where,
+        select: masterWithStatsSelect,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.masterProfile.count({ where }),
+    ]);
+
+    return {
+      items: masters.map(toAdminMasterWithStats),
+      total,
+      page,
+      limit,
+    };
   }
 
   async setMasterVerified(masterId: string, isVerified: boolean) {

@@ -15,22 +15,28 @@ import {
 } from '@/components/ui/dialog';
 import { ApiError, api } from '@/lib/api-client';
 import type { PendingMaster } from '@/lib/types';
-import { PENDING_MASTERS_QUERY_KEY } from './masters-query';
+import { MASTERS_QUERY_KEY, PENDING_MASTERS_QUERY_KEY } from './masters-query';
 
 export function VerifyMasterAction({ master }: { master: PendingMaster }) {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  const nextVerifiedState = !master.isVerified;
 
   const mutation = useMutation({
     mutationFn: () =>
       api(`/admin/masters/${master.id}/verify`, {
         method: 'PATCH',
-        body: { isVerified: true },
+        body: { isVerified: nextVerifiedState },
       }),
     onSuccess: () => {
-      toast.success("Usta muvaffaqiyatli tasdiqlandi");
+      toast.success(
+        nextVerifiedState
+          ? 'Usta muvaffaqiyatli tasdiqlandi'
+          : 'Usta tasdiqi bekor qilindi',
+      );
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: PENDING_MASTERS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: MASTERS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ['admin', 'stats', 'dashboard'] });
     },
     onError: (error) => {
@@ -42,26 +48,45 @@ export function VerifyMasterAction({ master }: { master: PendingMaster }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button variant="default" size="sm">
-            Tasdiqlash
-          </Button>
+          master.isVerified ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              Tasdiqni bekor qilish
+            </Button>
+          ) : (
+            <Button variant="default" size="sm">
+              Tasdiqlash
+            </Button>
+          )
         }
       />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Ustani tasdiqlaysizmi?</DialogTitle>
+          <DialogTitle>
+            {master.isVerified ? 'Tasdiqni bekor qilasizmi?' : 'Ustani tasdiqlaysizmi?'}
+          </DialogTitle>
           <DialogDescription>
-            {master.fullName} ({master.phone}) profilini tasdiqlash. Shundan so&apos;ng
-            usta barcha foydalanuvchilarga tasdiqlangan belgi bilan ko&apos;rinadi.
+            {master.isVerified
+              ? `${master.fullName} (${master.phone}) tasdiqlangan maqomini bekor qilish. Shundan so'ng usta yana kutilayotganlar ro'yxatiga o'tadi.`
+              : `${master.fullName} (${master.phone}) profilini tasdiqlash. Shundan so'ng usta barcha foydalanuvchilarga tasdiqlangan belgi bilan ko'rinadi.`}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter showCloseButton>
           <Button
-            variant="default"
+            variant={master.isVerified ? 'destructive' : 'default'}
             disabled={mutation.isPending}
             onClick={() => mutation.mutate()}
           >
-            {mutation.isPending ? 'Tasdiqlanmoqda...' : 'Tasdiqlash'}
+            {mutation.isPending
+              ? master.isVerified
+                ? 'Bekor qilinmoqda...'
+                : 'Tasdiqlanmoqda...'
+              : master.isVerified
+                ? 'Tasdiqni bekor qilish'
+                : 'Tasdiqlash'}
           </Button>
         </DialogFooter>
       </DialogContent>

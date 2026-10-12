@@ -14,6 +14,7 @@ import { AdminStatsService } from './admin-stats.service.js';
 import { BlockUserDto } from './dto/block-user.dto.js';
 import { ListAdminOrdersQueryDto } from './dto/list-admin-orders-query.dto.js';
 import { ListAdminReviewsQueryDto } from './dto/list-admin-reviews-query.dto.js';
+import { ListMastersQueryDto } from './dto/list-masters-query.dto.js';
 import { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 import { PaginationQueryDto } from './dto/pagination-query.dto.js';
 import { VerifyMasterDto } from './dto/verify-master.dto.js';
@@ -60,6 +61,13 @@ export class AdminController {
   @ApiOperation({ summary: 'Tasdiqlanmagan ustalar ro\'yxati (Admin)' })
   listPendingMasters(@Query() query: PaginationQueryDto) {
     return this.adminService.listPendingMasters(query);
+  }
+
+  @Get('masters')
+  @ApiOperation({ summary: 'Barcha ustalar ro\'yxati: isVerified, viloyat, qidiruv (Admin)' })
+  @ApiErrorResponses(400)
+  listMasters(@Query() query: ListMastersQueryDto) {
+    return this.adminService.listMasters(query);
   }
 
   @Patch('masters/:id/verify')

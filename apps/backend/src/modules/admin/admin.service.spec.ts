@@ -4,6 +4,7 @@ import { AdminService } from './admin.service.js';
 
 function createDeps() {
   const prisma = {
+    $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
     user: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0), findUnique: vi.fn(), update: vi.fn() },
     masterProfile: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0), findUnique: vi.fn(), update: vi.fn() },
     order: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
@@ -120,10 +121,113 @@ describe('AdminService', () => {
     });
   });
 
-  it('kutilayotgan ustalarni faqat isVerified=false bo\'yicha, eng eskisi birinchi qaytaradi', async () => {
-    await service.listPendingMasters({});
-    expect(deps.prisma.masterProfile.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { isVerified: false }, orderBy: { createdAt: 'asc' }, skip: 0, take: 20 }),
-    );
+  describe('listPendingMasters', () => {
+    it('kutilayotgan ustalarni faqat isVerified=false bo\'yicha, eng eskisi birinchi qaytaradi', async () => {
+      await service.listPendingMasters({});
+      expect(deps.prisma.masterProfile.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isVerified: false }, orderBy: { createdAt: 'asc' }, skip: 0, take: 20 }),
+      );
+    });
+  });
+
+  describe('listMasters', () => {
+    it('qidiruv, isVerified va regionId filtrlarini qo\'llaydi va createdAt desc tartibida qaytaradi', async () => {
+      await service.listMasters({ isVerified: true, regionId: 'r-1', query: ' Ali ', page: 2, limit: 10 });
+      expect(deps.prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(deps.prisma.masterProfile.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            isVerified: true,
+            regionId: 'r-1',
+            AND: [
+              {
+                OR: [
+                  { firstName: { contains: 'Ali', mode: 'insensitive' } },
+                  { lastName: { contains: 'Ali', mode: 'insensitive' } },
+                  { phone: { contains: 'Ali' } },
+                ],
+              },
+            ],
+          },
+          orderBy: { createdAt: 'desc' },
+          skip: 10,
+          take: 10,
+        }),
+      );
+    });
+
+    it('to\'liq ism ("Ali  Valiyev") har bir so\'z bo\'yicha alohida qidiriladi, 5 tadan ortiq so\'z tashlab yuboriladi', async () => {
+      await service.listMasters({ query: 'Ali  Valiyev' });
+      const { where } = deps.prisma.masterProfile.findMany.mock.calls[0]![0];
+      expect(where.AND).toHaveLength(2);
+      expect(where.AND[0].OR[0]).toEqual({ firstName: { contains: 'Ali', mode: 'insensitive' } });
+      expect(where.AND[1].OR[1]).toEqual({ lastName: { contains: 'Valiyev', mode: 'insensitive' } });
+      expect(where.AND[1].OR[2]).toEqual({ phone: { contains: 'Valiyev' } });
+
+      await service.listMasters({ query: 'a b c d e f g' });
+      expect(deps.prisma.masterProfile.findMany.mock.calls[1]![0].where.AND).toHaveLength(5);
+    });
+
+    it('isVerified=false filtri tushib qolmaydi (falsy qiymat)', async () => {
+      await service.listMasters({ isVerified: false });
+      expect(deps.prisma.masterProfile.findMany.mock.calls[0]![0].where).toEqual({ isVerified: false });
+    });
+
+    it('bo\'sh yoki faqat probeldan iborat query uchun OR filtri qo\'shilmaydi', async () => {
+      await service.listMasters({ query: '   ' });
+      const args = deps.prisma.masterProfile.findMany.mock.calls[0]![0];
+      expect(args.where).toEqual({});
+    });
+
+    it('barcha ustalar ro\'yxatini stats maydonlari (rating, reviewCount, completedOrdersCount, isAvailable) bilan qaytaradi', async () => {
+      deps.prisma.masterProfile.count.mockResolvedValue(15);
+      deps.prisma.masterProfile.findMany.mockResolvedValue([
+        {
+          id: 'm-1',
+          userId: 'u-1',
+          firstName: 'Usta',
+          lastName: 'Aliyev',
+          phone: '+998901234567',
+          telegram: 'usta_ali',
+          bio: 'Tajribali usta',
+          experienceYears: 5,
+          isVerified: true,
+          rating: 4.8,
+          reviewCount: 12,
+          completedOrdersCount: 25,
+          isAvailable: true,
+          address: 'Chilonzor',
+          createdAt: new Date('2026-09-01T00:00:00.000Z'),
+          region: { id: 'r-1', nameUz: 'Toshkent' },
+          district: { id: 'd-1', nameUz: 'Chilonzor' },
+          categories: [{ category: { id: 'c-1', nameUz: 'Santexnik' } }],
+          user: { avatarUrl: 'https://example.com/avatar.jpg', isBlocked: false },
+        },
+      ]);
+
+      const result = await service.listMasters({ page: 1 });
+      expect(result.total).toBe(15);
+      expect(result.items[0]).toEqual({
+        id: 'm-1',
+        userId: 'u-1',
+        fullName: 'Usta Aliyev',
+        phone: '+998901234567',
+        telegram: 'usta_ali',
+        avatarUrl: 'https://example.com/avatar.jpg',
+        bio: 'Tajribali usta',
+        experienceYears: 5,
+        isVerified: true,
+        isBlocked: false,
+        rating: 4.8,
+        reviewCount: 12,
+        completedOrdersCount: 25,
+        isAvailable: true,
+        region: { id: 'r-1', nameUz: 'Toshkent' },
+        district: { id: 'd-1', nameUz: 'Chilonzor' },
+        address: 'Chilonzor',
+        categories: [{ id: 'c-1', nameUz: 'Santexnik' }],
+        createdAt: '2026-09-01T00:00:00.000Z',
+      });
+    });
   });
 });
