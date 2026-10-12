@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Field, FieldLabel } from '@/components/ui/field';
 import {
@@ -59,8 +59,16 @@ export function DistrictsView() {
       }),
   });
 
-  const regions = regionsQuery.data ?? [];
+  const regions = useMemo(() => regionsQuery.data ?? [], [regionsQuery.data]);
   const districts = districtsQuery.data ?? [];
+
+  const regionItems = useMemo(
+    () => ({
+      ALL: 'Barcha viloyatlar',
+      ...Object.fromEntries(regions.map((reg) => [reg.id, reg.nameUz])),
+    }),
+    [regions],
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -68,6 +76,7 @@ export function DistrictsView() {
         <Field className="w-64">
           <FieldLabel>Viloyat bo&apos;yicha filtrlash</FieldLabel>
           <Select
+            items={regionItems}
             value={selectedRegionId}
             onValueChange={(val) => setSelectedRegionId(val ?? 'ALL')}
           >

@@ -73,7 +73,7 @@ export function UserFilters({
           control={control}
           name="role"
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select items={ROLE_LABELS} value={field.value} onValueChange={field.onChange}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(ROLE_LABELS).map(([value, label]) => (
@@ -91,7 +91,7 @@ export function UserFilters({
           control={control}
           name="isBlocked"
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select items={BLOCKED_LABELS} value={field.value} onValueChange={field.onChange}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(BLOCKED_LABELS).map(([value, label]) => (

@@ -16,6 +16,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ApiError, api } from '@/lib/api-client';
+import { areFiltersEqual } from '@/lib/filters-equal';
+import { formatDateTime } from '@/lib/format';
 import {
   ordersFiltersFromSearchParams,
   ordersFiltersToApiQuery,
@@ -26,16 +28,6 @@ import { OrderFilters } from './order-filters';
 import { ORDERS_QUERY_KEY } from './orders-query';
 
 const SKELETON_ROWS = 6;
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('uz-UZ', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 function formatPrice(amount: number) {
   return `${amount.toLocaleString('uz-UZ')} so'm`;
@@ -104,6 +96,7 @@ export function OrdersView() {
   const showBackToFirstPage = !query.isLoading && !query.isError && items.length === 0 && page > 1;
 
   function handleFiltersChange(next: OrdersFilterValues) {
+    if (areFiltersEqual(filters, next)) return;
     setFilters(next);
     setPage(1);
   }
@@ -191,7 +184,7 @@ export function OrdersView() {
                       <StatusBadge status={order.status} />
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {formatDate(order.createdAt)}
+                      {formatDateTime(order.createdAt)}
                     </TableCell>
                   </TableRow>
                 ))}

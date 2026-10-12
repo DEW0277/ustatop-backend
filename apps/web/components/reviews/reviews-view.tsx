@@ -17,6 +17,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ApiError, api } from '@/lib/api-client';
+import { areFiltersEqual } from '@/lib/filters-equal';
+import { formatDate } from '@/lib/format';
 import {
   reviewsFiltersFromSearchParams,
   reviewsFiltersToApiQuery,
@@ -28,14 +30,6 @@ import { ReviewFilters } from './review-filters';
 import { REVIEWS_QUERY_KEY } from './reviews-query';
 
 const SKELETON_ROWS = 6;
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('uz-UZ', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
 
 export function ReviewsView() {
   const router = useRouter();
@@ -74,7 +68,7 @@ export function ReviewsView() {
 
   // Forma mount bo'lganda ham `onChange` chaqiradi — qiymat o'zgarmagan bo'lsa, URL'dagi sahifa saqlanadi.
   function handleFiltersChange(next: ReviewsFilterValues) {
-    if (next.masterId === filters.masterId && next.rating === filters.rating) return;
+    if (areFiltersEqual(filters, next)) return;
     setFilters(next);
     setPage(1);
   }

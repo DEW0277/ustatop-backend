@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { formatDate, formatShortDate } from '@/lib/format';
 import type { DashboardStats } from '@/lib/types';
 
 function subscribe() {
@@ -26,10 +27,8 @@ function useIsMounted() {
 }
 
 function formatTickDate(dateStr: string) {
-  // "YYYY-MM-DD" -> "DD.MM"
-  if (!dateStr || dateStr.length < 10) return dateStr;
-  const parts = dateStr.split('-');
-  return `${parts[2]}.${parts[1]}`;
+  const formatted = formatShortDate(dateStr);
+  return formatted === '—' ? dateStr : formatted;
 }
 
 export function TrendChart({ trend }: { trend: DashboardStats['trend'] }) {
@@ -68,7 +67,9 @@ export function TrendChart({ trend }: { trend: DashboardStats['trend'] }) {
             axisLine={false}
           />
           <Tooltip
-            labelFormatter={(label) => `Sana: ${label}`}
+            labelFormatter={(label) =>
+              typeof label === 'string' ? `Sana: ${formatDate(label)}` : `Sana: ${String(label)}`
+            }
             formatter={(value: unknown, name: unknown) => [
               String(value),
               name === 'orders' ? 'Buyurtmalar' : 'Yangi foydalanuvchilar',
