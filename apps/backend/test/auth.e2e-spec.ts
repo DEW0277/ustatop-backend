@@ -3,7 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { authHeader, createTestApp, otpLogin, testPhone, testPhonePrefix } from './e2e-utils.js';
+import { hashPassword } from '../src/common/crypto/password.js';
+import { authHeader, createTestApp, MOCK_OTP_CODE, otpLogin, testPhone, testPhonePrefix } from './e2e-utils.js';
 
 const TAG = '01';
 
@@ -80,6 +81,92 @@ describe('Auth (e2e)', () => {
     await cleanup.user.update({ where: { id: userId }, data: { isBlocked: true } });
 
     await request(app.getHttpServer()).get('/api/v1/auth/me').set(...authHeader(token)).expect(401);
+  });
+});
+
+describe('Admin login (e2e)', () => {
+  const ADMIN_TAG = '03';
+  const login = 'e2e-admin-03';
+  const password = 'e2e-Admin-parol-1';
+  let app: INestApplication<App>;
+  const db = new PrismaClient();
+
+  beforeEach(async () => {
+    ({ app } = await createTestApp());
+    await db.user.upsert({
+      where: { phone: testPhone(ADMIN_TAG, 1) },
+      update: {},
+      create: {
+        phone: testPhone(ADMIN_TAG, 1),
+        name: 'E2E Admin',
+        role: 'ADMIN',
+        isPhoneVerified: true,
+        login,
+        passwordHash: await hashPassword(password),
+      },
+    });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  afterAll(async () => {
+    await db.user.deleteMany({ where: { phone: { startsWith: testPhonePrefix(ADMIN_TAG) } } });
+    await db.$disconnect();
+  });
+
+  it("login + parol bilan kiradi (login registrga bog'liq emas), token admin endpointlarida ishlaydi", async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/auth/admin/login')
+      .send({ login: ' E2E-Admin-03 ', password })
+      .expect(201);
+
+    expect(response.body.data.user).toMatchObject({ role: 'admin', name: 'E2E Admin' });
+    expect(JSON.stringify(response.body)).not.toContain('passwordHash');
+
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/users?limit=1')
+      .set(...authHeader(response.body.data.token))
+      .expect(200);
+  });
+
+  it("noto'g'ri parol va mavjud bo'lmagan login bir xil 401 xabar oladi", async () => {
+    const wrongPassword = await request(app.getHttpServer())
+      .post('/api/v1/auth/admin/login')
+      .send({ login, password: 'xato-parol-123' })
+      .expect(401);
+    const unknownLogin = await request(app.getHttpServer())
+      .post('/api/v1/auth/admin/login')
+      .send({ login: 'yoq-bunday-login', password })
+      .expect(401);
+
+    expect(wrongPassword.body.message).toBe(unknownLogin.body.message);
+    expect(wrongPassword.body.data).toBeUndefined();
+
+    // Keyingi test xato urinishlar hisobidan (Redis) ta'sirlanmasligi uchun: muvaffaqiyatli kirish hisobni tozalaydi.
+    await request(app.getHttpServer()).post('/api/v1/auth/admin/login').send({ login, password }).expect(201);
+  });
+
+  it("administrator telefon raqami + OTP bilan kira olmaydi (403) — mock kod 123456 bo'lsa ham", async () => {
+    const phone = testPhone(ADMIN_TAG, 1);
+    await request(app.getHttpServer()).post('/api/v1/auth/send-otp').send({ phone }).expect(201);
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/auth/verify-otp')
+      .send({ phone, code: MOCK_OTP_CODE })
+      .expect(403);
+
+    expect(response.body.data).toBeUndefined();
+  });
+
+  it("oddiy foydalanuvchi (login/parolsiz) admin login orqali kira olmaydi", async () => {
+    await otpLogin(app, testPhone(ADMIN_TAG, 2));
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/admin/login')
+      .send({ login: testPhone(ADMIN_TAG, 2), password: MOCK_OTP_CODE })
+      .expect(400);
   });
 });
 

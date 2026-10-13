@@ -1,4 +1,5 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MasterProfileService } from './master-profile.service.js';
 
@@ -16,7 +17,7 @@ function createDeps() {
   const tx = {
     masterProfile: { update: vi.fn(), create: vi.fn() },
     masterCategory: { deleteMany: vi.fn(), createMany: vi.fn() },
-    user: { update: vi.fn() },
+    user: { update: vi.fn(), findUnique: vi.fn(), create: vi.fn() },
   };
   const prisma = {
     user: { findUniqueOrThrow: vi.fn() },
@@ -77,67 +78,137 @@ describe('MasterProfileService', () => {
     });
   });
 
-  describe('upsert (yaratish)', () => {
-    beforeEach(() => {
-      deps.prisma.user.findUniqueOrThrow.mockResolvedValue({ id: 'u-1', phone: '+998901234567', role: 'CLIENT' });
+  describe('update', () => {
+    it("profili yo'q foydalanuvchi o'zi usta bo'la olmaydi (403) — profilni faqat admin yaratadi", async () => {
       deps.prisma.masterProfile.findUnique.mockResolvedValue(null);
+
+      await expect(service.update('u-1', validCreate)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(deps.prisma.$transaction).not.toHaveBeenCalled();
+      expect(deps.tx.masterProfile.create).not.toHaveBeenCalled();
     });
 
-    it("majburiy maydonlar yetishmasa maydon nomlari bilan BadRequest qaytaradi", async () => {
-      await expect(service.upsert('u-1', { firstName: 'Ali' } as never)).rejects.toMatchObject({
-        response: { errors: expect.objectContaining({ lastName: expect.any(Array), workingHours: expect.any(Array) }) },
-      });
+    it("tuman boshqa viloyatga tegishli bo'lsa rad etadi (faqat tuman yuborilsa mavjud viloyat bilan solishtiriladi)", async () => {
+      deps.prisma.masterProfile.findUnique.mockResolvedValue({ id: 'm-1', regionId: 'r-1', districtId: 'd-1' });
+      deps.prisma.district.findUnique.mockResolvedValue({ id: 'd-2', regionId: 'OTHER' });
+
+      await expect(service.update('u-1', { districtId: 'd-2' } as never)).rejects.toBeInstanceOf(BadRequestException);
       expect(deps.prisma.$transaction).not.toHaveBeenCalled();
     });
 
-    it("tuman boshqa viloyatga tegishli bo'lsa rad etadi", async () => {
-      deps.prisma.district.findUnique.mockResolvedValue({ id: 'd-1', regionId: 'OTHER' });
-
-      await expect(service.upsert('u-1', validCreate)).rejects.toBeInstanceOf(BadRequestException);
-    });
-
     it("mavjud bo'lmagan kategoriya berilsa rad etadi", async () => {
-      deps.prisma.district.findUnique.mockResolvedValue({ id: 'd-1', regionId: 'r-1' });
+      deps.prisma.masterProfile.findUnique.mockResolvedValue({ id: 'm-1', regionId: 'r-1', districtId: 'd-1' });
       deps.prisma.category.count.mockResolvedValue(1);
 
-      await expect(
-        service.upsert('u-1', { ...(validCreate as object), categoryIds: ['c-1', 'c-2'] } as never),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.update('u-1', { categoryIds: ['c-1', 'c-2'] } as never)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
-    it("profil yaratadi, telefonni userdan oladi, CLIENT ni MASTER ga o'tkazadi", async () => {
-      deps.prisma.district.findUnique.mockResolvedValue({ id: 'd-1', regionId: 'r-1' });
-      deps.prisma.category.count.mockResolvedValue(1);
-      deps.tx.masterProfile.create.mockResolvedValue({ id: 'm-1', firstName: 'Alisher', lastName: 'Valiyev' });
-      deps.prisma.masterProfile.findUniqueOrThrow.mockResolvedValue(fullProfile);
-
-      await service.upsert('u-1', { ...(validCreate as object), categoryIds: ['c-1'] } as never);
-
-      const createData = deps.tx.masterProfile.create.mock.calls[0][0].data;
-      expect(createData.phone).toBe('+998901234567');
-      expect(createData.userId).toBe('u-1');
-      expect(deps.tx.masterCategory.createMany).toHaveBeenCalledWith({
-        data: [{ masterId: 'm-1', categoryId: 'c-1' }],
-      });
-      expect(deps.tx.user.update).toHaveBeenCalledWith({
-        where: { id: 'u-1' },
-        data: { name: 'Alisher Valiyev', role: 'MASTER' },
-      });
-    });
-  });
-
-  describe('upsert (yangilash)', () => {
-    it("mavjud profilni qisman yangilaydi va rolni qayta o'zgartirmaydi", async () => {
-      deps.prisma.user.findUniqueOrThrow.mockResolvedValue({ id: 'u-1', phone: '+998901234567', role: 'MASTER' });
+    it("mavjud profilni qisman yangilaydi, kategoriyalarga tegmaydi va rolni o'zgartirmaydi", async () => {
       deps.prisma.masterProfile.findUnique.mockResolvedValue({ id: 'm-1', regionId: 'r-1', districtId: 'd-1' });
       deps.tx.masterProfile.update.mockResolvedValue({ id: 'm-1', firstName: 'Alisher', lastName: 'Valiyev' });
       deps.prisma.masterProfile.findUniqueOrThrow.mockResolvedValue(fullProfile);
 
-      await service.upsert('u-1', { bio: 'Yangi bio matni bu yerda' } as never);
+      await service.update('u-1', { bio: 'Yangi bio matni bu yerda' } as never);
 
       expect(deps.tx.masterProfile.create).not.toHaveBeenCalled();
       expect(deps.tx.masterCategory.deleteMany).not.toHaveBeenCalled();
       expect(deps.tx.user.update.mock.calls[0][0].data).toEqual({ name: 'Alisher Valiyev' });
+    });
+
+    it("categoryIds berilsa kategoriyalarni to'liq almashtiradi", async () => {
+      deps.prisma.masterProfile.findUnique.mockResolvedValue({ id: 'm-1', regionId: 'r-1', districtId: 'd-1' });
+      deps.prisma.category.count.mockResolvedValue(1);
+      deps.tx.masterProfile.update.mockResolvedValue({ id: 'm-1', firstName: 'Alisher', lastName: 'Valiyev' });
+      deps.prisma.masterProfile.findUniqueOrThrow.mockResolvedValue(fullProfile);
+
+      await service.update('u-1', { categoryIds: ['c-1'] } as never);
+
+      expect(deps.tx.masterCategory.deleteMany).toHaveBeenCalledWith({ where: { masterId: 'm-1' } });
+      expect(deps.tx.masterCategory.createMany).toHaveBeenCalledWith({ data: [{ masterId: 'm-1', categoryId: 'c-1' }] });
+    });
+  });
+
+  describe('createByAdmin', () => {
+    const input = { ...(validCreate as object), phone: '+998901112233' } as never;
+
+    beforeEach(() => {
+      deps.prisma.district.findUnique.mockResolvedValue({ id: 'd-1', regionId: 'r-1' });
+      deps.tx.user.findUnique.mockResolvedValue(null);
+      deps.tx.user.create.mockResolvedValue({ id: 'u-new' });
+      deps.tx.user.update.mockResolvedValue({ id: 'u-1' });
+      deps.tx.masterProfile.create.mockResolvedValue({ id: 'm-new' });
+    });
+
+    it("akkaunt yo'q bo'lsa MASTER rolida yaratadi va profilni standart tasdiqlangan holda qo'shadi", async () => {
+      expect(await service.createByAdmin(input)).toBe('m-new');
+
+      expect(deps.tx.user.create).toHaveBeenCalledWith({
+        data: { phone: '+998901112233', name: 'Alisher Valiyev', role: 'MASTER' },
+      });
+      expect(deps.tx.masterProfile.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ userId: 'u-new', phone: '+998901112233', isVerified: true, experienceYears: 0 }),
+      });
+      expect(deps.tx.masterCategory.createMany).not.toHaveBeenCalled();
+    });
+
+    it("mavjud CLIENT'ga profil biriktiradi, rolni MASTER qiladi; isVerified=false va kategoriyalar saqlanadi", async () => {
+      deps.tx.user.findUnique.mockResolvedValue({ id: 'u-1', role: 'CLIENT', isBlocked: false, masterProfile: null });
+      deps.prisma.category.count.mockResolvedValue(2);
+
+      await service.createByAdmin({ ...(input as object), isVerified: false, categoryIds: ['c-1', 'c-2'] } as never);
+
+      expect(deps.tx.user.create).not.toHaveBeenCalled();
+      expect(deps.tx.user.update).toHaveBeenCalledWith({
+        where: { id: 'u-1' },
+        data: { name: 'Alisher Valiyev', role: 'MASTER' },
+      });
+      expect(deps.tx.masterProfile.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ userId: 'u-1', isVerified: false }),
+      });
+      expect(deps.tx.masterCategory.createMany).toHaveBeenCalledWith({
+        data: [
+          { masterId: 'm-new', categoryId: 'c-1' },
+          { masterId: 'm-new', categoryId: 'c-2' },
+        ],
+      });
+    });
+
+    it("usta profili bor raqam uchun 409, hech narsa yaratilmaydi", async () => {
+      deps.tx.user.findUnique.mockResolvedValue({ id: 'u-1', role: 'MASTER', isBlocked: false, masterProfile: { id: 'm-1' } });
+
+      await expect(service.createByAdmin(input)).rejects.toBeInstanceOf(ConflictException);
+      expect(deps.tx.masterProfile.create).not.toHaveBeenCalled();
+      expect(deps.tx.user.update).not.toHaveBeenCalled();
+    });
+
+    it("administrator raqamini rad etadi (400) va uning rolini o'zgartirmaydi", async () => {
+      deps.tx.user.findUnique.mockResolvedValue({ id: 'a-1', role: 'ADMIN', isBlocked: false, masterProfile: null });
+
+      await expect(service.createByAdmin(input)).rejects.toBeInstanceOf(BadRequestException);
+      expect(deps.tx.user.update).not.toHaveBeenCalled();
+    });
+
+    it("bloklangan foydalanuvchi uchun 409", async () => {
+      deps.tx.user.findUnique.mockResolvedValue({ id: 'u-1', role: 'CLIENT', isBlocked: true, masterProfile: null });
+
+      await expect(service.createByAdmin(input)).rejects.toBeInstanceOf(ConflictException);
+      expect(deps.tx.masterProfile.create).not.toHaveBeenCalled();
+    });
+
+    it("tuman boshqa viloyatga tegishli bo'lsa tranzaksiyani boshlamaydi", async () => {
+      deps.prisma.district.findUnique.mockResolvedValue({ id: 'd-1', regionId: 'r-OTHER' });
+
+      await expect(service.createByAdmin(input)).rejects.toBeInstanceOf(BadRequestException);
+      expect(deps.prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("parallel so'rov raqamni band qilgan bo'lsa (P2002) 500 emas, 409 qaytaradi", async () => {
+      deps.tx.user.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' }),
+      );
+
+      await expect(service.createByAdmin(input)).rejects.toBeInstanceOf(ConflictException);
     });
   });
 

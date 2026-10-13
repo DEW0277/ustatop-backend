@@ -4,6 +4,7 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
+import type { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../src/common/prisma/prisma.service.js';
 
 // Mock SMS provider (SMS_MODE=mock, apps/backend/.env) doim shu kodni yuboradi (OTP_LENGTH=6).
@@ -50,4 +51,31 @@ export function testPhone(tag: string, n: number): string {
 // Bitta e2e blok ishlatadigan barcha test raqamlarini bitta so'rovda tozalash uchun.
 export function testPhonePrefix(tag: string): string {
   return `+99890${tag}`;
+}
+
+// Usta profilini faqat admin yaratadi (`POST /admin/masters`) — ustaga bog'liq boshqa oqimlarni
+// (buyurtma, sharh) sinaydigan testlar uchun tayyor profil to'g'ridan-to'g'ri bazada yaratiladi.
+export async function createMasterProfile(
+  prisma: PrismaClient,
+  userId: string,
+  location: { regionId: string; districtId: string; categoryId: string },
+): Promise<string> {
+  const user = await prisma.user.update({ where: { id: userId }, data: { role: 'MASTER', name: 'Test Usta' } });
+  const profile = await prisma.masterProfile.create({
+    data: {
+      userId,
+      firstName: 'Test',
+      lastName: 'Usta',
+      phone: user.phone,
+      bio: 'E2E test uchun usta profili',
+      experienceYears: 2,
+      regionId: location.regionId,
+      districtId: location.districtId,
+      address: 'Test manzil 1',
+      workingHours: { start: '09:00', end: '18:00', workDays: ['mon', 'tue', 'wed', 'thu', 'fri'] },
+      categories: { create: { categoryId: location.categoryId } },
+    },
+  });
+
+  return profile.id;
 }

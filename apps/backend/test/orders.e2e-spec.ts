@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { authHeader, createTestApp, otpLogin, testPhone, testPhonePrefix } from './e2e-utils.js';
+import { authHeader, createMasterProfile, createTestApp, otpLogin, testPhone, testPhonePrefix } from './e2e-utils.js';
 
 const TAG = '04';
 
@@ -42,22 +42,7 @@ describe('Orders (e2e)', () => {
     clientToken = (await otpLogin(app, testPhone(TAG, 2))).token;
     strangerToken = (await otpLogin(app, testPhone(TAG, 3))).token;
 
-    const profile = await request(app.getHttpServer())
-      .put('/api/v1/masters/me/profile')
-      .set(...authHeader(masterToken))
-      .send({
-        firstName: 'Test',
-        lastName: 'Usta',
-        bio: 'E2E test uchun usta profili',
-        experienceYears: 2,
-        regionId,
-        districtId,
-        address: 'Test manzil 1',
-        categoryIds: [categoryId],
-        workingHours: { start: '09:00', end: '18:00', workDays: ['mon', 'tue', 'wed', 'thu', 'fri'] },
-      })
-      .expect(200);
-    masterProfileId = profile.body.data.id;
+    masterProfileId = await createMasterProfile(prisma, master.userId, { regionId, districtId, categoryId });
   });
 
   afterAll(async () => {
@@ -142,6 +127,33 @@ describe('Orders (e2e)', () => {
       .set(...authHeader(masterToken))
       .send({ status: 'cancelled' })
       .expect(400);
+  });
+
+  it("mijoz ilovadan o'zi usta bo'la olmaydi (403), mavjud usta esa profilini tahrirlay oladi", async () => {
+    const body = {
+      firstName: 'Ozi',
+      lastName: 'Usta',
+      bio: "O'zim usta bo'lmoqchiman, tajribam bor",
+      regionId,
+      districtId,
+      address: 'Test manzil 2',
+      workingHours: { start: '09:00', end: '18:00', workDays: ['mon'] },
+    };
+
+    await request(app.getHttpServer())
+      .put('/api/v1/masters/me/profile')
+      .set(...authHeader(strangerToken))
+      .send(body)
+      .expect(403);
+    expect(await prisma.masterProfile.count({ where: { user: { phone: testPhone(TAG, 3) } } })).toBe(0);
+    expect((await prisma.user.findUniqueOrThrow({ where: { phone: testPhone(TAG, 3) } })).role).toBe('CLIENT');
+
+    const updated = await request(app.getHttpServer())
+      .put('/api/v1/masters/me/profile')
+      .set(...authHeader(masterToken))
+      .send({ bio: 'Yangilangan tavsif — usta o`zi tahrirladi' })
+      .expect(200);
+    expect(updated.body.data.id).toBe(masterProfileId);
   });
 
   it("band bo'lmagan ustaga (isAvailable=false) buyurtma berib bo'lmaydi", async () => {

@@ -35,11 +35,11 @@ export class MyMasterController {
   @Put('profile')
   @Roles(Role.CLIENT, Role.MASTER)
   @ApiOperation({
-    summary: "Usta profilini yaratish/tahrirlash (birinchi marta yaratilganda foydalanuvchi MASTER roliga o'tadi)",
+    summary: "O'z usta profilimni tahrirlash (profilni faqat administrator yaratadi — profili yo'q foydalanuvchi 403 oladi)",
   })
   @ApiErrorResponses(400)
-  upsertProfile(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpsertMasterProfileDto) {
-    return this.masterProfileService.upsert(user.id, dto);
+  updateProfile(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpsertMasterProfileDto) {
+    return this.masterProfileService.update(user.id, dto);
   }
 
   @Post('services')

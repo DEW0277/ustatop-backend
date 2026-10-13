@@ -3,7 +3,7 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaService } from '../src/common/prisma/prisma.service.js';
-import { authHeader, createTestApp, otpLogin, testPhone, testPhonePrefix } from './e2e-utils.js';
+import { authHeader, createMasterProfile, createTestApp, otpLogin, testPhone, testPhonePrefix } from './e2e-utils.js';
 
 // Har bir e2e fayli o'zining unikal 2 xonali tag'idan foydalanadi — parallel testlar
 // bir-birining DB yozuvlarini buzmasligi va afterAll faqat o'zinikini tozalashi uchun.
@@ -49,22 +49,7 @@ describe('Admin e2e', () => {
 
     const master = await otpLogin(app, testPhone(TAG, 3));
     masterUserId = master.userId;
-    const profile = await request(app.getHttpServer())
-      .put('/api/v1/masters/me/profile')
-      .set(...authHeader(master.token))
-      .send({
-        firstName: 'Kutilayotgan',
-        lastName: 'Usta',
-        bio: 'E2E admin test uchun usta profili',
-        experienceYears: 1,
-        regionId,
-        districtId,
-        address: 'Test manzil',
-        categoryIds: [categoryId],
-        workingHours: { start: '09:00', end: '18:00', workDays: ['mon'] },
-      })
-      .expect(200);
-    masterProfileId = profile.body.data.id;
+    masterProfileId = await createMasterProfile(prisma, master.userId, { regionId, districtId, categoryId });
   });
 
   afterAll(async () => {
@@ -190,6 +175,124 @@ describe('Admin e2e', () => {
         .set(...authHeader(adminToken))
         .expect(200);
       expect(unverifiedAfter.body.data.items.map((m: { id: string }) => m.id)).not.toContain(masterProfileId);
+    });
+  });
+
+  describe("usta qo'shish (POST /admin/masters)", () => {
+    const body = (phone: string) => ({
+      phone,
+      firstName: 'Admin',
+      lastName: "Qo'shgan",
+      bio: 'E2E: admin tomonidan qo`shilgan usta',
+      regionId,
+      districtId,
+      address: 'Test manzil',
+      categoryIds: [categoryId],
+      workingHours: { start: '09:00', end: '18:00', workDays: ['mon', 'tue'] },
+    });
+
+    it("ADMIN bo'lmagan foydalanuvchi qo'sha olmaydi (403)", async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/admin/masters')
+        .set(...authHeader(clientToken))
+        .send(body(testPhone(TAG, 20)))
+        .expect(403);
+    });
+
+    it("majburiy maydonsiz yoki noto'g'ri telefon bilan 400 va akkaunt yaratilmaydi", async () => {
+      const phone = testPhone(TAG, 21);
+      const { bio: _bio, ...withoutBio } = body(phone);
+      await request(app.getHttpServer())
+        .post('/api/v1/admin/masters')
+        .set(...authHeader(adminToken))
+        .send(withoutBio)
+        .expect(400);
+      await request(app.getHttpServer())
+        .post('/api/v1/admin/masters')
+        .set(...authHeader(adminToken))
+        .send(body('12345'))
+        .expect(400);
+
+      expect(await prisma.user.findUnique({ where: { phone } })).toBeNull();
+    });
+
+    it("yangi raqam uchun akkaunt + tasdiqlangan profil yaratadi; shu raqamga qayta qo'shib bo'lmaydi (409)", async () => {
+      const phone = testPhone(TAG, 22);
+      const created = await request(app.getHttpServer())
+        .post('/api/v1/admin/masters')
+        .set(...authHeader(adminToken))
+        // Panel probelli format yuborishi mumkin — backend normallashtiradi.
+        .send(body(`+998 90 ${phone.slice(6, 9)} ${phone.slice(9, 11)} ${phone.slice(11)}`))
+        .expect(201);
+
+      expect(created.body.data).toMatchObject({
+        phone,
+        fullName: "Admin Qo'shgan",
+        isVerified: true,
+        isBlocked: false,
+        region: { id: regionId },
+        district: { id: districtId },
+        categories: [{ id: categoryId }],
+        rating: 0,
+        isAvailable: true,
+      });
+
+      const user = await prisma.user.findUniqueOrThrow({ where: { phone } });
+      expect(user).toMatchObject({ role: 'MASTER', name: "Admin Qo'shgan", isPhoneVerified: false });
+
+      // Usta keyin shu raqam bilan OTP orqali kiradi (verify-otp telefon bo'yicha shu akkauntni topadi) —
+      // profil aynan shu akkauntga tegishli bo'lishi kerak. Bu yerda `otpLogin` ishlatilmaydi: send-otp
+      // IP bo'yicha 5/daq bilan cheklangan va bu fayl limitni to'liq sarflaydi.
+      expect(created.body.data.userId).toBe(user.id);
+
+      // Shu raqamga ikkinchi marta qo'shib bo'lmaydi.
+      await request(app.getHttpServer())
+        .post('/api/v1/admin/masters')
+        .set(...authHeader(adminToken))
+        .send(body(phone))
+        .expect(409);
+    });
+
+    it("mavjud mijozga profil biriktiradi (rol MASTER bo'ladi); isVerified=false kutilayotganlar ro'yxatiga tushadi", async () => {
+      const phone = testPhone(TAG, 23);
+      const client = await prisma.user.create({ data: { phone, name: 'E2E mijoz', isPhoneVerified: true } });
+
+      const created = await request(app.getHttpServer())
+        .post('/api/v1/admin/masters')
+        .set(...authHeader(adminToken))
+        .send({ ...body(phone), isVerified: false })
+        .expect(201);
+      expect(created.body.data).toMatchObject({ userId: client.id, isVerified: false });
+
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: client.id } });
+      expect(user.role).toBe('MASTER');
+
+      const pending = await request(app.getHttpServer())
+        .get('/api/v1/admin/masters/pending?limit=100')
+        .set(...authHeader(adminToken))
+        .expect(200);
+      expect(pending.body.data.items.map((m: { id: string }) => m.id)).toContain(created.body.data.id);
+    });
+
+    it("administrator raqamini rad etadi (400), tuman boshqa viloyatda bo'lsa 400 va akkaunt qolmaydi", async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/admin/masters')
+        .set(...authHeader(adminToken))
+        .send(body(testPhone(TAG, 1)))
+        .expect(400);
+
+      const phone = testPhone(TAG, 24);
+      const otherRegion = await prisma.region.create({ data: { nameUz: 'E2E boshqa viloyat', nameRu: 'E2E другая область' } });
+      try {
+        await request(app.getHttpServer())
+          .post('/api/v1/admin/masters')
+          .set(...authHeader(adminToken))
+          .send({ ...body(phone), regionId: otherRegion.id })
+          .expect(400);
+      } finally {
+        await prisma.region.delete({ where: { id: otherRegion.id } });
+      }
+      expect(await prisma.user.findUnique({ where: { phone } })).toBeNull();
     });
   });
 

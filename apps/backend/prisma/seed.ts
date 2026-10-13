@@ -1,6 +1,14 @@
+import { randomBytes, scryptSync } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+// `src/common/crypto/password.ts`dagi `hashPassword` bilan AYNAN bir xil format (`scrypt$salt$hash`).
+// Production image'da `src/` yo'q, shuning uchun import qilib bo'lmaydi — o'zgartirsangiz ikkalasini birga.
+function hashAdminPassword(password: string): string {
+  const salt = randomBytes(16);
+  return `scrypt$${salt.toString('hex')}$${scryptSync(password, salt, 64).toString('hex')}`;
+}
 
 const regions = [
   { code: 'TAS', nameUz: 'Toshkent shahri', nameRu: 'г. Ташкент' },
@@ -370,16 +378,37 @@ async function main() {
   }
 
   // ADMIN rolini ochiq ro'yxatdan o'tish orqali olib bo'lmaydi (docs/TZ.md §4.1) — faqat shu yerda beriladi.
+  // Admin panelga ADMIN_LOGIN + ADMIN_PASSWORD bilan kiradi; ADMIN_PHONE — akkauntning (majburiy, unikal)
+  // telefon maydoni uchun, u bilan kirib bo'lmaydi. Qayta ishga tushirilsa parol yangilanadi.
   const adminPhone = process.env.ADMIN_PHONE;
   if (adminPhone) {
+    const adminLogin = (process.env.ADMIN_LOGIN ?? '').trim().toLowerCase();
+    const adminPassword = process.env.ADMIN_PASSWORD ?? '';
+    const minPasswordLength = process.env.NODE_ENV === 'production' ? 12 : 8;
+
     if (!/^\+998\d{9}$/.test(adminPhone)) {
       throw new Error('ADMIN_PHONE +998XXXXXXXXX formatida bo\'lishi kerak');
     }
-    console.log(`Seeding admin user ${adminPhone}...`);
+    if (!/^[a-z0-9._-]{3,32}$/.test(adminLogin)) {
+      throw new Error('ADMIN_LOGIN majburiy: 3–32 belgi (lotin harflari, raqam, nuqta, chiziqcha)');
+    }
+    if (adminPassword.length < minPasswordLength || adminPassword.length > 128) {
+      throw new Error(`ADMIN_PASSWORD majburiy: ${minPasswordLength}–128 belgi`);
+    }
+
+    console.log(`Seeding admin user "${adminLogin}" (${adminPhone})...`);
+    const passwordHash = hashAdminPassword(adminPassword);
     await prisma.user.upsert({
       where: { phone: adminPhone },
-      update: { role: 'ADMIN', isBlocked: false },
-      create: { phone: adminPhone, name: 'Administrator', role: 'ADMIN', isPhoneVerified: true },
+      update: { role: 'ADMIN', isBlocked: false, login: adminLogin, passwordHash },
+      create: {
+        phone: adminPhone,
+        name: 'Administrator',
+        role: 'ADMIN',
+        isPhoneVerified: true,
+        login: adminLogin,
+        passwordHash,
+      },
     });
   }
 

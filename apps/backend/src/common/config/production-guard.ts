@@ -19,7 +19,7 @@ export function findProductionConfigErrors(env: Env): string[] {
     );
   }
 
-  // Mock SMS'da OTP doim 123456 — production'da bu istalgan raqam (jumladan ADMIN) nomidan kirish demak.
+  // Mock SMS'da OTP doim 123456 — production'da bu istalgan mijoz/usta raqami nomidan kirish demak (admin panel alohida: login + parol).
   // Haqiqiy SMS provider ulanmaguncha faqat ongli ravishda, yopiq sinov uchun yoqiladi.
   if ((env.SMS_MODE ?? 'mock') === 'mock' && env.ALLOW_MOCK_SMS_IN_PRODUCTION !== 'true') {
     errors.push(

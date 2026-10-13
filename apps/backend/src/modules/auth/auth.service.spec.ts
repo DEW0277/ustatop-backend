@@ -1,5 +1,6 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, UnauthorizedException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { hashPassword } from '../../common/crypto/password.js';
 import { AuthService } from './auth.service.js';
 
 function createDeps() {
@@ -155,6 +156,82 @@ describe('AuthService', () => {
       expect(deps.prisma.user.create).not.toHaveBeenCalled();
       expect(deps.prisma.user.update).not.toHaveBeenCalled();
       expect(result.user.role).toBe('master');
+    });
+  });
+
+  describe('verifyOtp (admin)', () => {
+    it("ADMIN akkaunti OTP bilan kira olmaydi (mock SMS'da 123456 admin tokenini bermasin)", async () => {
+      deps.redis.get.mockResolvedValue('123456');
+      deps.prisma.user.findUnique.mockResolvedValue({ id: 'a-1', phone: '+998900000001', role: 'ADMIN' });
+
+      await expect(service.verifyOtp('+998900000001', '123456')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(deps.jwtService.sign).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('adminLogin', () => {
+    const adminRow = async (overrides: Record<string, unknown> = {}) => ({
+      id: 'a-1',
+      phone: '+998900000001',
+      name: 'Administrator',
+      role: 'ADMIN',
+      avatarUrl: null,
+      isBlocked: false,
+      login: 'admin',
+      passwordHash: await hashPassword('to-g-ri-parol'),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      deps.redis.get.mockResolvedValue(null);
+    });
+
+    it("to'g'ri login va parol bilan admin sessiyasini qaytaradi va urinishlar hisobini tozalaydi", async () => {
+      deps.prisma.user.findUnique.mockResolvedValue(await adminRow());
+
+      const result = await service.adminLogin('admin', 'to-g-ri-parol');
+
+      expect(deps.prisma.user.findUnique).toHaveBeenCalledWith({ where: { login: 'admin' } });
+      expect(result.user.role).toBe('admin');
+      expect(result.token).toBe('signed.jwt.token');
+      expect(result.user).not.toHaveProperty('passwordHash');
+      expect(deps.redis.del).toHaveBeenCalledWith('admin-login:attempts:admin');
+    });
+
+    it("noto'g'ri parol: 401, urinish sanaladi va birinchi xatoda blok muddati qo'yiladi", async () => {
+      deps.prisma.user.findUnique.mockResolvedValue(await adminRow());
+
+      await expect(service.adminLogin('admin', 'xato-parol')).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(deps.redis.incr).toHaveBeenCalledWith('admin-login:attempts:admin');
+      expect(deps.redis.expire).toHaveBeenCalledWith('admin-login:attempts:admin', 900);
+      expect(deps.jwtService.sign).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["login mavjud emas", null],
+      ["ADMIN emas (login/parol tasodifan qo'yilgan usta)", { role: 'MASTER' }],
+      ["bloklangan admin", { isBlocked: true }],
+      ["paroli o'rnatilmagan admin", { passwordHash: null }],
+    ])("%s — to'g'ri parol bilan ham bir xil 401", async (_name, overrides) => {
+      deps.prisma.user.findUnique.mockResolvedValue(overrides ? await adminRow(overrides) : null);
+
+      await expect(service.adminLogin('admin', 'to-g-ri-parol')).rejects.toMatchObject({
+        status: 401,
+        message: "Login yoki parol noto'g'ri",
+      });
+      expect(deps.redis.incr).toHaveBeenCalled();
+    });
+
+    it("5 ta xato urinishdan keyin to'g'ri parol ham qabul qilinmaydi (429), baza so'ralmaydi", async () => {
+      deps.redis.get.mockResolvedValue('5');
+      deps.redis.ttl.mockResolvedValue(600);
+
+      const error = await service.adminLogin('admin', 'to-g-ri-parol').catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(HttpException);
+      expect((error as HttpException).getStatus()).toBe(429);
+      expect(deps.prisma.user.findUnique).not.toHaveBeenCalled();
     });
   });
 

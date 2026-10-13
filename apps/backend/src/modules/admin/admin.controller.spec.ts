@@ -11,6 +11,7 @@ describe('AdminController', () => {
     setUserBlocked: ReturnType<typeof vi.fn>;
     listPendingMasters: ReturnType<typeof vi.fn>;
     listMasters: ReturnType<typeof vi.fn>;
+    createMaster: ReturnType<typeof vi.fn>;
     setMasterVerified: ReturnType<typeof vi.fn>;
     listOrders: ReturnType<typeof vi.fn>;
   };
@@ -28,6 +29,7 @@ describe('AdminController', () => {
       setUserBlocked: vi.fn(),
       listPendingMasters: vi.fn(),
       listMasters: vi.fn(),
+      createMaster: vi.fn(),
       setMasterVerified: vi.fn(),
       listOrders: vi.fn(),
     };
@@ -56,6 +58,19 @@ describe('AdminController', () => {
 
       expect(adminService.listMasters).toHaveBeenCalledWith(query);
       expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('createMaster', () => {
+    it('adminService.createMaster ni DTO bilan chaqiradi va natijani qaytaradi', async () => {
+      const created = { id: 'm-1', isVerified: true };
+      adminService.createMaster.mockResolvedValueOnce(created);
+
+      const dto = { phone: '+998901112233' } as never;
+      const result = await controller.createMaster(dto);
+
+      expect(adminService.createMaster).toHaveBeenCalledWith(dto);
+      expect(result).toEqual(created);
     });
   });
 

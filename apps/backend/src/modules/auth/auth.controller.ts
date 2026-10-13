@@ -6,13 +6,14 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.type.js';
 import { AuthService } from './auth.service.js';
+import { AdminLoginDto } from './dto/admin-login.dto.js';
 import { RegisterFcmTokenDto } from './dto/register-fcm-token.dto.js';
 import { SendOtpDto } from './dto/send-otp.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { VerifyOtpDto } from './dto/verify-otp.dto.js';
 
 // Global limit (100/daq) turli telefon raqamlari bilan OTP spam/enumeration'ni to'xtatish uchun
-// yetarli emas — shu ikki endpoint uchun qo'shimcha, qattiqroq IP bo'yicha chegara.
+// yetarli emas — kirish endpointlari uchun qo'shimcha, qattiqroq IP bo'yicha chegara.
 const AUTH_THROTTLE = { default: { limit: 5, ttl: 60_000 } };
 
 @ApiTags('auth')
@@ -31,9 +32,17 @@ export class AuthController {
   @Throttle(AUTH_THROTTLE)
   @Post('verify-otp')
   @ApiOperation({ summary: "Kodni tasdiqlash — yangi foydalanuvchi avtomatik yaratiladi, token qaytadi" })
-  @ApiErrorResponses(400, 429)
+  @ApiErrorResponses(400, 403, 429)
   verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto.phone, dto.code);
+  }
+
+  @Throttle(AUTH_THROTTLE)
+  @Post('admin/login')
+  @ApiOperation({ summary: 'Admin panelga login + parol bilan kirish (faqat ADMIN)' })
+  @ApiErrorResponses(400, 401, 429)
+  adminLogin(@Body() dto: AdminLoginDto) {
+    return this.authService.adminLogin(dto.login, dto.password);
   }
 
   @ApiBearerAuth()

@@ -4,7 +4,7 @@ import { backendRequest } from '@/lib/backend';
 import { tokenCookieOptions, TOKEN_COOKIE } from '@/lib/config';
 import { csrfError, failure } from '@/lib/route-utils';
 
-interface VerifyOtpPayload {
+interface AdminLoginPayload {
   data?: {
     token?: string;
     user?: { id: string; phone: string; name: string; role: string; avatarUrl?: string };
@@ -18,15 +18,15 @@ export async function POST(request: NextRequest) {
   const body = await request.text();
   if (!body) return failure("So'rov tanasi bo'sh", 400);
 
-  const { status, body: payload } = await backendRequest('/auth/verify-otp', { method: 'POST', body });
+  const { status, body: payload } = await backendRequest('/auth/admin/login', { method: 'POST', body });
 
   if (status < 200 || status >= 300) {
     return NextResponse.json(payload, { status });
   }
 
-  const { token, user } = (payload as VerifyOtpPayload).data ?? {};
+  const { token, user } = (payload as AdminLoginPayload).data ?? {};
 
-  // Oddiy foydalanuvchi (client/master) uchun sessiya ochilmaydi: token tashlab yuboriladi.
+  // Backend bu endpointda faqat ADMIN'ga token beradi; baribir qayta tekshiramiz (himoya qatlami).
   if (!token || !user || user.role !== 'admin') {
     return failure("Bu panel faqat administratorlar uchun", 403);
   }

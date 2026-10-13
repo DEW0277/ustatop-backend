@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { AddPortfolioDto } from './dto/add-portfolio.dto.js';
@@ -7,15 +13,14 @@ import type { UpdateServiceDto } from './dto/update-service.dto.js';
 import type { UpsertMasterProfileDto } from './dto/upsert-master-profile.dto.js';
 import { masterDetailInclude, toMasterResponse, toServiceResponse } from './master.mapper.js';
 
-const REQUIRED_ON_CREATE = [
-  'firstName',
-  'lastName',
-  'bio',
-  'regionId',
-  'districtId',
-  'address',
-  'workingHours',
-] as const;
+// Admin tomonidan usta qo'shish (`POST /admin/masters`) — `admin/dto/create-master.dto.ts` shu shaklga mos.
+export type AdminCreateMasterInput = Required<
+  Pick<UpsertMasterProfileDto, 'firstName' | 'lastName' | 'bio' | 'regionId' | 'districtId' | 'address' | 'workingHours'>
+> &
+  Pick<UpsertMasterProfileDto, 'telegram' | 'experienceYears' | 'categoryIds'> & {
+    phone: string;
+    isVerified?: boolean;
+  };
 
 @Injectable()
 export class MasterProfileService {
@@ -34,20 +39,15 @@ export class MasterProfileService {
     return toMasterResponse(profile);
   }
 
-  async upsert(userId: string, dto: UpsertMasterProfileDto) {
-    const [user, existing] = await Promise.all([
-      this.prisma.user.findUniqueOrThrow({ where: { id: userId } }),
-      this.prisma.masterProfile.findUnique({ where: { userId } }),
-    ]);
+  // Usta profilini faqat administrator yaratadi (`createByAdmin`, docs/TZ.md §4.0) — usta bu yerda
+  // faqat o'zining mavjud profilini tahrirlaydi.
+  async update(userId: string, dto: UpsertMasterProfileDto) {
+    const existing = await this.prisma.masterProfile.findUnique({ where: { userId } });
 
     if (!existing) {
-      const missing = REQUIRED_ON_CREATE.filter((field) => dto[field] === undefined);
-      if (missing.length > 0) {
-        throw new BadRequestException({
-          message: "Usta profilini yaratish uchun majburiy maydonlar to'ldirilmagan",
-          errors: Object.fromEntries(missing.map((field) => [field, [`${field} majburiy`]])),
-        });
-      }
+      throw new ForbiddenException(
+        "Usta profili faqat administrator tomonidan yaratiladi. Usta bo'lish uchun administratorga murojaat qiling",
+      );
     }
 
     await this.assertLocation(dto, existing);
@@ -63,38 +63,22 @@ export class MasterProfileService {
         } satisfies Prisma.InputJsonObject)
       : undefined;
 
-    const profileId = await this.prisma.$transaction(async (tx) => {
-      const profile = existing
-        ? await tx.masterProfile.update({
-            where: { id: existing.id },
-            data: {
-              firstName: dto.firstName,
-              lastName: dto.lastName,
-              phone: dto.phone,
-              telegram: dto.telegram,
-              bio: dto.bio,
-              experienceYears: dto.experienceYears,
-              regionId: dto.regionId,
-              districtId: dto.districtId,
-              address: dto.address,
-              workingHours,
-            },
-          })
-        : await tx.masterProfile.create({
-            data: {
-              userId,
-              firstName: dto.firstName!,
-              lastName: dto.lastName!,
-              phone: dto.phone ?? user.phone,
-              telegram: dto.telegram,
-              bio: dto.bio!,
-              experienceYears: dto.experienceYears ?? 0,
-              regionId: dto.regionId!,
-              districtId: dto.districtId!,
-              address: dto.address!,
-              workingHours: workingHours!,
-            },
-          });
+    await this.prisma.$transaction(async (tx) => {
+      const profile = await tx.masterProfile.update({
+        where: { id: existing.id },
+        data: {
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          phone: dto.phone,
+          telegram: dto.telegram,
+          bio: dto.bio,
+          experienceYears: dto.experienceYears,
+          regionId: dto.regionId,
+          districtId: dto.districtId,
+          address: dto.address,
+          workingHours,
+        },
+      });
 
       if (dto.categoryIds) {
         await tx.masterCategory.deleteMany({ where: { masterId: profile.id } });
@@ -105,21 +89,88 @@ export class MasterProfileService {
 
       await tx.user.update({
         where: { id: userId },
-        data: {
-          name: `${profile.firstName} ${profile.lastName}`,
-          ...(user.role === Role.CLIENT ? { role: Role.MASTER } : {}),
-        },
+        data: { name: `${profile.firstName} ${profile.lastName}` },
       });
-
-      return profile.id;
     });
 
     const profile = await this.prisma.masterProfile.findUniqueOrThrow({
-      where: { id: profileId },
+      where: { id: existing.id },
       include: masterDetailInclude,
     });
 
     return toMasterResponse(profile);
+  }
+
+  // Telefon bo'yicha akkauntni topadi yoki yaratadi va unga usta profilini biriktiradi (docs/TZ.md §4.1).
+  // Hammasi bitta tranzaksiyada: profil yaratilmasa, yangi akkaunt ham qolmaydi.
+  async createByAdmin(dto: AdminCreateMasterInput): Promise<string> {
+    await this.assertLocation(dto, null);
+    if (dto.categoryIds?.length) {
+      await this.assertCategoriesExist(dto.categoryIds);
+    }
+
+    const name = `${dto.firstName} ${dto.lastName}`;
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const existing = await tx.user.findUnique({
+          where: { phone: dto.phone },
+          select: { id: true, role: true, isBlocked: true, masterProfile: { select: { id: true } } },
+        });
+
+        if (existing?.role === Role.ADMIN) {
+          throw new BadRequestException({
+            message: "Administrator raqamiga usta profili qo'shib bo'lmaydi",
+            errors: { phone: ['Bu raqam administratorga tegishli'] },
+          });
+        }
+        if (existing?.masterProfile) {
+          throw new ConflictException('Bu telefon raqamida usta profili allaqachon mavjud');
+        }
+        if (existing?.isBlocked) {
+          throw new ConflictException('Bu foydalanuvchi bloklangan — avval blokdan chiqaring');
+        }
+
+        const user = existing
+          ? await tx.user.update({ where: { id: existing.id }, data: { name, role: Role.MASTER } })
+          : await tx.user.create({ data: { phone: dto.phone, name, role: Role.MASTER } });
+
+        const profile = await tx.masterProfile.create({
+          data: {
+            userId: user.id,
+            firstName: dto.firstName,
+            lastName: dto.lastName,
+            phone: dto.phone,
+            telegram: dto.telegram,
+            bio: dto.bio,
+            experienceYears: dto.experienceYears ?? 0,
+            regionId: dto.regionId,
+            districtId: dto.districtId,
+            address: dto.address,
+            workingHours: {
+              start: dto.workingHours.start,
+              end: dto.workingHours.end,
+              workDays: dto.workingHours.workDays,
+            },
+            isVerified: dto.isVerified ?? true,
+          },
+        });
+
+        if (dto.categoryIds?.length) {
+          await tx.masterCategory.createMany({
+            data: dto.categoryIds.map((categoryId) => ({ masterId: profile.id, categoryId })),
+          });
+        }
+
+        return profile.id;
+      });
+    } catch (error) {
+      // Parallel so'rov shu raqam uchun akkaunt/profilni birinchi bo'lib yaratgan (users.phone / userId unique).
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Bu telefon raqamida usta profili allaqachon mavjud');
+      }
+      throw error;
+    }
   }
 
   async addService(userId: string, dto: CreateServiceDto) {
@@ -234,7 +285,7 @@ export class MasterProfileService {
   }
 
   private async assertLocation(
-    dto: UpsertMasterProfileDto,
+    dto: Pick<UpsertMasterProfileDto, 'regionId' | 'districtId'>,
     existing: { regionId: string; districtId: string } | null,
   ) {
     if (!dto.regionId && !dto.districtId) {

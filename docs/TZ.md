@@ -34,6 +34,8 @@
 
 ✅ Bajarildi (Gemini, PR #17 + PR #18): `GET /admin/reviews` (sahifalash, `masterId`/`rating` filtrlari) va admin panel **Sharhlar** sahifasi (filtr, jadval, o'chirish dialogi). Review paytida topilgan xatolar (UUID bo'lmagan `masterId` 400 berardi, "Faqat shu usta" forma bilan sinxron emas edi, URL'dagi `page` yo'qolardi) Claude tomonidan tuzatildi.
 
+✅ Bajarildi (2026-10-13, Claude): admin panelda usta qo'shish (`POST /admin/masters` + "Usta qo'shish" dialogi); admin kirishi login + parolga o'tkazildi (`POST /auth/admin/login`, OTP bilan admin kirishi yopildi); usta profilini faqat admin yaratadi (`PUT /masters/me/profile` endi faqat tahrirlash). Batafsil: §4.0, §4.1.
+
 🔄 Jarayonda (2026-10-09 dan, uch agent — §7.4): CI, production Docker konfiguratsiyasi, admin "barcha ustalar" ro'yxati, admin panel UI tuzatishlari, FCM token endpointi.
 
 ## 1. Loyiha haqida
@@ -67,7 +69,7 @@ Backend bitta bo'lib, `role` (CLIENT / MASTER / ADMIN) orqali huquqlar farqlanad
 - **Stil**: TailwindCSS + shadcn/ui (komponentlar uchun)
 - **Data fetching**: TanStack Query (React Query)
 - **Form**: react-hook-form + zod
-- **Auth**: Backend bilan bir xil OTP+JWT oqimi, lekin faqat `role: ADMIN`; JWT httpOnly cookie'da saqlanadi (Next.js Route Handler orqali backend proxy qilinadi — token brauzer JS'iga chiqmaydi)
+- **Auth**: **login + parol** (`POST /auth/admin/login`, faqat `role: ADMIN`; telefon/OTP bilan admin panelga kirib bo'lmaydi — §4.1); JWT httpOnly cookie'da saqlanadi (Next.js Route Handler orqali backend proxy qilinadi — token brauzer JS'iga chiqmaydi)
 - **Grafiklar**: dashboard statistikasi uchun recharts (yoki teng darajadagi kutubxona)
 
 ### Infratuzilma
@@ -129,7 +131,7 @@ Mobil ilova kodi (`/Users/macstore.uz/Desktop/mobile-app/src/types/index.ts`, `s
 - **UserSession**: `createdAt` (ISO) qo'shildi, `avatarUrl` yo'q bo'lsa yuborilmaydi (`null` emas), `role` — `'client' | 'master'` (admin faqat web panel uchun).
 - **Telefon**: ilova `+998 90 123 45 67` (probelli) yuboradi — backend `NormalizedPhone` dekoratori bilan kiruvchi qiymatni `+998901234567` ga keltiradi (probelli, `998...`, 9 xonali variantlar ham qabul qilinadi). Javoblarda doim kanonik format.
 - **OTP uzunligi**: **qaror (2026-10-10): 6 xona.** Backend standarti allaqachon 6 (`OTP_LENGTH=6`), production'da ham shunday qoladi. Ilovada hozir 4 ta katak — **ilova 6 katakka o'tkazilishi kerak** (§7.4, mobil integratsiya). `OTP_LENGTH` env (4–6) faqat texnik imkoniyat sifatida qoladi.
-- **Usta bo'lish**: `PUT /masters/me/profile` — *upsert*; CLIENT/MASTER chaqira oladi; birinchi yaratilganda majburiy maydonlar (`firstName, lastName, bio, regionId, districtId, address, workingHours`), rol avtomatik `MASTER` ga o'tadi, `User.name` = `firstName lastName`. `categoryIds` berilsa kategoriyalar to'liq almashtiriladi. Qo'shimcha: `GET /masters/me/profile`.
+- **Usta profili — faqat admin yaratadi (qaror 2026-10-13).** Ilovadan o'zi "usta bo'lish" yopilgan: usta profili faqat admin panel orqali qo'shiladi (`POST /admin/masters`, §4.1). `PUT /masters/me/profile` endi faqat **mavjud profilni tahrirlaydi** (barcha maydonlar ixtiyoriy; `categoryIds` berilsa kategoriyalar to'liq almashtiriladi; `User.name` = `firstName lastName`); profili yo'q foydalanuvchi `403` oladi ("Usta profili faqat administrator tomonidan yaratiladi..."). `GET /masters/me/profile` — profil yo'q bo'lsa `404`. ⚠️ Ilovadagi "usta bo'lish" formasi olib tashlanishi (yoki "administratorga murojaat qiling" xabari bilan almashtirilishi) kerak.
 - **Ilova ishlatadigan, spec'da yo'q endpointlar (qo'shildi)**: `PUT /masters/me/services/:serviceId` (xizmatni tahrirlash), `DELETE /masters/me/portfolio?url=...` (rasm URL bo'yicha o'chiriladi — ilovada rasmlar ID'siz).
 - Qolganlari: `POST/DELETE /masters/me/services`, `POST /masters/me/portfolio`, `PATCH /masters/me/availability` — faqat MASTER; xizmat egaligi tekshiriladi. `GET /masters` bloklangan ustalarni ko'rsatmaydi; `sortBy`: `rating|reviews|orders|experience|newest`.
 
@@ -156,11 +158,13 @@ Original spec faqat mobil ilova uchun edi — admin panelga quyidagi qo'shimcha 
 
 | Endpoint | Tavsif |
 |---|---|
+| `POST /api/v1/auth/admin/login` | Admin panelga login + parol bilan kirish (yagona ochiq admin endpointi) |
 | `GET /api/v1/admin/stats/dashboard` | Umumiy statistika: userlar soni, ustalar soni, status bo'yicha buyurtmalar soni, so'nggi 30 kunlik trend |
 | `GET /api/v1/admin/users` | Foydalanuvchilar ro'yxati (filter: role, isBlocked, qidiruv) |
 | `PATCH /api/v1/admin/users/:id/block` | Foydalanuvchini bloklash/blokdan chiqarish |
 | `GET /api/v1/admin/masters/pending` | Tasdiqlanmagan (`isVerified: false`) ustalar ro'yxati |
 | `GET /api/v1/admin/masters` | Barcha ustalar ro'yxati (filter: isVerified, viloyat, qidiruv) — tasdiqni bekor qilish va umumiy ko'rish uchun |
+| `POST /api/v1/admin/masters` | Admin tomonidan yangi usta qo'shish (telefon bo'yicha akkaunt + usta profili) — usta profilini yaratishning **yagona** yo'li |
 | `PATCH /api/v1/admin/masters/:id/verify` | Ustani tasdiqlash (`isVerified: true`) |
 | `GET /api/v1/admin/orders` | Barcha buyurtmalar (filter: status, sana oralig'i, viloyat) |
 | `POST /api/v1/admin/regions`, `PUT .../:id`, `DELETE .../:id` | Viloyatlarni boshqarish (original spec'da faqat GET bor edi) |
@@ -175,12 +179,13 @@ Original spec faqat mobil ilova uchun edi — admin panelga quyidagi qo'shimcha 
 - `PATCH /admin/users/:id/block` body `{ isBlocked: boolean }` → `{ id, isBlocked }`. O'zini va boshqa ADMIN'ni bloklab bo'lmaydi (400/403). Bloklangan foydalanuvchining token'i keyingi so'rovdayoq 401 beradi (`JwtStrategy` har so'rovda DB'ni tekshiradi).
 - `GET /admin/masters/pending?page&limit` → `items[]`: `{ id, userId, fullName, phone, telegram?, avatarUrl?, bio, experienceYears, isVerified, isBlocked, region{id,nameUz}, district{id,nameUz}, address, categories[{id,nameUz}], createdAt }`, eng eski so'rov birinchi.
 - `GET /admin/masters?isVerified&regionId&query&page&limit` → `items[]`: `masters/pending` bilan bir xil maydonlar **+** `rating`, `reviewCount`, `completedOrdersCount`, `isAvailable`. `isVerified` — `true|false` (berilmasa hammasi); `regionId` — UUID; `query` — ism (`firstName`/`lastName`) yoki telefon bo'yicha, 1–100 belgi; bo'shliq bilan ajratilgan har bir so'z (ko'pi bilan 5 ta) alohida mos kelishi kerak — shuning uchun to'liq ism (`Ali Valiyev`) va bo'shliqli telefon (`+998 90 123`) ham topiladi. Tartib: eng yangi birinchi (`createdAt desc`). Bloklangan ustalar ham ko'rinadi (`isBlocked: true`).
+- `POST /admin/masters` body `{ phone, firstName, lastName, bio, regionId, districtId, address, workingHours{start,end,workDays[]}, experienceYears?, telegram?, categoryIds?, isVerified? }` → `201`, `GET /admin/masters` elementi bilan bir xil shakl. Maydon qoidalari `PUT /masters/me/profile` bilan bir xil (§4.0), lekin `phone` majburiy (`+998XXXXXXXXX`, probelli variantlar ham qabul qilinadi). `isVerified` standart `true` (admin qo'shgan usta darhol tasdiqlangan). Telefon bo'yicha: akkaunt yo'q bo'lsa — yaratiladi (`role: MASTER`, `isPhoneVerified: false`; usta keyin shu raqam bilan oddiy OTP orqali kiradi va profil o'ziniki bo'ladi); mavjud CLIENT bo'lsa — unga profil biriktiriladi va rol `MASTER`ga o'tadi, `User.name` = `firstName lastName`. Rad etiladi: shu raqamda usta profili allaqachon bor yoki foydalanuvchi bloklangan → `409`; raqam ADMIN'ga tegishli → `400`; tuman viloyatga mos emas / kategoriya topilmadi → `400`. Hammasi bitta tranzaksiyada (xatoda akkaunt ham yaratilmaydi). Push yuborilmaydi. Additiv — mobil kontraktga ta'sir qilmaydi.
 - `PATCH /admin/masters/:id/verify` body `{ isVerified?: boolean }` (standart `true`, `false` — tasdiqni bekor qilish) → `{ id, isVerified }`. Birinchi tasdiqlashda ustaga push yuboriladi (mock).
 - `GET /admin/orders?status&regionId&from&to&page&limit` → `items[]`: `{ id, orderNumber, masterId, masterName, masterPhone, clientId?, clientName, clientPhone, serviceTitle, price, region{id,nameUz}, districtId, districtName, address, preferredDate, preferredTime, comment?, status, cancelledBy?, createdAt }`. `regionId` — buyurtma manzili (tumani) shu viloyatda. `from`/`to` — `createdAt` bo'yicha; `to=2026-09-30` butun kunni qamrab oladi; `from > to` → 400.
 - `GET /admin/reviews?masterId&rating&page&limit` → `items[]`: `{ id, masterId, masterName, masterPhone, userId, userName, userPhone, userAvatar?, rating, comment, createdAt }`.
 - `GET /admin/stats/dashboard` → `{ users{total,clients,masters,admins,blocked}, masters{total,verified,pending}, orders{total,pending,in_progress,completed,cancelled}, trend[30]{date,orders,newUsers} }`. Trend — so'nggi 30 kun (bugun ham), Toshkent vaqti (UTC+5) bo'yicha, bo'sh kunlar 0.
 - `DELETE /admin/reviews/:id` → `{ id, masterId }`; usta `rating`/`reviewCount` qayta hisoblanadi (oxirgi sharh o'chirilsa 0).
-- Auth eslatma: admin `verify-otp` orqali kirganda sessiya `role: 'admin'` (kichik harf) qaytadi; panel shu bo'yicha tekshiradi, lekin haqiqiy himoya backend'dagi `RolesGuard`.
+- **Admin kirishi — login + parol (qaror 2026-10-13).** `POST /auth/admin/login` body `{ login, password }` → `verify-otp` bilan bir xil shakl (`{ user, token }`, `user.role: 'admin'`). `login` — 3–32 belgi (`a-z 0-9 . _ -`), registrga bog'liq emas. Xato login, xato parol, ADMIN bo'lmagan yoki bloklangan akkaunt — bir xil `401` ("Login yoki parol noto'g'ri"). Himoya: IP bo'yicha 5/daq (`429`) + bitta login uchun 5 ta xato urinishdan keyin 15 daqiqa blok (`429`, Redis). Parol `scrypt` (Node `crypto`, tashqi kutubxonasiz) bilan xeshlanadi — `users.login` (unique, nullable) va `users.passwordHash` (nullable) ustunlari, additiv migratsiya; javoblarda hech qachon qaytmaydi. **ADMIN akkaunti telefon + OTP bilan kira olmaydi**: `verify-otp` unga `403` qaytaradi (aks holda mock SMS'da `123456` bilan admin tokenini olish mumkin edi). Panel sessiyani `role: 'admin'` bo'yicha tekshiradi, lekin haqiqiy himoya backend'dagi `RolesGuard`. Parolni almashtirish: `ADMIN_PASSWORD`ni o'zgartirib `prisma db seed`ni qayta ishga tushirish (panelda parol almashtirish sahifasi hali yo'q).
 
 ### 4.2. Qurilma push tokeni (yangi, FCM uchun)
 
@@ -193,7 +198,7 @@ Original spec'da ham, ilovada ham token yuboradigan endpoint yo'q edi — haqiqi
 
 Ikkalasi ham `JwtAuthGuard` bilan. Provider `PUSH_PROVIDER` env orqali tanlanadi: `log` (standart, mock) yoki `fcm` (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` majburiy — bo'lmasa ilova ishga tushmaydi). FCM "token yaroqsiz" xatosini qaytarsa, token bazadan o'chiriladi. Push yuborishdagi xato hech qachon asosiy amalni (buyurtma yaratish va h.k.) buzmaydi.
 
-**Xavfsizlik qoidasi**: `/api/v1/admin/*` barcha endpointlar `JwtAuthGuard` + `RolesGuard(Role.ADMIN)` bilan himoyalanadi. ADMIN role'ga ega foydalanuvchi faqat qo'lda (seed yoki to'g'ridan-to'g'ri DB orqali) yaratiladi — ochiq ro'yxatdan o'tish orqali ADMIN bo'lib bo'lmaydi. Dev'da `apps/backend/.env`dagi `ADMIN_PHONE` bo'yicha `prisma db seed` uni yaratadi (OTP mock: `123456`).
+**Xavfsizlik qoidasi**: `/api/v1/admin/*` barcha endpointlar `JwtAuthGuard` + `RolesGuard(Role.ADMIN)` bilan himoyalanadi. ADMIN role'ga ega foydalanuvchi faqat qo'lda (seed yoki to'g'ridan-to'g'ri DB orqali) yaratiladi — ochiq ro'yxatdan o'tish orqali ADMIN bo'lib bo'lmaydi. `prisma db seed` uni `ADMIN_LOGIN` + `ADMIN_PASSWORD` (kamida 8, production'da 12 belgi) + `ADMIN_PHONE` (akkauntning majburiy telefon maydoni uchun; u bilan kirib bo'lmaydi) bo'yicha yaratadi/yangilaydi. Dev: `apps/backend/.env`.
 
 ## 5. Xavfsizlik va operatsion qoidalar
 
@@ -203,6 +208,7 @@ Ikkalasi ham `JwtAuthGuard` bilan. Provider `PUSH_PROVIDER` env orqali tanlanadi
 4. Prisma indekslar: `master_profiles(regionId, districtId, rating)`, `orders(masterId, clientId, status)`.
 5. JWT secret, MinIO kalitlari, DB parol — faqat `.env` da, hech qachon commit qilinmaydi (`.env.example` bilan taqqoslab tekshiriladi).
 6. Admin panelda JWT httpOnly cookie'da, `SameSite=Lax`, `Secure` (production'da).
+7. Admin panelga faqat login + parol bilan kiriladi; ADMIN akkauntiga OTP orqali kirish yopiq (§4.1).
 
 ## 6. Deployment (Contabo VPS)
 
