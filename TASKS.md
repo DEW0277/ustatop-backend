@@ -73,7 +73,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [ ] **B-06 · `packages/shared-types`ni to'ldirish** — Gemini (MVP'dan keyin, ixtiyoriy)
   - Hozir bo'sh; admin panel tiplari `apps/web/lib/types.ts`da qo'lda yozilgan.
   - Tayyor mezoni: admin javob tiplari bitta paketdan backend va web'ga import qilinadi.
-- [x] **B-07 · Usta profilini faqat admin yaratadi** — Claude ⚠️ — ✅ Bajarildi (2026-10-13, branch `feat/admin-create-master-claude`, PR hali ochilmagan)
+- [x] **B-07 · Usta profilini faqat admin yaratadi** — Claude ⚠️ — ✅ Bajarildi (2026-10-13, PR #31)
   - `PUT /masters/me/profile` endi faqat mavjud profilni tahrirlaydi; profili yo'q foydalanuvchi 403 oladi (TZ §4.0). Ilova tomoni — D-10.
   - Tayyor mezoni: unit + e2e testlar, TZ yangilangan.
 
@@ -88,10 +88,10 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [ ] **C-03 · Maxfiylik siyosati va foydalanish shartlari sahifalari** — Gemini 👤
   - Do'konlar ommaviy URL talab qiladi (F-02). Matnni foydalanuvchi beradi.
   - Tayyor mezoni: `/privacy` va `/terms` auth'siz ochiladi (`proxy.ts` ularni login'ga yo'naltirmaydi).
-- [x] **C-04 · Admin panelda usta qo'shish** — Claude — ✅ Bajarildi (2026-10-12, branch `feat/admin-create-master-claude`, PR hali ochilmagan)
+- [x] **C-04 · Admin panelda usta qo'shish** — Claude — ✅ Bajarildi (2026-10-12, PR #31)
   - `POST /admin/masters` (TZ §4.1): telefon bo'yicha akkaunt yaratadi yoki mavjud mijozga profil biriktiradi; Ustalar sahifasida "Usta qo'shish" dialogi.
   - Tayyor mezoni: endpoint + forma, unit va e2e testlar, lint/typecheck yashil, brauzerda jonli tekshirilgan.
-- [x] **C-05 · Admin panelga login + parol bilan kirish** — Claude — ✅ Bajarildi (2026-10-13, branch `feat/admin-create-master-claude`, PR hali ochilmagan)
+- [x] **C-05 · Admin panelga login + parol bilan kirish** — Claude — ✅ Bajarildi (2026-10-13, PR #31)
   - `POST /auth/admin/login` (TZ §4.1), `users.login`/`passwordHash` (additiv migratsiya), scrypt, 5 xato urinishdan keyin 15 daqiqa blok; ADMIN uchun OTP kirishi yopildi; seed `ADMIN_LOGIN` + `ADMIN_PASSWORD`.
   - Tayyor mezoni: login sahifasi login/parol, unit + e2e testlar, brauzerda jonli tekshirilgan, hujjatlar va `.env*.example` yangilangan.
 - [ ] **C-06 · Admin parolini paneldan almashtirish va adminlarni boshqarish** — Claude 👤 (ixtiyoriy)
