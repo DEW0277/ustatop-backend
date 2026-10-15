@@ -1,0 +1,19 @@
+# Faqat DEV: http://localhost:9000/${S3_BUCKET}/<kalit> → Garage website endpoint. Shu tufayli dev'dagi public
+# URL formati (STORAGE_PUBLIC_URL) MinIO davridagidek qoldi. Production'da bu ishni asosiy nginx qiladi.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
+server {
+    listen 9000;
+
+    location /${S3_BUCKET}/ {
+        limit_except GET HEAD { deny all; }
+        set $garage http://garage:3902;
+        rewrite ^/${S3_BUCKET}/(.*)$ /$1 break;
+        proxy_set_header Host ${S3_BUCKET}.web.garage.internal;
+        proxy_pass $garage;
+    }
+
+    location = /healthz {
+        return 200 "ok\n";
+    }
+}

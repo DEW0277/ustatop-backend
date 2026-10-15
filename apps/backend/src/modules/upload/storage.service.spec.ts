@@ -120,4 +120,35 @@ describe('StorageService', () => {
       expect(command.input).toEqual({ Bucket: 'ustatop-uploads', Key: `images/${uuid}.png` });
     });
   });
+
+  describe('S3-mos serverlar (Garage)', () => {
+    it("bucket policy qo'llab-quvvatlanmasa (NotImplemented) xato otmaydi", async () => {
+      mockSend.mockResolvedValueOnce({}); // HeadBucket
+      mockSend.mockRejectedValueOnce(Object.assign(new Error('Unimplemented action: PutBucketPolicy'), { name: 'NotImplemented' }));
+
+      await expect(storageService.ensureBucket()).resolves.toBeUndefined();
+    });
+
+    it("boshqa policy xatolari yashirilmaydi", async () => {
+      mockSend.mockResolvedValueOnce({});
+      mockSend.mockRejectedValueOnce(Object.assign(new Error('Access Denied'), { name: 'AccessDenied' }));
+
+      await expect(storageService.ensureBucket()).rejects.toThrow('Access Denied');
+    });
+
+    it("S3_* sozlamalari eski MINIO_* nomlaridan ustun", async () => {
+      const config: Record<string, unknown> = {
+        S3_BUCKET: 'yangi-bucket',
+        MINIO_BUCKET: 'eski-bucket',
+        STORAGE_PUBLIC_URL: 'http://localhost:9000/yangi-bucket',
+      };
+      const service = new StorageService({ get: (key: string) => config[key] } as unknown as ConfigService);
+      const send = vi.fn().mockResolvedValue({});
+      (service.getS3Client() as unknown as { send: typeof send }).send = send;
+
+      await service.deleteFile('images/x.png');
+
+      expect(send.mock.calls[0][0].input.Bucket).toBe('yangi-bucket');
+    });
+  });
 });

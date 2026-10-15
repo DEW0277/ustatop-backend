@@ -41,7 +41,7 @@ export class UploadController {
   @ApiOperation({
     summary: 'Bitta rasm yuklash (JPEG, PNG, WEBP — maks. 10MB)',
     description:
-      "Rasm MinIO S3 omboriga yuklanadi va public URL manzili qaytariladi. Faqat autentifikatsiyadan o'tgan foydalanuvchilar uchun.",
+      "Rasm S3-mos fayl omboriga (Garage) yuklanadi va public URL manzili qaytariladi. Faqat autentifikatsiyadan o'tgan foydalanuvchilar uchun.",
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({

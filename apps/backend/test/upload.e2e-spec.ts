@@ -15,18 +15,21 @@ const PNG_1X1 = Buffer.from(
   'base64',
 );
 
-// Haqiqiy MinIO kerak (dev: `docker compose up -d minio`). CI'da MinIO yo'q — ommaviy image'lari registry'lardan
-// olib tashlangan (TASKS.md E-09), shuning uchun MinIO javob bermasa blok ogohlantirish bilan o'tkazib yuboriladi.
+// Haqiqiy fayl ombori kerak (dev: `docker compose up -d` — Garage + storage-proxy, docs/TZ.md §2). Ombor javob
+// bermasa blok ogohlantirish bilan o'tkazib yuboriladi; CI'da esa `E2E_REQUIRE_STORAGE=1` — o'tkazib yuborish xato.
 const STORAGE_ORIGIN = new URL(process.env.STORAGE_PUBLIC_URL ?? 'http://localhost:9000/ustatop-uploads').origin;
-const minioAvailable = await fetch(`${STORAGE_ORIGIN}/minio/health/live`, { signal: AbortSignal.timeout(2000) })
+const storageAvailable = await fetch(`${STORAGE_ORIGIN}/healthz`, { signal: AbortSignal.timeout(2000) })
   .then((res) => res.ok)
   .catch(() => false);
 
-if (!minioAvailable) {
-  console.warn(`[upload.e2e] MinIO (${STORAGE_ORIGIN}) javob bermadi — upload e2e testlari o'tkazib yuborildi`);
+if (!storageAvailable) {
+  if (process.env.E2E_REQUIRE_STORAGE === '1') {
+    throw new Error(`[upload.e2e] Fayl ombori (${STORAGE_ORIGIN}) javob bermadi, E2E_REQUIRE_STORAGE=1`);
+  }
+  console.warn(`[upload.e2e] Fayl ombori (${STORAGE_ORIGIN}) javob bermadi — upload e2e testlari o'tkazib yuborildi`);
 }
 
-describe.skipIf(!minioAvailable)('Upload (e2e)', () => {
+describe.skipIf(!storageAvailable)('Upload (e2e)', () => {
   let app: INestApplication<App>;
   const prisma = new PrismaClient();
   let token: string;
@@ -42,7 +45,7 @@ describe.skipIf(!minioAvailable)('Upload (e2e)', () => {
     for (const key of uploadedKeys) {
       await storage
         .getS3Client()
-        .send(new DeleteObjectCommand({ Bucket: process.env.MINIO_BUCKET ?? 'ustatop-uploads', Key: key }));
+        .send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET ?? 'ustatop-uploads', Key: key }));
     }
     await prisma.user.deleteMany({ where: { phone: { startsWith: testPhonePrefix(TAG) } } });
     await prisma.$disconnect();

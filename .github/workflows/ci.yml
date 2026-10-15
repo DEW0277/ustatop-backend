@@ -42,7 +42,7 @@ jobs:
       - run: docker build -f apps/backend/Dockerfile -t ustatop-backend:ci .
       - run: docker build -f apps/web/Dockerfile -t ustatop-web:ci .
       - run: |
-          printf 'DOMAIN=ci.example\nPOSTGRES_USER=u\nPOSTGRES_PASSWORD=p\nPOSTGRES_DB=d\nMINIO_ROOT_USER=m\nMINIO_ROOT_PASSWORD=mmmmmmmm\n' > .env.production
+          printf 'DOMAIN=ci.example\nPOSTGRES_USER=u\nPOSTGRES_PASSWORD=p\nPOSTGRES_DB=d\nS3_ACCESS_KEY=GK000000000000000000000001\nS3_SECRET_KEY=s\nGARAGE_RPC_SECRET=r\nGARAGE_ADMIN_TOKEN=t\n' > .env.production
           docker compose -f docker-compose.prod.yml --env-file .env.production config -q
 
   e2e:
@@ -58,9 +58,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # Dev bilan aynan bir xil servislar (docker-compose.yml) — port va hisob ma'lumotlari bitta joyda.
-      - run: docker compose up -d --wait postgres redis
+      # storage-proxy garage-init tugashini kutadi (depends_on) — demak Garage to'liq sozlangan bo'ladi.
+      - run: docker compose up -d --wait postgres redis storage-proxy
       - run: cp apps/backend/.env.example apps/backend/.env
       - run: pnpm --filter backend exec prisma generate
-      # `test:e2e` o'zi `?schema=test`ga `prisma migrate deploy` qiladi. MinIO ko'tarilmaydi: uning ommaviy
-      # image'lari endi registry'larda yo'q (TASKS.md E-09) — `upload.e2e-spec.ts` MinIO topilmasa o'tkazib yuboriladi.
+      # `test:e2e` o'zi `?schema=test`ga `prisma migrate deploy` qiladi. Fayl ombori (Garage) bilan haqiqiy
+      # yuklash ham tekshiriladi — CI'da u o'tkazib yuborilmasin.
       - run: pnpm --filter backend test:e2e
+        env:
+          E2E_REQUIRE_STORAGE: '1'

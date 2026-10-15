@@ -58,7 +58,7 @@ Backend bitta bo'lib, `role` (CLIENT / MASTER / ADMIN) orqali huquqlar farqlanad
 - **Framework**: NestJS + TypeScript
 - **ORM**: Prisma **6.x** (7.x emas — datasource/config paradigmasi keskin o'zgargan, 6.x barqaror va keng hujjatlashtirilgan) + PostgreSQL 16
 - **Cache/Session**: Redis (ioredis) — OTP saqlash, rate-limiting
-- **Fayl saqlash**: MinIO (S3-compatible), dev'da docker-compose ichida, production'da Contabo VPS'dagi konteynerda
+- **Fayl saqlash**: S3-mos ombor — **Garage** (`dxflrs/garage`, 2026-10-16 dan; MinIO'ning ommaviy image'lari registry'lardan olib tashlangani uchun almashtirildi). Dev'da docker-compose ichida, production'da Contabo VPS'dagi konteynerda. Kod faqat `@aws-sdk/client-s3` ishlatadi (`S3_*` env), shuning uchun ombor almashsa kod o'zgarmaydi. Garage bucket policy'ni qo'llab-quvvatlamaydi — public o'qish uning "website" endpoint'i orqali (dev: `storage-proxy` nginx, prod: asosiy nginx `/uploads/`).
 - **Auth**: Telefon + SMS OTP (hozircha **mock**, test kodi `123456`) + JWT — bitta access token (`JWT_EXPIRES_IN`, standart 30 kun); original spec va mobil ilova refresh endpointini ko'zda tutmaydi, shuning uchun refresh token **yo'q**
 - **Validatsiya**: class-validator / class-transformer, global `ValidationPipe`
 - **API docs**: `@nestjs/swagger` → `/api/docs`
@@ -76,8 +76,8 @@ Backend bitta bo'lib, `role` (CLIENT / MASTER / ADMIN) orqali huquqlar farqlanad
 
 ### Infratuzilma
 - **Monorepo tool**: Turborepo + **pnpm** workspaces (tez, disk tejamkor, keshlash bilan build)
-- **Dev muhit**: Docker Compose (Postgres — `localhost:5455` (5432/5433 shu mashinada band edi), Redis — `6379`, MinIO — `9000`/konsol `9001`)
-- **Production**: Contabo VPS, Docker Compose (backend, web, postgres, redis, minio konteynerlari) + Nginx reverse proxy + Let's Encrypt (certbot)
+- **Dev muhit**: Docker Compose (Postgres — `localhost:5455` (5432/5433 shu mashinada band edi), Redis — `6379`, Garage S3 API — `3900`, public fayllar (storage-proxy) — `9000`)
+- **Production**: Contabo VPS, Docker Compose (backend, web, postgres, redis, garage konteynerlari) + Nginx reverse proxy + Let's Encrypt (certbot)
 - **CI**: GitHub Actions — har PR'da lint + test + build
 - **Version control**: Git + GitHub (private repo, `gh` CLI orqali yaratiladi)
 
@@ -229,7 +229,7 @@ Admin: `GET /admin/users` elementida `deletedAt?` (ISO) qo'shiladi; o'chirilgan 
 2. Rate limit: bitta telefon raqamidan 120 soniyada 1 marta OTP so'rovi (Redis TTL).
 3. Barcha request body'lar DTO + `class-validator` orqali qat'iy tekshiriladi (`whitelist: true, forbidNonWhitelisted: true`).
 4. Prisma indekslar: `master_profiles(regionId, districtId, rating)`, `orders(masterId, clientId, status)`.
-5. JWT secret, MinIO kalitlari, DB parol — faqat `.env` da, hech qachon commit qilinmaydi (`.env.example` bilan taqqoslab tekshiriladi).
+5. JWT secret, S3 (Garage) kalitlari, DB parol — faqat `.env` da, hech qachon commit qilinmaydi (`.env.example` bilan taqqoslab tekshiriladi).
 6. Admin panelda JWT httpOnly cookie'da, `SameSite=Lax`, `Secure` (production'da).
 7. Admin panelga faqat login + parol bilan kiriladi; ADMIN akkauntiga OTP orqali kirish yopiq (§4.1).
 
@@ -238,9 +238,9 @@ Admin: `GET /admin/users` elementida `deletedAt?` (ISO) qo'shiladi; o'chirilgan 
 ```
 Internet → Nginx (TLS, reverse proxy)
               ├── /api/v1/*  → backend konteyner (NestJS, port 3000)
-              ├── /uploads/* → MinIO konteyner (bucket, faqat o'qish)
+              ├── /uploads/* → Garage konteyner (website endpoint, faqat o'qish)
               └── /*         → web konteyner (Next.js, port 3001)
-Docker tarmog'i ichida: postgres, redis, minio (tashqariga port ochilmaydi)
+Docker tarmog'i ichida: postgres, redis, garage (tashqariga port ochilmaydi)
 ```
 
 Backend'ga faqat `/api/v1/` yo'naltiriladi (butun `/api/` emas): `/api/auth/*` va `/api/backend/*` — admin panelning o'z route handler'lari.
