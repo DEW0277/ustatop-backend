@@ -24,9 +24,9 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | B. Backend | 3 | 7 |
 | C. Admin panel | 2 | 6 |
 | D. Mobil ilova integratsiyasi | 7 | 13 |
-| E. Deploy va operatsiya | 0 | 9 |
+| E. Deploy va operatsiya | 1 | 9 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **14** | **45** |
+| **Jami** | **15** | **45** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -161,7 +161,8 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Tayyor mezoni: `SMS_MODE=eskiz`, `ALLOW_MOCK_SMS_IN_PRODUCTION=false`, `PUSH_PROVIDER=fcm`, `SWAGGER_ENABLED=false`; sinov davridagi soxta foydalanuvchi/buyurtmalar tozalangan; `123456` bilan kirib bo'lmasligi tekshirilgan.
 - [ ] **E-07 · Yuklama va xavfsizlik tekshiruvi (production'da)** — Claude
   - Tayyor mezoni: rate limit Nginx ortida haqiqiy IP bo'yicha ishlashi tekshirilgan (`TRUST_PROXY`), TLS/sarlavhalar tekshiruvi, `pnpm audit` 0, Postgres/Redis/MinIO portlari tashqaridan yopiq, `/uploads` faqat o'qish.
-- [ ] **E-08 · Operatsion qo'llanma** — Claude
+- [x] **E-08 · Operatsion qo'llanma** — Claude — ✅ Bajarildi (2026-10-16, PR #35)
+  - `docs/DEPLOY.md` §9 hodisalar jadvali, §10 adminlarni boshqarish (qo'shimcha admin, parol, olib tashlash — SQL dev bazada sinab ko'rilgan), §11 sirlarni almashtirish. Haqiqiy VPS'da hali sinalmagan.
   - Tayyor mezoni: `docs/DEPLOY.md`ga qo'shilgan: hodisa yuz berganda nima qilish (xizmat tushdi, disk to'ldi, DB tiklash), admin qo'shish/olib tashlash, sirlarni almashtirish (JWT secret, MinIO, Eskiz).
 - [ ] **E-09 · MinIO image'i registry'larda yo'q — S3 serverini almashtirish** — Claude 🔒👤 (E-02 blokeri)
   - 2026-10-16 da aniqlandi: `quay.io/minio/minio` va `minio/minio` (Docker Hub) image'larini endi yuklab bo'lmaydi ("denied" / "no such manifest"). Lokal mashinada faqat keshdagi `RELEASE.2025-09-07` bor. Natija: CI'da MinIO ko'tarib bo'lmaydi (upload e2e o'tkazib yuboriladi) va `docker-compose.prod.yml` yangi VPS'da ishga tushmaydi.
