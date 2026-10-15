@@ -16,7 +16,7 @@ Fayllar: `docker-compose.prod.yml`, `apps/backend/Dockerfile`, `apps/web/Dockerf
 
 ## 0. Deploy'dan oldin hal qilinishi kerak
 
-- **SMS hali mock.** `SMS_MODE=mock` da OTP doim `123456` — istalgan raqam, jumladan admin nomidan kirish mumkin. Backend production'da mock bilan **ishga tushmaydi**; yopiq sinov uchun `ALLOW_MOCK_SMS_IN_PRODUCTION=true` qo'yiladi. Ommaga ochishdan oldin haqiqiy SMS provider (Eskiz.uz) ulanishi shart.
+- **SMS hali mock.** `SMS_MODE=mock` da OTP doim `123456` — istalgan mijoz/usta raqami nomidan kirish mumkin (admin panelga emas: u faqat login + parol bilan ochiladi). Backend production'da mock bilan **ishga tushmaydi**; yopiq sinov uchun `ALLOW_MOCK_SMS_IN_PRODUCTION=true` qo'yiladi. Ommaga ochishdan oldin haqiqiy SMS provider (Eskiz.uz) ulanishi shart.
 - **Mobil ilova manzili**: ilova `https://<domen>/api/v1` ga murojaat qilishi kerak.
 - Push: Firebase kalitlari bo'lmasa `PUSH_PROVIDER=log` qoladi (bildirishnomalar yuborilmaydi).
 
@@ -42,7 +42,7 @@ cp .env.production.example .env.production && chmod 600 .env.production
 nano .env.production
 ```
 
-Majburiy: `DOMAIN`, `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `JWT_SECRET` (`openssl rand -hex 32`), `ADMIN_PHONE`, va SMS bo'yicha qaror (0-band).
+Majburiy: `DOMAIN`, `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `JWT_SECRET` (`openssl rand -hex 32`), `ADMIN_LOGIN`, `ADMIN_PASSWORD` (kamida 12 belgi, `openssl rand -base64 18`), `ADMIN_PHONE`, va SMS bo'yicha qaror (0-band).
 
 ## 3. Birinchi ishga tushirish
 
@@ -58,7 +58,8 @@ dc run --rm -p 80:80 --entrypoint certbot certbot certonly --standalone \
 # 3) Hammasini ko'tarish (migratsiyalar `migrate` servisi orqali avtomatik qo'llanadi)
 dc up -d
 
-# 4) Boshlang'ich ma'lumot: viloyat/tuman/kategoriyalar + ADMIN_PHONE bo'yicha birinchi admin (bir marta)
+# 4) Boshlang'ich ma'lumot: viloyat/tuman/kategoriyalar + ADMIN_LOGIN/ADMIN_PASSWORD bo'yicha birinchi admin.
+#    Admin parolini almashtirish: .env.production'da ADMIN_PASSWORD'ni o'zgartirib shu buyruqni qayta ishga tushiring.
 dc run --rm backend node_modules/.bin/tsx prisma/seed.ts
 ```
 

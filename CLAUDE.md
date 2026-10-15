@@ -10,6 +10,15 @@ Sen **arxitektor va reviewer**san, Gemini (Flash) esa tez ijrochi. Amaliyotda bu
 2. **Gemini yozgan har bir PR'ni merge qilishdan oldin review qilasan** — quyidagi checklist bo'yicha (§ "PR review checklist").
 3. Prisma schema yoki API kontraktiga tegishli har qanday o'zgarishni **avval `docs/TZ.md`ga yoz, keyin kodni yoz** — ikkalasi sinxron bo'lishi shart.
 
+## Vazifalar ro'yxati — `TASKS.md`
+
+Qolgan barcha ishlar [`TASKS.md`](TASKS.md)da (qoidalar: AGENTS.md §8). Sening majburiyatlaring:
+
+- O'z vazifangni tugatganingda **o'sha PR ichida** `TASKS.md`da uni belgilab ket: `- [x]` + `— ✅ Bajarildi (YYYY-MM-DD, PR #N)` + "Umumiy holat" jadvalidagi son.
+- Gemini PR'ini review qilganda `TASKS.md` yangilanganini tekshir; belgi faqat vazifaning "Tayyor mezoni" haqiqatan bajarilgan bo'lsa qoladi — aks holda belgini olib tashla yoki o'zing to'g'rila.
+- Foydalanuvchi bajaradigan (👤) vazifa tugagani ma'lum bo'lsa — uni ham sen belgilaysan.
+- Yangi ish chiqsa (review'da topilgan xato, foydalanuvchi so'rovi) — avval `TASKS.md`ga qo'sh, keyin boshla.
+
 ## Loyihani lokal ishga tushirish
 
 ```bash
@@ -21,7 +30,7 @@ pnpm --filter backend exec prisma migrate dev
 pnpm --filter backend exec prisma db seed
 pnpm --filter backend start:dev    # http://localhost:3000/api/v1, Swagger: /api/docs
 
-pnpm --filter web dev              # http://localhost:3001 (Next.js admin panel; kirish: ADMIN_PHONE + OTP 123456)
+pnpm --filter web dev              # http://localhost:3001 (Next.js admin panel; kirish: .env'dagi ADMIN_LOGIN + ADMIN_PASSWORD)
 ```
 
 Yoki repo tepasidan: `pnpm dev` / `pnpm lint` / `pnpm test` — Turborepo barcha workspace'larda mos buyruqni ishga tushiradi.
@@ -37,6 +46,7 @@ Test: `pnpm lint && pnpm test` (backend), `pnpm --filter web lint && pnpm --filt
 - [ ] Prisma so'rovlarida N+1 muammosi yo'qmi (`include`/`select` to'g'ri ishlatilganmi)
 - [ ] Seed yoki migratsiya `docs/TZ.md`dagi schema bilan mos keladimi
 - [ ] Unit test qo'shilganmi va real edge-case'ni tekshiradimi (faqat happy-path emas)
+- [ ] `TASKS.md`da tegishli vazifa "Bajarildi" deb belgilanganmi va "Tayyor mezoni" haqiqatan bajarilganmi
 
 Agar checklist'dan biror band o'tmasa — PR'ni merge qilma, o'zgartirish so'rab comment yoz (yoki agar kichik bo'lsa, o'zing to'g'rilab commit qo'sh).
 

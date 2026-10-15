@@ -7,6 +7,6 @@ import { MyMasterController } from './my-master.controller.js';
 @Module({
   controllers: [MyMasterController, MastersController],
   providers: [MastersService, MasterProfileService],
-  exports: [MastersService],
+  exports: [MastersService, MasterProfileService],
 })
 export class MastersModule {}

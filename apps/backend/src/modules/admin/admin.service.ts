@@ -2,7 +2,9 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.type.js';
+import { MasterProfileService } from '../masters/master-profile.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import type { CreateMasterDto } from './dto/create-master.dto.js';
 import type { ListAdminOrdersQueryDto } from './dto/list-admin-orders-query.dto.js';
 import type { ListMastersQueryDto } from './dto/list-masters-query.dto.js';
 import type { ListUsersQueryDto } from './dto/list-users-query.dto.js';
@@ -83,6 +85,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly masterProfiles: MasterProfileService,
   ) {}
 
   async listUsers(query: ListUsersQueryDto) {
@@ -210,6 +213,17 @@ export class AdminService {
       page,
       limit,
     };
+  }
+
+  async createMaster(dto: CreateMasterDto) {
+    const id = await this.masterProfiles.createByAdmin(dto);
+
+    const master = await this.prisma.masterProfile.findUniqueOrThrow({
+      where: { id },
+      select: masterWithStatsSelect,
+    });
+
+    return toAdminMasterWithStats(master);
   }
 
   async setMasterVerified(masterId: string, isVerified: boolean) {

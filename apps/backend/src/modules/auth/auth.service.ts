@@ -1,8 +1,17 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import type { Role, User } from '@prisma/client';
+import { Role, type User } from '@prisma/client';
 import type { Redis } from 'ioredis';
+import { hashPassword, verifyPassword } from '../../common/crypto/password.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { REDIS_CLIENT } from '../../common/redis/redis.constants.js';
 import type { UpdateProfileDto } from './dto/update-profile.dto.js';
@@ -25,6 +34,15 @@ function otpAttemptsKey(phone: string): string {
   return `otp:attempts:${phone}`;
 }
 
+// Admin paroli: bitta login uchun ketma-ket xato urinishlar cheklanadi (IP throttle'ga qo'shimcha —
+// hujumchi IP almashtirsa ham bitta loginni cheksiz taxmin qila olmaydi).
+const MAX_ADMIN_LOGIN_ATTEMPTS = 5;
+const ADMIN_LOGIN_LOCK_SECONDS = 15 * 60;
+
+function adminLoginAttemptsKey(login: string): string {
+  return `admin-login:attempts:${login}`;
+}
+
 function roleToApi(role: Role): UserSession['role'] {
   return role.toLowerCase() as UserSession['role'];
 }
@@ -33,6 +51,8 @@ function roleToApi(role: Role): UserSession['role'] {
 export class AuthService {
   private readonly otpTtlSeconds: number;
   private readonly otpLength: number;
+  // Login topilmaganda ham scrypt hisoblanadi — javob vaqti bo'yicha mavjud loginni aniqlab bo'lmasin.
+  private dummyHash?: Promise<string>;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -101,6 +121,12 @@ export class AuthService {
 
     let user = await this.prisma.user.findUnique({ where: { phone } });
 
+    // Admin panelga faqat login + parol bilan kiriladi (`adminLogin`). Aks holda mock SMS rejimida
+    // (kod doim 123456) admin raqamini bilgan har kim ADMIN tokenini olardi.
+    if (user?.role === Role.ADMIN) {
+      throw new ForbiddenException('Administrator faqat login va parol bilan kiradi');
+    }
+
     if (!user) {
       user = await this.prisma.user.create({
         data: { phone, name: 'Foydalanuvchi', isPhoneVerified: true },
@@ -111,6 +137,38 @@ export class AuthService {
         data: { isPhoneVerified: true },
       });
     }
+
+    const session = this.buildSession(user);
+    return { user: session, token: session.token };
+  }
+
+  async adminLogin(login: string, password: string): Promise<{ user: UserSession; token: string }> {
+    const attemptsKey = adminLoginAttemptsKey(login);
+    const attempts = Number((await this.redis.get(attemptsKey)) ?? 0);
+
+    if (attempts >= MAX_ADMIN_LOGIN_ATTEMPTS) {
+      const ttl = await this.redis.ttl(attemptsKey);
+      throw new HttpException(
+        `Juda ko'p xato urinish. ${Math.max(1, Math.ceil(ttl / 60))} daqiqadan keyin qayta urinib ko'ring`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { login } });
+    const canLogin = !!user && user.role === Role.ADMIN && !user.isBlocked && !!user.passwordHash;
+    this.dummyHash ??= hashPassword('dummy-password');
+    const passwordOk = await verifyPassword(password, canLogin ? user.passwordHash! : await this.dummyHash);
+
+    if (!canLogin || !passwordOk) {
+      const failed = await this.redis.incr(attemptsKey);
+      if (failed === 1) {
+        await this.redis.expire(attemptsKey, ADMIN_LOGIN_LOCK_SECONDS);
+      }
+      // Sabab (login yo'q / parol xato / bloklangan) ataylab oshkor qilinmaydi.
+      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+    }
+
+    await this.redis.del(attemptsKey);
 
     const session = this.buildSession(user);
     return { user: session, token: session.token };

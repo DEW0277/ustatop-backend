@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -12,6 +12,7 @@ import { ReviewsService } from '../reviews/reviews.service.js';
 import { AdminService } from './admin.service.js';
 import { AdminStatsService } from './admin-stats.service.js';
 import { BlockUserDto } from './dto/block-user.dto.js';
+import { CreateMasterDto } from './dto/create-master.dto.js';
 import { ListAdminOrdersQueryDto } from './dto/list-admin-orders-query.dto.js';
 import { ListAdminReviewsQueryDto } from './dto/list-admin-reviews-query.dto.js';
 import { ListMastersQueryDto } from './dto/list-masters-query.dto.js';
@@ -68,6 +69,14 @@ export class AdminController {
   @ApiErrorResponses(400)
   listMasters(@Query() query: ListMastersQueryDto) {
     return this.adminService.listMasters(query);
+  }
+
+  @Post('masters')
+  @ResponseMessage('Usta qo\'shildi')
+  @ApiOperation({ summary: 'Yangi usta qo\'shish: telefon bo\'yicha akkaunt + usta profili (Admin)' })
+  @ApiErrorResponses(400, 409)
+  createMaster(@Body() dto: CreateMasterDto) {
+    return this.adminService.createMaster(dto);
   }
 
   @Patch('masters/:id/verify')

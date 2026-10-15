@@ -6,11 +6,12 @@ function createDeps() {
   const prisma = {
     $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
     user: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0), findUnique: vi.fn(), update: vi.fn() },
-    masterProfile: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0), findUnique: vi.fn(), update: vi.fn() },
+    masterProfile: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0), findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
     order: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
   };
   const notifications = { notifyUser: vi.fn() };
-  return { prisma, notifications };
+  const masterProfiles = { createByAdmin: vi.fn() };
+  return { prisma, notifications, masterProfiles };
 }
 
 describe('AdminService', () => {
@@ -20,7 +21,7 @@ describe('AdminService', () => {
 
   beforeEach(() => {
     deps = createDeps();
-    service = new AdminService(deps.prisma as never, deps.notifications as never);
+    service = new AdminService(deps.prisma as never, deps.notifications as never, deps.masterProfiles as never);
   });
 
   describe('setUserBlocked', () => {
@@ -45,6 +46,55 @@ describe('AdminService', () => {
       expect(await service.setUserBlocked(admin, 'u-1', true)).toEqual({ id: 'u-1', isBlocked: true });
       expect(deps.prisma.user.update).toHaveBeenCalledWith({ where: { id: 'u-1' }, data: { isBlocked: true } });
       expect(await service.setUserBlocked(admin, 'u-1', false)).toEqual({ id: 'u-1', isBlocked: false });
+    });
+  });
+
+  describe('createMaster', () => {
+    it("profilni yaratib, ro'yxatdagi bilan bir xil shaklda qaytaradi va bildirishnoma yubormaydi", async () => {
+      const dto = { phone: '+998901112233', firstName: 'Ali', lastName: 'Valiyev' } as never;
+      deps.masterProfiles.createByAdmin.mockResolvedValue('m-9');
+      deps.prisma.masterProfile.findUniqueOrThrow.mockResolvedValue({
+        id: 'm-9',
+        userId: 'u-9',
+        firstName: 'Ali',
+        lastName: 'Valiyev',
+        phone: '+998901112233',
+        telegram: null,
+        bio: 'Tajribali usta',
+        experienceYears: 3,
+        isVerified: true,
+        address: 'Manzil',
+        createdAt: new Date('2026-10-12T10:00:00.000Z'),
+        region: { id: 'r-1', nameUz: 'Toshkent' },
+        district: { id: 'd-1', nameUz: 'Chilonzor' },
+        categories: [{ category: { id: 'c-1', nameUz: 'Elektrik' } }],
+        user: { avatarUrl: null, isBlocked: false },
+        rating: 0,
+        reviewCount: 0,
+        completedOrdersCount: 0,
+        isAvailable: true,
+      });
+
+      const result = await service.createMaster(dto);
+
+      expect(deps.masterProfiles.createByAdmin).toHaveBeenCalledWith(dto);
+      expect(result).toMatchObject({
+        id: 'm-9',
+        fullName: 'Ali Valiyev',
+        isVerified: true,
+        isBlocked: false,
+        categories: [{ id: 'c-1', nameUz: 'Elektrik' }],
+        rating: 0,
+        createdAt: '2026-10-12T10:00:00.000Z',
+      });
+      expect(result).not.toHaveProperty('telegram', null);
+      expect(deps.notifications.notifyUser).not.toHaveBeenCalled();
+    });
+
+    it("yaratishdagi xatoni (masalan 409) o'zgartirmasdan uzatadi", async () => {
+      deps.masterProfiles.createByAdmin.mockRejectedValue(new ForbiddenException('x'));
+      await expect(service.createMaster({} as never)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(deps.prisma.masterProfile.findUniqueOrThrow).not.toHaveBeenCalled();
     });
   });
 
