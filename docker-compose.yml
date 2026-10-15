@@ -39,6 +39,12 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    # `docker compose up --wait` (CI e2e) MinIO so'rov qabul qilishga tayyor bo'lguncha kutsin.
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
       - minio_data:/data
 

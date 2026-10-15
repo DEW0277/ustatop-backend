@@ -58,9 +58,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # Dev bilan aynan bir xil servislar (docker-compose.yml) — port va hisob ma'lumotlari bitta joyda.
-      - run: docker compose up -d --wait postgres redis
+      - run: docker compose up -d --wait postgres redis minio
       - run: cp apps/backend/.env.example apps/backend/.env
       - run: pnpm --filter backend exec prisma generate
-      # `test:e2e` o'zi `?schema=test`ga `prisma migrate deploy` qiladi. MinIO ko'tarilmaydi:
-      # e2e fayl yuklashni tekshirmaydi, StorageService esa ulanish xatosida ilovani to'xtatmaydi.
+      # `test:e2e` o'zi `?schema=test`ga `prisma migrate deploy` qiladi. MinIO — `upload.e2e-spec.ts` uchun
+      # (haqiqiy yuklash + public URL orqali o'qish); bucket'ni ilova o'zi yaratadi.
       - run: pnpm --filter backend test:e2e
