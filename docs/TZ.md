@@ -2,7 +2,9 @@
 
 > Ushbu hujjat loyihaning to'liq arxitekturasini belgilaydi. O'zgartirish kerak bo'lsa — shu faylni tahrirlang, chunki `AGENTS.md` va `CLAUDE.md` shu yerdagi qarorlarga tayanadi.
 
-## 0. Holat (2026-10-09)
+## 0. Holat (2026-10-16)
+
+> Qolgan ishlarning jonli ro'yxati — [`TASKS.md`](../TASKS.md). Bu bo'lim faqat tugagan bosqichlar tarixi.
 
 ✅ Bajarildi (§7.3 roadmap 1-bosqich): Turborepo+pnpm monorepo, `apps/backend` (NestJS, Prisma 6 schema+migratsiya, global response/error format, Swagger, seed: 14 viloyat + 8 kategoriya + Toshkent shahri tumanlari), `apps/web` (Next.js skeleton), `docker-compose.yml` (Postgres/Redis/MinIO), GitHub private repo (https://github.com/DEW0277/ustatop-backend).
 
@@ -16,9 +18,9 @@
 
 ✅ Bajarildi (4-bosqich, Claude qismi): Orders + Reviews + Notifications (mock push) — mobil `OrderItem`/`Review` shakllariga moslashtirilgan (§4.0).
 
-✅ Bajarildi (5-bosqich, Claude qismi, backend): `admin` modul — statistika, foydalanuvchilar/bloklash, ustalarni tasdiqlash, buyurtmalar, sharh moderatsiyasi (§4.1). `prisma db seed` `ADMIN_PHONE` env bo'yicha birinchi ADMIN'ni yaratadi.
+✅ Bajarildi (5-bosqich, Claude qismi, backend): `admin` modul — statistika, foydalanuvchilar/bloklash, ustalarni tasdiqlash, buyurtmalar, sharh moderatsiyasi (§4.1). `prisma db seed` birinchi ADMIN'ni yaratadi (2026-10-13 dan `ADMIN_LOGIN` + `ADMIN_PASSWORD` + `ADMIN_PHONE`, §4.1).
 
-✅ Bajarildi (6-bosqich, Claude qismi): Next.js admin panel auth — OTP login (faqat ADMIN), JWT httpOnly cookie, `/api/backend/*` proksi, `proxy.ts`, himoyalangan layout, `lib/api-client.ts` (arxitektura: AGENTS.md "Admin panel").
+✅ Bajarildi (6-bosqich, Claude qismi): Next.js admin panel auth — login (faqat ADMIN; dastlab OTP edi, 2026-10-13 dan login + parol — §4.1), JWT httpOnly cookie, `/api/backend/*` proksi, `proxy.ts`, himoyalangan layout, `lib/api-client.ts` (arxitektura: AGENTS.md "Admin panel").
 
 ✅ Bajarildi (6-bosqich, Claude qismi, UI stack): shadcn/ui (Base UI asosidagi yangi avlod, `base-nova` preset), TanStack Query, react-hook-form+zod o'rnatildi; namunaviy ro'yxat sahifasi `apps/web/app/(admin)/users/page.tsx` (filtr+qidiruv+sahifalash+bloklash) — naqsh AGENTS.md "UI stack va namunaviy sahifa"da.
 
@@ -34,9 +36,9 @@
 
 ✅ Bajarildi (Gemini, PR #17 + PR #18): `GET /admin/reviews` (sahifalash, `masterId`/`rating` filtrlari) va admin panel **Sharhlar** sahifasi (filtr, jadval, o'chirish dialogi). Review paytida topilgan xatolar (UUID bo'lmagan `masterId` 400 berardi, "Faqat shu usta" forma bilan sinxron emas edi, URL'dagi `page` yo'qolardi) Claude tomonidan tuzatildi.
 
-✅ Bajarildi (2026-10-13, Claude): admin panelda usta qo'shish (`POST /admin/masters` + "Usta qo'shish" dialogi); admin kirishi login + parolga o'tkazildi (`POST /auth/admin/login`, OTP bilan admin kirishi yopildi); usta profilini faqat admin yaratadi (`PUT /masters/me/profile` endi faqat tahrirlash). Batafsil: §4.0, §4.1.
+✅ Bajarildi (2026-10-13, Claude, PR #31): admin panelda usta qo'shish (`POST /admin/masters` + "Usta qo'shish" dialogi); admin kirishi login + parolga o'tkazildi (`POST /auth/admin/login`, OTP bilan admin kirishi yopildi); usta profilini faqat admin yaratadi (`PUT /masters/me/profile` endi faqat tahrirlash). Batafsil: §4.0, §4.1.
 
-🔄 Jarayonda (2026-10-09 dan, uch agent — §7.4): CI, production Docker konfiguratsiyasi, admin "barcha ustalar" ro'yxati, admin panel UI tuzatishlari, FCM token endpointi.
+✅ Bajarildi (2026-10-09 – 10-12 raund, §7.4): CI — GitHub Actions (PR #27); production Docker konfiguratsiyasi, Nginx, `docs/DEPLOY.md` (PR #28); admin panel UI tuzatishlari (Gemini, PR #29); `GET /admin/masters` + "Barcha ustalar" ko'rinishi (Gemini, PR #30); FCM token endpointlari + `FcmPushProvider` (PR #24); sharh faqat tugallangan buyurtmadan keyin (PR #25).
 
 ## 1. Loyiha haqida
 
@@ -110,6 +112,7 @@ ustatop/
 ├── package.json
 ├── AGENTS.md
 ├── CLAUDE.md
+├── TASKS.md             # qolgan ishlar — yagona jonli ro'yxat
 └── docs/
     └── TZ.md
 ```
@@ -130,7 +133,7 @@ Mobil ilova kodi (`/Users/macstore.uz/Desktop/mobile-app/src/types/index.ts`, `s
 - **Master javobi** mobil `Master` bilan bir xil kalitlarda: `id` (= MasterProfile.id), `fullName`, `avatarUrl` (User.avatarUrl, bo'lmasa `""`), `regionId`, `districtId`, `categoryIds: string[]`, `portfolioImages: string[]` (URL'lar, yangisi birinchi), `reviews[]` — tekis `{id, masterId, userId, userName, userAvatar, rating, comment, createdAt}`, `createdAt` ISO string. `telegram` yo'q bo'lsa kalit umuman yuborilmaydi.
 - **UserSession**: `createdAt` (ISO) qo'shildi, `avatarUrl` yo'q bo'lsa yuborilmaydi (`null` emas), `role` — `'client' | 'master'` (admin faqat web panel uchun).
 - **Telefon**: ilova `+998 90 123 45 67` (probelli) yuboradi — backend `NormalizedPhone` dekoratori bilan kiruvchi qiymatni `+998901234567` ga keltiradi (probelli, `998...`, 9 xonali variantlar ham qabul qilinadi). Javoblarda doim kanonik format.
-- **OTP uzunligi**: **qaror (2026-10-10): 6 xona.** Backend standarti allaqachon 6 (`OTP_LENGTH=6`), production'da ham shunday qoladi. Ilovada hozir 4 ta katak — **ilova 6 katakka o'tkazilishi kerak** (§7.4, mobil integratsiya). `OTP_LENGTH` env (4–6) faqat texnik imkoniyat sifatida qoladi.
+- **OTP uzunligi**: **qaror (2026-10-10): 6 xona.** Backend standarti allaqachon 6 (`OTP_LENGTH=6`), production'da ham shunday qoladi. Ilovada hozir 4 ta katak — **ilova 6 katakka o'tkazilishi kerak** (`TASKS.md` D-04). `OTP_LENGTH` env (4–6) faqat texnik imkoniyat sifatida qoladi.
 - **Usta profili — faqat admin yaratadi (qaror 2026-10-13).** Ilovadan o'zi "usta bo'lish" yopilgan: usta profili faqat admin panel orqali qo'shiladi (`POST /admin/masters`, §4.1). `PUT /masters/me/profile` endi faqat **mavjud profilni tahrirlaydi** (barcha maydonlar ixtiyoriy; `categoryIds` berilsa kategoriyalar to'liq almashtiriladi; `User.name` = `firstName lastName`); profili yo'q foydalanuvchi `403` oladi ("Usta profili faqat administrator tomonidan yaratiladi..."). `GET /masters/me/profile` — profil yo'q bo'lsa `404`. ⚠️ Ilovadagi "usta bo'lish" formasi olib tashlanishi (yoki "administratorga murojaat qiling" xabari bilan almashtirilishi) kerak.
 - **Ilova ishlatadigan, spec'da yo'q endpointlar (qo'shildi)**: `PUT /masters/me/services/:serviceId` (xizmatni tahrirlash), `DELETE /masters/me/portfolio?url=...` (rasm URL bo'yicha o'chiriladi — ilovada rasmlar ID'siz).
 - Qolganlari: `POST/DELETE /masters/me/services`, `POST /masters/me/portfolio`, `PATCH /masters/me/availability` — faqat MASTER; xizmat egaligi tekshiriladi. `GET /masters` bloklangan ustalarni ko'rsatmaydi; `sortBy`: `rating|reviews|orders|experience|newest`.
@@ -140,7 +143,7 @@ Mobil ilova kodi (`/Users/macstore.uz/Desktop/mobile-app/src/types/index.ts`, `s
 - **Yaratish**: `serviceId` berilsa narx va sarlavha bazadagi xizmatdan olinadi (mijoz yuborgan qiymatga ishonilmaydi); o'ziga buyurtma bera olmaydi; band (`isAvailable=false`) yoki bloklangan ustaga buyurtma rad etiladi. Ustaga push yuboriladi.
 - **`GET /orders/my`**: MASTER roli uchun kelib tushganlar, qolganlar uchun o'zi bergan buyurtmalar (spec bo'yicha). Qo'shimcha `?as=client|master` — ilovadagi "usta rejimi" foydalanuvchisi ikkala ro'yxatni ola olishi uchun.
 - **`PUT /orders/:id/status`** → `{ orderId, status }` (mobil `ordersApi` shunday kutadi). O'tishlar: usta — `pending→in_progress|cancelled`, `in_progress→completed|cancelled`; mijoz — faqat `pending→cancelled`; tugagan buyurtma o'zgarmaydi. Begona foydalanuvchi uchun 404. `completed` da `completedOrdersCount +1` (parallel so'rovda ikki marta oshmaydi — ikkinchisi 409). Qarshi tomonga push.
-- **Sharhlar**: `GET /masters/:id/reviews` public (tekis mobil `Review`, `page/limit`, default 50). `POST` — bitta foydalanuvchi bitta ustaga bitta sharh: qayta yuborsa avvalgisi **yangilanadi** (reytingni takroriy ovozlar bilan buzib bo'lmasin; `reviews(masterId,userId)` unique). **Qaror (2026-10-10): faqat shu ustada `completed` holatidagi buyurtmasi bor mijoz sharh qoldira oladi** (yangilash uchun ham) — aks holda `403` ("Sharh qoldirish uchun shu ustada tugallangan buyurtmangiz bo'lishi kerak"). Ilova hozir sharh formasini istalgan foydalanuvchiga ko'rsatadi — ilovada 403 xabarini ko'rsatish yoki formani faqat tugallangan buyurtmadan keyin ochish kerak (§7.4). Qoidadan oldin qoldirilgan sharhlar saqlanadi. O'ziga sharh qoldirib bo'lmaydi. `rating` va `reviewCount` har safar qayta hisoblanadi (2 xonagacha yaxlitlanadi).
+- **Sharhlar**: `GET /masters/:id/reviews` public (tekis mobil `Review`, `page/limit`, default 50). `POST` — bitta foydalanuvchi bitta ustaga bitta sharh: qayta yuborsa avvalgisi **yangilanadi** (reytingni takroriy ovozlar bilan buzib bo'lmasin; `reviews(masterId,userId)` unique). **Qaror (2026-10-10): faqat shu ustada `completed` holatidagi buyurtmasi bor mijoz sharh qoldira oladi** (yangilash uchun ham) — aks holda `403` ("Sharh qoldirish uchun shu ustada tugallangan buyurtmangiz bo'lishi kerak"). Ilova hozir sharh formasini istalgan foydalanuvchiga ko'rsatadi — ilovada 403 xabarini ko'rsatish yoki formani faqat tugallangan buyurtmadan keyin ochish kerak (`TASKS.md` D-09). Qoidadan oldin qoldirilgan sharhlar saqlanadi. O'ziga sharh qoldirib bo'lmaydi. `rating` va `reviewCount` har safar qayta hisoblanadi (2 xonagacha yaxlitlanadi).
 - **Push (FCM)**: `NotificationsModule` tayyor, hozir `LogPushProvider` (mock, faqat log). Haqiqiy FCM uchun: `FcmPushProvider` + Firebase kalitlari + qurilma tokenini saqlash endpointi kerak (`users.fcmToken` ustuni bor, lekin spec'da ham, ilovada ham token yuboradigan endpoint yo'q) — alohida vazifa.
 - **Migratsiya**: `orders.cancelledBy` (nullable) va `reviews(masterId,userId)` unique qo'shildi (additiv).
 - **Eslatma**: buyurtmasi bor ustani (foydalanuvchini) bazadan o'chirib bo'lmaydi (`orders.masterId` FK, tarix saqlanadi) — admin panelda o'chirish emas, bloklash ishlatiladi.
@@ -265,18 +268,8 @@ Loyiha ikkita AI agent yordamida quriladi: **Claude** (arxitektor + reviewer, PR
 7. Swagger to'liqlashtirish, e2e testlar, xavfsizlik review
 8. Contabo VPS'ga birinchi deploy
 
-### 7.4. Qolgan ishlar (2026-10-09 holatiga ko'ra)
+### 7.4. Qolgan ishlar
 
-1–7-bosqichlar yopilgan (backend, admin panel, xavfsizlik, e2e, Swagger, Favorites, Sharhlar sahifasi). Joriy raund:
+Qolgan ishlar, ularning mas'uli, bog'liqligi va "Tayyor mezoni" — [`TASKS.md`](../TASKS.md)da (yagona jonli ro'yxat; har bir vazifa tugagach o'sha PR'da "Bajarildi" deb belgilanadi — AGENTS.md §8). Bu yerda takrorlanmaydi, aks holda ikki ro'yxat bir-biridan farqlanib ketadi.
 
-| # | Ish | Agent | Branch | Holat / bog'liqlik |
-|---|---|---|---|---|
-| 1 | **CI**: GitHub Actions — har PR va `main` push'da lint + typecheck + unit test + build; alohida job'da e2e (Postgres/Redis service konteynerlari) | **Claude** | `feat/ci-claude` | ✅ Bajarildi (issue #20) |
-| 2 | **Production konfiguratsiya** (8-bosqichning VPS'siz qismi): `apps/backend/Dockerfile`, `apps/web/Dockerfile`, `docker-compose.prod.yml`, Nginx (TLS, `/api` → backend, `/` → web, `/uploads` → MinIO), `.env.production.example`, `docs/DEPLOY.md` (birinchi deploy, yangilash, backup/restore) | **Claude** | `feat/deploy-config-claude` | ✅ Bajarildi (issue #21). Haqiqiy deploy qilinmagan |
-| 3 | **Admin panel UI tuzatishlari**: `Select` qiymat o'rniga yorliq ko'rsatsin (`ALL` emas), sana formati (`2026 M10 9` → `9-okt, 2026`, umumiy `lib/format.ts`), users/orders/masters sahifalarida URL'dagi `page` saqlansin | **Gemini** | `fix/web-polish-gemini` | Bog'liqlik yo'q |
-| 4 | **Admin: barcha ustalar ro'yxati** — `GET /admin/masters` (§4.1) + Ustalar sahifasida "Kutilayotganlar / Barchasi" ko'rinishi, filtrlar, tasdiqni bekor qilish | **Gemini** | `feat/admin-masters-list-gemini` | 3-banddan keyin |
-| 5 | **FCM**: `PUT`/`DELETE /auth/fcm-token` + `FcmPushProvider` (`PUSH_PROVIDER` env, §4.2) | **Claude** | `feat/fcm-claude` | Kod kalitlarsiz yoziladi va testlanadi; haqiqiy yuborishni yoqish uchun Firebase kalitlari foydalanuvchidan kerak |
-| 6 | ~~Ochiq qarorlar (§4.0)~~: (a) OTP — **6 xona**; (b) sharh — **faqat tugallangan buyurtmasi bor mijoz** | Claude | `feat/review-rule-claude` | ✅ Qaror 2026-10-10, backend tayyor; ilova tomoni 8-bandda |
-| 7 | **Real SMS** (Eskiz.uz): `SmsProvider` implementatsiyasi | Claude | — | Yangi tashqi xizmat — foydalanuvchi tasdig'i va Eskiz hisobi kerak |
-| 8 | **Mobil ilova integratsiyasi** (`/Users/macstore.uz/Desktop/mobile-app`, alohida repo): `API_BASE_URL` + `/api/v1` prefiks, `mastersApi`ga `limit=100`/sahifalash, `updateProfile` faqat `name`/`avatarUrl`, `favoritesApi.ts`, FCM token yuborish (§4.2), OTP kiritish 6 katak, sharh uchun 403 holati (§4.0) | Foydalanuvchi ruxsati bilan Claude yoki mobil dasturchi | — | Alohida repo — tegishdan oldin aniq ruxsat so'raladi |
-| 9 | **Haqiqiy deploy** (Contabo VPS) | Claude + foydalanuvchi | — | 2-band tayyor bo'lgach; VPS'ga SSH, domen va foydalanuvchi tasdig'i kerak (CLAUDE.md) |
+2026-10-09 raundidagi vazifalar (CI, production konfiguratsiya, admin UI tuzatishlari, barcha ustalar ro'yxati, FCM, OTP/sharh qarorlari) bajarilgan — §0. Ochiq qolganlari (real SMS, mobil integratsiya, haqiqiy deploy) `TASKS.md`ga o'tkazilgan: B-01, D-bo'limi, E-bo'limi.
