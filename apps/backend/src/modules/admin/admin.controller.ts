@@ -49,7 +49,7 @@ export class AdminController {
   @Patch('users/:id/block')
   @ResponseMessage('Foydalanuvchi holati yangilandi')
   @ApiOperation({ summary: 'Foydalanuvchini bloklash yoki blokdan chiqarish (Admin)' })
-  @ApiErrorResponses(400, 404)
+  @ApiErrorResponses(400, 404, 409)
   setUserBlocked(
     @CurrentUser() admin: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,

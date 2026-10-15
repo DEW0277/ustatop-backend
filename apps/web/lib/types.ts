@@ -41,6 +41,8 @@ export interface ManagedUser {
   isBlocked: boolean;
   isPhoneVerified: boolean;
   masterId?: string;
+  // Foydalanuvchi akkauntini o'chirgan (anonimlashtirilgan) vaqt — docs/TZ.md §4.3.
+  deletedAt?: string;
   createdAt: string;
 }
 

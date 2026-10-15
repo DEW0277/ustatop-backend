@@ -202,6 +202,25 @@ Original spec'da ham, ilovada ham token yuboradigan endpoint yo'q edi — haqiqi
 
 Ikkalasi ham `JwtAuthGuard` bilan. Provider `PUSH_PROVIDER` env orqali tanlanadi: `log` (standart, mock) yoki `fcm` (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` majburiy — bo'lmasa ilova ishga tushmaydi). FCM "token yaroqsiz" xatosini qaytarsa, token bazadan o'chiriladi. Push yuborishdagi xato hech qachon asosiy amalni (buyurtma yaratish va h.k.) buzmaydi.
 
+### 4.3. Akkauntni o'chirish (yangi, 2026-10-16 qarori)
+
+App Store / Google Play talabi: foydalanuvchi akkauntini ilova ichida o'chira olishi kerak. Buyurtmasi bor foydalanuvchini FK tufayli jismonan o'chirib bo'lmaydi va buyurtma/sharh tarixi ikkinchi tomon uchun saqlanishi kerak — shuning uchun **anonimlashtirish**:
+
+| Endpoint | Tavsif |
+|---|---|
+| `DELETE /api/v1/auth/me` | `JwtAuthGuard`. → `{ deleted: true }`. ADMIN uchun `403` (adminlar DEPLOY.md §10 orqali boshqariladi). Qaytarib bo'lmaydi. |
+
+Bitta tranzaksiyada:
+- **User**: `phone` → `deleted:<id>` (raqam bo'shaydi — shu raqam bilan keyin yangi akkaunt ochish mumkin), `name` → `O'chirilgan foydalanuvchi`, `avatarUrl`, `fcmToken`, `login`, `passwordHash` → `null`, `isBlocked: true` (token keyingi so'rovdayoq `401`), `deletedAt` = hozir (yangi nullable ustun, additiv migratsiya).
+- **Faol buyurtmalar** (`pending`, `in_progress`) bekor qilinadi: mijoz sifatida — `cancelledBy: CLIENT`, usta sifatida — `cancelledBy: MASTER`; ikkinchi tomonga push (best-effort).
+- **Mijoz sifatidagi barcha buyurtmalar**: `clientName` → `O'chirilgan foydalanuvchi`, `clientPhone` → `""`, `address` → `—`, `comment` → `null`. Buyurtma o'zi (usta tarixi, `completedOrdersCount`) saqlanadi.
+- **Usta profili** (bo'lsa): `firstName/lastName` → `O'chirilgan` / `usta`, `phone` → `""`, `telegram` → `null`, `bio/address` → `—`, `isAvailable/isVerified: false`; xizmatlar, kategoriyalar, portfolio va boshqalarning sevimlilaridagi yozuvlar o'chiriladi. Profil qatori buyurtma/sharh FK'lari uchun qoladi, `GET /masters`da ko'rinmaydi (bloklangan).
+- **Sharhlar** saqlanadi (usta reytingi buzilmasin), muallif nomi avtomatik `O'chirilgan foydalanuvchi` bo'ladi, avatar yo'q.
+- **Sevimlilar** (foydalanuvchining o'zi qo'shganlari) o'chiriladi.
+- Tranzaksiyadan keyin avatar va portfolio fayllari ombordan o'chiriladi (§4.0 "Fayl tozalash").
+
+Admin: `GET /admin/users` elementida `deletedAt?` (ISO) qo'shiladi; o'chirilgan foydalanuvchini bloklash/blokdan chiqarish — `409`. ⚠️ Mobil: Profil ekranida "Akkauntni o'chirish" (tasdiqlash bilan) → `DELETE /auth/me` → lokal sessiyani tozalash (`TASKS.md` D-13).
+
 **Xavfsizlik qoidasi**: `/api/v1/admin/*` barcha endpointlar `JwtAuthGuard` + `RolesGuard(Role.ADMIN)` bilan himoyalanadi. ADMIN role'ga ega foydalanuvchi faqat qo'lda (seed yoki to'g'ridan-to'g'ri DB orqali) yaratiladi — ochiq ro'yxatdan o'tish orqali ADMIN bo'lib bo'lmaydi. `prisma db seed` uni `ADMIN_LOGIN` + `ADMIN_PASSWORD` (kamida 8, production'da 12 belgi) + `ADMIN_PHONE` (akkauntning majburiy telefon maydoni uchun; u bilan kirib bo'lmaydi) bo'yicha yaratadi/yangilaydi. Dev: `apps/backend/.env`.
 
 ## 5. Xavfsizlik va operatsion qoidalar

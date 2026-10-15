@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminService } from './admin.service.js';
 
@@ -39,6 +39,12 @@ describe('AdminService', () => {
     it("mavjud bo'lmagan foydalanuvchi uchun 404 qaytaradi", async () => {
       deps.prisma.user.findUnique.mockResolvedValue(null);
       await expect(service.setUserBlocked(admin, 'nope', true)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("akkauntini o'chirgan foydalanuvchining holatini o'zgartirmaydi (409)", async () => {
+      deps.prisma.user.findUnique.mockResolvedValue({ id: 'u-9', role: 'CLIENT', deletedAt: new Date() });
+      await expect(service.setUserBlocked(admin, 'u-9', false)).rejects.toBeInstanceOf(ConflictException);
+      expect(deps.prisma.user.update).not.toHaveBeenCalled();
     });
 
     it('oddiy foydalanuvchini bloklaydi va blokdan chiqaradi', async () => {
