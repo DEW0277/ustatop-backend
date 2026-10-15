@@ -21,12 +21,12 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | Bo'lim | Bajarildi | Jami |
 |---|---|---|
 | A. Tezkor tuzatishlar va tartib | 2 | 4 |
-| B. Backend | 1 | 7 |
+| B. Backend | 2 | 7 |
 | C. Admin panel | 2 | 6 |
-| D. Mobil ilova integratsiyasi | 0 | 13 |
-| E. Deploy va operatsiya | 0 | 8 |
+| D. Mobil ilova integratsiyasi | 7 | 13 |
+| E. Deploy va operatsiya | 0 | 9 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **5** | **44** |
+| **Jami** | **13** | **45** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -64,7 +64,8 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - App Store va Google Play akkaunt yaratadigan ilovalardan ilova ichida akkauntni o'chirish imkoniyatini talab qiladi. Hozir bunday endpoint yo'q.
   - Murakkablik: buyurtmasi bor foydalanuvchini FK tufayli o'chirib bo'lmaydi (TZ §4.0) → anonimlashtirish kerak. Avval TZ'ga yoziladi, schema o'zgarsa tasdiq so'raladi.
   - Tayyor mezoni: `DELETE /auth/me` (yoki TZ'da kelishilgan shakl), shaxsiy ma'lumot tozalanadi, token darhol yaroqsiz, buyurtma tarixi saqlanadi; unit + e2e test.
-- [ ] **B-04 · E2e qamrovini kengaytirish** — Claude
+- [x] **B-04 · E2e qamrovini kengaytirish** — Claude — ✅ Bajarildi (2026-10-16, PR #33)
+  - Qo'shildi: `masters` (filtrlar, bloklangan usta, xizmat/portfolio egaligi, band holati), `reviews` (403/400 qoidalari, reyting qayta hisoblash, yangilash), `favorites`, `upload` (haqiqiy MinIO, magic bytes, 413 — CI'da MinIO yo'qligi sababli hozircha faqat lokal, E-09). Topilgan xato tuzatildi: portfolio `url` protokolsiz oddiy so'zni ham qabul qilardi.
   - Hozir e2e faqat auth / admin / orders. Masters (upsert, xizmat egaligi, portfolio), reviews (403 qoidasi, reyting qayta hisoblash), favorites va upload e2e'siz.
   - Tayyor mezoni: `masters`, `reviews`, `favorites`, `upload` uchun e2e fayllar; CI `e2e` job'ida MinIO ham ko'tariladi; hammasi yashil.
 - [ ] **B-05 · MinIO'da yetim fayllar** — Gemini
@@ -106,24 +107,27 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [ ] **D-01 · Ilovani git'ga olish** — 👤 + Claude
   - `mobile-app/` hozir git repo emas — tarix ham, zaxira ham yo'q.
   - Tayyor mezoni: `git init`, `.gitignore`, GitHub'da private repo, birinchi commit.
-- [ ] **D-02 · API manzili va konfiguratsiya** — Claude
+- [x] **D-02 · API manzili va konfiguratsiya** — Claude — ✅ Bajarildi (2026-10-16, Claude)
   - `API_BASE_URL` kodda qotirilgan (`https://api.ustatop.uz/v1`), backend prefiksi esa `/api/v1`.
   - Tayyor mezoni: manzil `EXPO_PUBLIC_API_URL` / `eas.json` profillari orqali (dev: lokal backend, preview: staging, production: `https://<domen>/api/v1`).
-- [ ] **D-03 · Mock fallback'ni olib tashlash** — Claude
+  - Foydalanuvchi so'rovi bo'yicha bitta joy: `mobile-app/src/config.ts` → `SERVER_URL` (`https://<domen>`, `/api/v1` avtomatik qo'shiladi). Bo'sh bo'lsa dev'da Metro hosti `:3000` avtomatik olinadi.
+- [x] **D-03 · Mock fallback'ni olib tashlash** — Claude — ✅ Bajarildi (2026-10-16, Claude)
   - Tayyor mezoni: `mockAdapter` faqat aniq dev bayrog'i bilan ishlaydi; production build'da tarmoq xatosi foydalanuvchiga xato holati sifatida ko'rsatiladi, soxta ma'lumot emas.
 - [ ] **D-04 · Haqiqiy autentifikatsiya** — Claude
+  - 2026-10-16 holati: API orqali login, 6 katak, 401 → sessiya tozalanadi, xato xabarlari ko'rsatiladi, `updateProfile` faqat `name`/`avatarUrl` — **qolgan**: token hali AsyncStorage'da (`expo-secure-store` yo'q).
   - Tayyor mezoni: `send-otp`/`verify-otp` haqiqiy API orqali; OTP **6 katak** (TZ §4.0); token xavfsiz saqlanadi (`expo-secure-store`); 401 da sessiya tozalanib login'ga o'tadi; 429 (120 soniya / urinishlar limiti) va bloklangan foydalanuvchi xabarlari ko'rsatiladi; `updateProfile` faqat `name`/`avatarUrl` yuboradi.
-- [ ] **D-05 · Ma'lumotnomalar API'dan** — Gemini
+- [x] **D-05 · Ma'lumotnomalar API'dan** — Gemini — ✅ Bajarildi (2026-10-16, Claude)
   - Tayyor mezoni: viloyat, tuman, kategoriyalar `GET /regions|districts|categories`dan (keshlash bilan); `RegionListScreen`, `DistrictListScreen`, `HomeScreen`da `@/mock` importi yo'q.
 - [ ] **D-06 · Ustalar ro'yxati, qidiruv va usta sahifasi** — Claude
+  - 2026-10-16 holati: barcha ekranlar API'dan, filtr/`sortBy` serverda, yuklanish/xato holatlari bor — **qolgan**: cheksiz scroll (hozir `limit=100`, 100 dan ortiq usta ko'rinmaydi).
   - Tayyor mezoni: `MasterListScreen`, `SearchScreen`, `HomeScreen` (tavsiya etilganlar), `MasterDetailScreen` `GET /masters` / `GET /masters/:id`dan; sahifalash (cheksiz scroll) — 20 tadan ortiq usta ko'rinadi; filtr va `sortBy` server tomonda; yuklanish/bo'sh/xato holatlari.
-- [ ] **D-07 · Sevimlilar** — Gemini
+- [x] **D-07 · Sevimlilar** — Gemini — ✅ Bajarildi (2026-10-16, Claude)
   - Tayyor mezoni: `favoritesApi.ts` (`GET /favorites`, `/favorites/ids`, `POST`/`DELETE /favorites/:masterId`), store server bilan sinxron, login'siz holatda login'ga yo'naltiradi.
-- [ ] **D-08 · Buyurtmalar (mijoz va usta)** — Claude
+- [x] **D-08 · Buyurtmalar (mijoz va usta)** — Claude — ✅ Bajarildi (2026-10-16, Claude)
   - Tayyor mezoni: `BookingScreen` → `POST /orders`; `OrdersScreen` → `GET /orders/my`; `MasterIncomingOrdersScreen` → `GET /orders/my?as=master`; status o'zgartirish `PUT /orders/:id/status`; `useOrdersStore` lokal persist emas, server holati; 409/404/400 xabarlari ko'rsatiladi.
-- [ ] **D-09 · Sharhlar** — Gemini
+- [x] **D-09 · Sharhlar** — Gemini — ✅ Bajarildi (2026-10-16, Claude)
   - Tayyor mezoni: `GET`/`POST /masters/:id/reviews`; sharh formasi faqat tugallangan buyurtmadan keyin ochiladi yoki 403 xabari ko'rsatiladi (TZ §4.0); qayta yuborilgan sharh yangilanishi UI'da aks etadi.
-- [ ] **D-10 · Usta kabineti** — Claude
+- [x] **D-10 · Usta kabineti** — Claude — ✅ Bajarildi (2026-10-16, Claude)
   - "Usta bo'lish" formasi **olib tashlanadi** (B-07: profilni faqat admin yaratadi) — o'rniga "administratorga murojaat qiling" ma'lumoti; usta rejimi faqat profili bor foydalanuvchiga ko'rinadi.
   - Tayyor mezoni: `GET /masters/me/profile` (404 = usta emas) va `PUT` (faqat tahrirlash), xizmatlar CRUD, `PATCH /masters/me/availability`; `useMasterProfileStore` lokal mock emas.
 - [ ] **D-11 · Rasm yuklash** — Claude
@@ -158,6 +162,10 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Tayyor mezoni: rate limit Nginx ortida haqiqiy IP bo'yicha ishlashi tekshirilgan (`TRUST_PROXY`), TLS/sarlavhalar tekshiruvi, `pnpm audit` 0, Postgres/Redis/MinIO portlari tashqaridan yopiq, `/uploads` faqat o'qish.
 - [ ] **E-08 · Operatsion qo'llanma** — Claude
   - Tayyor mezoni: `docs/DEPLOY.md`ga qo'shilgan: hodisa yuz berganda nima qilish (xizmat tushdi, disk to'ldi, DB tiklash), admin qo'shish/olib tashlash, sirlarni almashtirish (JWT secret, MinIO, Eskiz).
+- [ ] **E-09 · MinIO image'i registry'larda yo'q — S3 serverini almashtirish** — Claude 🔒👤 (E-02 blokeri)
+  - 2026-10-16 da aniqlandi: `quay.io/minio/minio` va `minio/minio` (Docker Hub) image'larini endi yuklab bo'lmaydi ("denied" / "no such manifest"). Lokal mashinada faqat keshdagi `RELEASE.2025-09-07` bor. Natija: CI'da MinIO ko'tarib bo'lmaydi (upload e2e o'tkazib yuboriladi) va `docker-compose.prod.yml` yangi VPS'da ishga tushmaydi.
+  - Kod `@aws-sdk/client-s3` ishlatadi — S3-mos istalgan server mos keladi, faqat compose va `.env` o'zgaradi. Variantlar: boshqa S3-mos server (masalan Garage, SeaweedFS), MinIO'ni manbadan o'zimiz yig'ish, yoki tashqi obyekt saqlash xizmati — tanlov foydalanuvchida (yangi tashqi xizmat).
+  - Tayyor mezoni: tanlangan server dev compose, prod compose va CI e2e'da ishlaydi; `upload.e2e-spec.ts` CI'da haqiqatan bajariladi; `/uploads` Nginx orqali o'qiladi; DEPLOY.md yangilangan.
 
 ## F. Reliz
 

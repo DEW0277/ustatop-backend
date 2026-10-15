@@ -61,6 +61,6 @@ jobs:
       - run: docker compose up -d --wait postgres redis
       - run: cp apps/backend/.env.example apps/backend/.env
       - run: pnpm --filter backend exec prisma generate
-      # `test:e2e` o'zi `?schema=test`ga `prisma migrate deploy` qiladi. MinIO ko'tarilmaydi:
-      # e2e fayl yuklashni tekshirmaydi, StorageService esa ulanish xatosida ilovani to'xtatmaydi.
+      # `test:e2e` o'zi `?schema=test`ga `prisma migrate deploy` qiladi. MinIO ko'tarilmaydi: uning ommaviy
+      # image'lari endi registry'larda yo'q (TASKS.md E-09) — `upload.e2e-spec.ts` MinIO topilmasa o'tkazib yuboriladi.
       - run: pnpm --filter backend test:e2e
