@@ -19,6 +19,7 @@ Fayllar: `docker-compose.prod.yml`, `apps/backend/Dockerfile`, `apps/web/Dockerf
 - **SMS hali mock.** `SMS_MODE=mock` da OTP doim `123456` — istalgan mijoz/usta raqami nomidan kirish mumkin (admin panelga emas: u faqat login + parol bilan ochiladi). Backend production'da mock bilan **ishga tushmaydi**; yopiq sinov uchun `ALLOW_MOCK_SMS_IN_PRODUCTION=true` qo'yiladi. Ommaga ochishdan oldin haqiqiy SMS provider (Eskiz.uz) ulanishi shart.
 - **Mobil ilova manzili**: ilova `https://<domen>/api/v1` ga murojaat qilishi kerak.
 - Push: Firebase kalitlari bo'lmasa `PUSH_PROVIDER=log` qoladi (bildirishnomalar yuborilmaydi).
+- **MinIO image'i (2026-10-16 holati)**: `quay.io/minio/minio` va `minio/minio` image'larini endi ommaviy registry'lardan yuklab bo'lmaydi — yangi VPS'da `dc build`/`dc up` MinIO'ni ko'tara olmaydi. Deploy'dan oldin S3-mos server bo'yicha qaror kerak (`TASKS.md` E-09).
 
 ## 1. VPS'ni tayyorlash (bir marta)
 
@@ -142,3 +143,63 @@ Loglar konteyner boshiga 5×10 MB bilan cheklangan.
 | nginx ishga tushmaydi: `cannot load certificate` | 3-banddagi sertifikat qadami bajarilmagan yoki `DOMAIN` boshqa |
 | Admin panelda kirishda 403 "Ruxsat etilmagan so'rov manbai" | Panel boshqa domendan ochilgan — faqat `https://<DOMAIN>` |
 | Rasmlar ochilmaydi | `dc logs backend` da bucket policy xabari; `MINIO_BUCKET` nginx va backend'da bir xil bo'lishi kerak |
+
+## 9. Hodisalar: nima qilish kerak
+
+Har qanday hodisada birinchi qadam: `dc ps` (qaysi servis `unhealthy`/`exited`) va `dc logs --tail=200 <servis>`.
+
+| Hodisa | Tekshirish | Harakat |
+|---|---|---|
+| Sayt/API ochilmaydi | `dc ps`; `curl -I https://<domen>/login`; `curl -fsS https://<domen>/api/v1/regions` | Faqat bitta servis tushgan bo'lsa: `dc up -d <servis>`. Hammasi tushgan bo'lsa — server qayta yuklangandir: `dc up -d`. nginx tushgan bo'lsa — 7-band (sertifikat). |
+| backend qayta-qayta o'chadi | `dc logs --tail=100 backend` | "Production konfiguratsiyasi xavfsiz emas" — 8-banddagi jadval. Prisma ulanish xatosi — `dc ps postgres`. Yangilashdan keyin boshlangan bo'lsa — 5-band (rollback). |
+| `migrate` xato bilan to'xtagan | `dc logs migrate` | Backend eski versiyada qoladi (yangilanmaydi). Migratsiyani tuzatib qayta deploy qiling; bazaga qo'lda tegishdan oldin backup oling (6-band). |
+| Disk to'ldi | `df -h`; `docker system df`; `du -sh /opt/backups` | `docker image prune -a` (ishlatilmayotgan eski image'lar; rollback uchun kerakli teg'larni o'chirmang), eski backup'lar (`find /opt/backups -mtime +14 -delete`). Postgres disk to'lib to'xtagan bo'lsa — joy bo'shatib `dc up -d postgres`. |
+| Rasmlar ochilmaydi / yuklanmaydi | `dc logs minio`; `dc logs backend \| grep -i storage` | MinIO tushgan bo'lsa `dc up -d minio`. Bucket policy xabari — 8-band. |
+| Bazani tiklash kerak | — | 6-band ("Tiklash"). Tiklashdan oldin joriy holatdan ham backup oling. |
+| Admin panelga hech kim kira olmaydi | `dc logs backend \| grep admin/login` | Parolni unutgan — 10-band ("Parolni almashtirish"). "Juda ko'p xato urinish" (429) — 15 daqiqa kuting yoki `dc exec redis redis-cli DEL admin-login:attempts:<login>`. |
+| Shubhali faollik (begona admin sessiyasi va h.k.) | `dc logs backend` | Darhol: admin parolini almashtiring (10-band) va `JWT_SECRET`ni almashtiring (11-band) — barcha sessiyalar bekor bo'ladi. |
+
+## 10. Adminlarni boshqarish
+
+Admin panelga faqat `login` + parol bilan kiriladi (`users.login`, `users.passwordHash`, rol `ADMIN`). Parol `scrypt` bilan xeshlanadi — bazaga hech qachon ochiq parol yozmang.
+
+**Birinchi admin / asosiy admin paroli** — `.env.production`dagi `ADMIN_LOGIN`, `ADMIN_PASSWORD`, `ADMIN_PHONE` va seed (3-band, 4-qadam). **Parolni almashtirish**: `ADMIN_PASSWORD`ni o'zgartiring va seed'ni qayta ishga tushiring — boshqa ma'lumotlarga tegmaydi.
+
+**Qo'shimcha admin** (panelda hali bunday sahifa yo'q — `TASKS.md` C-06):
+
+```bash
+# 1) Parol xeshi (parol buyruqlar tarixiga tushmasligi uchun o'qib olinadi)
+read -rs -p "Yangi admin paroli: " ADMIN_PW && echo
+HASH=$(dc run --rm -T -e PW="$ADMIN_PW" backend node -e "const c=require('crypto');const s=c.randomBytes(16);process.stdout.write('scrypt\$'+s.toString('hex')+'\$'+c.scryptSync(process.env.PW,s,64).toString('hex'))")
+unset ADMIN_PW
+
+# 2) Admin yaratish (telefon — unikal +998XXXXXXXXX; u bilan kirib bo'lmaydi; login — kichik harf, 3–32 belgi)
+dc exec -T postgres sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"' <<SQL
+INSERT INTO users (id, phone, name, role, login, "passwordHash", "isPhoneVerified", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), '+998XXXXXXXXX', 'Ism Familiya', 'ADMIN', 'yangi-admin', '$HASH', true, now(), now());
+SQL
+```
+
+Shu `HASH` bilan mavjud qo'shimcha adminning parolini ham almashtirish mumkin: `UPDATE users SET "passwordHash" = '$HASH' WHERE login = 'yangi-admin' AND role = 'ADMIN';`
+
+**Adminni olib tashlash** — rol darhol kuchini yo'qotadi (backend har so'rovda rolni bazadan o'qiydi):
+
+```sql
+UPDATE users SET role = 'CLIENT', login = NULL, "passwordHash" = NULL WHERE login = 'yangi-admin';
+```
+
+Asosiy adminni (`ADMIN_PHONE`) shu tarzda olib tashlasangiz, keyingi seed uni qayta tiklaydi — avval `.env.production`dan `ADMIN_*`ni o'zgartiring.
+
+## 11. Sirlarni almashtirish
+
+Har almashtirishdan keyin: `chmod 600 .env.production`, eski qiymatni hech qayerda qoldirmang.
+
+| Sir | Qanday | Ta'siri |
+|---|---|---|
+| `JWT_SECRET` | `openssl rand -hex 32` → `.env.production` → `dc up -d backend` | **Barcha** sessiyalar (mobil foydalanuvchilar ham, adminlar ham) bekor bo'ladi — hamma qayta kiradi. |
+| `ADMIN_PASSWORD` | 10-band | Faqat shu adminning keyingi kirishi. Mavjud sessiyasi tugamaguncha amal qiladi — zudlik bo'lsa `JWT_SECRET`ni ham almashtiring. |
+| `MINIO_ROOT_PASSWORD` | `.env.production` → `dc up -d minio backend` (MinIO root hisobini har ishga tushishda env'dan oladi) | Qisqa vaqt rasm yuklash ishlamaydi; fayllar saqlanib qoladi. |
+| `POSTGRES_PASSWORD` | Env faqat birinchi ishga tushirishda qo'llanadi: avval `dc exec postgres sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB" -c "ALTER USER \"$POSTGRES_USER\" PASSWORD '"'"'yangi-parol'"'"';"'`, keyin `.env.production` → `dc up -d migrate backend` | Backend qisqa vaqt qayta ulanadi. |
+| `SMS_PROVIDER_API_KEY` / Eskiz | `.env.production` → `dc up -d backend` | Almashtirish paytida SMS yuborilmaydi. |
+| `FIREBASE_*` | Firebase konsolida yangi service account kaliti → `.env.production` → `dc up -d backend` → eski kalitni konsolda o'chiring | Push qisqa vaqt yuborilmaydi; qurilma tokenlari saqlanib qoladi. |
+
