@@ -1,5 +1,6 @@
 import {
   CreateBucketCommand,
+  DeleteObjectCommand,
   HeadBucketCommand,
   PutBucketPolicyCommand,
   PutObjectCommand,
@@ -7,6 +8,8 @@ import {
 } from '@aws-sdk/client-s3';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
+const OWN_KEY_REGEX = /^images\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$/;
 
 @Injectable()
 export class StorageService implements OnModuleInit {
@@ -110,6 +113,23 @@ export class StorageService implements OnModuleInit {
 
     const baseUrl = this.publicUrl.replace(/\/+$/, '');
     return `${baseUrl}/${key}`;
+  }
+
+  // Faqat shu bucket'ga o'zimiz yuklagan fayllar (`UploadService` kalit formati: images/<uuid>.<ext>) uchun kalit
+  // qaytaradi; begona yoki qo'lda kiritilgan URL — null (ularni o'chirishga urinmaymiz).
+  keyFromPublicUrl(url: string): string | null {
+    const prefix = `${this.publicUrl.replace(/\/+$/, '')}/`;
+
+    if (!url.startsWith(prefix)) {
+      return null;
+    }
+
+    const key = url.slice(prefix.length);
+    return OWN_KEY_REGEX.test(key) ? key : null;
+  }
+
+  async deleteFile(key: string): Promise<void> {
+    await this.s3Client.send(new DeleteObjectCommand({ Bucket: this.bucketName, Key: key }));
   }
 
   getS3Client(): S3Client {

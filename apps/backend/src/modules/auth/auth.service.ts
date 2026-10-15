@@ -14,6 +14,7 @@ import type { Redis } from 'ioredis';
 import { hashPassword, verifyPassword } from '../../common/crypto/password.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { REDIS_CLIENT } from '../../common/redis/redis.constants.js';
+import { FileCleanupService } from '../upload/file-cleanup.service.js';
 import type { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { SmsProvider } from './sms/sms-provider.js';
 import type { UserSession } from './types/user-session.type.js';
@@ -60,6 +61,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly smsProvider: SmsProvider,
     configService: ConfigService,
+    private readonly fileCleanup: FileCleanupService,
   ) {
     this.otpTtlSeconds = Number(configService.get('OTP_TTL_SECONDS') ?? 120);
     const configuredLength = Number(configService.get('OTP_LENGTH') ?? MAX_OTP_LENGTH);
@@ -180,6 +182,11 @@ export class AuthService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<UserSession> {
+    const previousAvatar =
+      dto.avatarUrl !== undefined
+        ? (await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { avatarUrl: true } })).avatarUrl
+        : null;
+
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -187,6 +194,11 @@ export class AuthService {
         ...(dto.avatarUrl !== undefined ? { avatarUrl: dto.avatarUrl } : {}),
       },
     });
+
+    // Eski avatar fayli omborda yetim qolmasin (faqat haqiqatan almashtirilgan bo'lsa).
+    if (previousAvatar && previousAvatar !== user.avatarUrl) {
+      await this.fileCleanup.deleteIfUnreferenced(previousAvatar);
+    }
 
     return this.buildSession(user);
   }

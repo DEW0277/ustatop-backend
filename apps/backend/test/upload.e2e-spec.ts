@@ -72,6 +72,37 @@ describe.skipIf(!minioAvailable)('Upload (e2e)', () => {
     expect(Buffer.from(await file.arrayBuffer()).equals(PNG_1X1)).toBe(true);
   });
 
+  it("avatar almashtirilganda eski fayl ombordan o'chadi, yangisi qoladi (dev URL — localhost — qabul qilinadi)", async () => {
+    const upload = async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/upload/single')
+        .set(...authHeader(token))
+        .attach('file', PNG_1X1, { filename: 'avatar.png', contentType: 'image/png' })
+        .expect(201);
+      const url: string = res.body.data.url;
+      uploadedKeys.push(url.slice(url.indexOf('images/')));
+      return url;
+    };
+
+    const first = await upload();
+    await request(app.getHttpServer())
+      .put('/api/v1/auth/profile')
+      .set(...authHeader(token))
+      .send({ avatarUrl: first })
+      .expect(200);
+
+    const second = await upload();
+    await request(app.getHttpServer())
+      .put('/api/v1/auth/profile')
+      .set(...authHeader(token))
+      .send({ avatarUrl: second })
+      .expect(200)
+      .expect((res) => expect(res.body.data.avatarUrl).toBe(second));
+
+    expect((await fetch(first)).status).toBe(404);
+    expect((await fetch(second)).status).toBe(200);
+  });
+
   it("fayl yo'q yoki rasm emas (kengaytma/MIME soxta bo'lsa ham) 400", async () => {
     await request(app.getHttpServer()).post('/api/v1/upload/single').set(...authHeader(token)).expect(400);
 

@@ -26,8 +26,9 @@ function createDeps() {
   const jwtService = { sign: vi.fn().mockReturnValue('signed.jwt.token') };
   const smsProvider = { sendOtp: vi.fn() };
   const configService = { get: vi.fn().mockReturnValue(120) };
+  const fileCleanup = { deleteIfUnreferenced: vi.fn() };
 
-  return { prisma, redis, jwtService, smsProvider, configService };
+  return { prisma, redis, jwtService, smsProvider, configService, fileCleanup };
 }
 
 describe('AuthService', () => {
@@ -42,6 +43,7 @@ describe('AuthService', () => {
       deps.jwtService as never,
       deps.smsProvider as never,
       deps.configService as never,
+      deps.fileCleanup as never,
     );
   });
 
@@ -62,6 +64,7 @@ describe('AuthService', () => {
         deps.jwtService as never,
         deps.smsProvider as never,
         deps.configService as never,
+        deps.fileCleanup as never,
       );
       deps.redis.ttl.mockResolvedValue(-2);
 
@@ -252,6 +255,32 @@ describe('AuthService', () => {
         where: { id: 'user-1' },
         data: { name: 'Yangi ism' },
       });
+    });
+
+    it("avatar almashtirilsa eski faylni tozalashga yuboradi; o'zgarmasa yoki avatar berilmasa — yo'q", async () => {
+      const row = (avatarUrl: string | null) => ({
+        id: 'user-1',
+        phone: '+998901234567',
+        name: 'Ism',
+        role: 'CLIENT',
+        avatarUrl,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      });
+
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue({ avatarUrl: 'http://s/old.png' });
+      deps.prisma.user.update.mockResolvedValue(row('http://s/new.png'));
+      await service.updateProfile('user-1', { avatarUrl: 'http://s/new.png' });
+      expect(deps.fileCleanup.deleteIfUnreferenced).toHaveBeenCalledWith('http://s/old.png');
+
+      deps.fileCleanup.deleteIfUnreferenced.mockClear();
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue({ avatarUrl: 'http://s/new.png' });
+      await service.updateProfile('user-1', { avatarUrl: 'http://s/new.png' });
+      expect(deps.fileCleanup.deleteIfUnreferenced).not.toHaveBeenCalled();
+
+      deps.prisma.user.findUniqueOrThrow.mockClear();
+      await service.updateProfile('user-1', { name: 'Ism' });
+      expect(deps.prisma.user.findUniqueOrThrow).not.toHaveBeenCalled();
+      expect(deps.fileCleanup.deleteIfUnreferenced).not.toHaveBeenCalled();
     });
   });
 

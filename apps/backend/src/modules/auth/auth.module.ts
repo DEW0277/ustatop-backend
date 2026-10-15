@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { UploadModule } from '../upload/upload.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { MockSmsProvider } from './sms/mock-sms.provider.js';
@@ -9,6 +10,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 
 @Module({
   imports: [
+    UploadModule,
     // PassportModule endi common/auth/shared-auth.module.ts orqali global ro'yxatga olingan.
     JwtModule.registerAsync({
       imports: [ConfigModule],

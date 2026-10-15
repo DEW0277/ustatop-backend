@@ -21,12 +21,12 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | Bo'lim | Bajarildi | Jami |
 |---|---|---|
 | A. Tezkor tuzatishlar va tartib | 2 | 4 |
-| B. Backend | 2 | 7 |
+| B. Backend | 3 | 7 |
 | C. Admin panel | 2 | 6 |
 | D. Mobil ilova integratsiyasi | 7 | 13 |
 | E. Deploy va operatsiya | 0 | 9 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **13** | **45** |
+| **Jami** | **14** | **45** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -68,7 +68,8 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Qo'shildi: `masters` (filtrlar, bloklangan usta, xizmat/portfolio egaligi, band holati), `reviews` (403/400 qoidalari, reyting qayta hisoblash, yangilash), `favorites`, `upload` (haqiqiy MinIO, magic bytes, 413 — CI'da MinIO yo'qligi sababli hozircha faqat lokal, E-09). Topilgan xato tuzatildi: portfolio `url` protokolsiz oddiy so'zni ham qabul qilardi.
   - Hozir e2e faqat auth / admin / orders. Masters (upsert, xizmat egaligi, portfolio), reviews (403 qoidasi, reyting qayta hisoblash), favorites va upload e2e'siz.
   - Tayyor mezoni: `masters`, `reviews`, `favorites`, `upload` uchun e2e fayllar; CI `e2e` job'ida MinIO ham ko'tariladi; hammasi yashil.
-- [ ] **B-05 · MinIO'da yetim fayllar** — Gemini
+- [x] **B-05 · MinIO'da yetim fayllar** — Gemini — ✅ Bajarildi (2026-10-16, Claude, PR #34)
+  - `FileCleanupService.deleteIfUnreferenced` (o'z kalit formati + bazada boshqa havola yo'qligi tekshiriladi). Yo'l-yo'lakay: `avatarUrl` dev'da (`localhost`) 400 olardi — tuzatildi.
   - Portfolio rasmi o'chirilganda yoki avatar almashtirilganda obyekt MinIO'da qoladi (`StorageService`da o'chirish metodi yo'q).
   - Tayyor mezoni: `StorageService.deleteFile`, portfolio o'chirish va avatar almashtirishda chaqiriladi (faqat o'z bucket URL'i uchun, xato asosiy amalni buzmaydi); unit test.
 - [ ] **B-06 · `packages/shared-types`ni to'ldirish** — Gemini (MVP'dan keyin, ixtiyoriy)

@@ -32,7 +32,8 @@ function createDeps() {
     portfolioImage: { aggregate: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   };
-  return { prisma, tx };
+  const fileCleanup = { deleteIfUnreferenced: vi.fn() };
+  return { prisma, tx, fileCleanup };
 }
 
 const fullProfile = {
@@ -67,7 +68,7 @@ describe('MasterProfileService', () => {
 
   beforeEach(() => {
     deps = createDeps();
-    service = new MasterProfileService(deps.prisma as never);
+    service = new MasterProfileService(deps.prisma as never, deps.fileCleanup as never);
   });
 
   describe('getMine', () => {
@@ -280,6 +281,9 @@ describe('MasterProfileService', () => {
         where: { masterId: 'm-1', url: 'https://x/y.jpg' },
       });
       await expect(service.removePortfolioImage('u-1', 'https://x/none.jpg')).rejects.toBeInstanceOf(NotFoundException);
+      // Fayl faqat haqiqatan o'chirilgan yozuv uchun tozalashga yuboriladi.
+      expect(deps.fileCleanup.deleteIfUnreferenced).toHaveBeenCalledTimes(1);
+      expect(deps.fileCleanup.deleteIfUnreferenced).toHaveBeenCalledWith('https://x/y.jpg');
     });
 
     it("sortOrder ni mavjud maksimumdan keyingisiga qo'yadi", async () => {

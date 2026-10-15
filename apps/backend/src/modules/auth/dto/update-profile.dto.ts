@@ -11,6 +11,11 @@ export class UpdateProfileDto {
 
   @ApiPropertyOptional({ example: 'https://domain.com/uploads/avatar.jpg' })
   @IsOptional()
-  @IsUrl({}, { message: "avatarUrl to'g'ri URL bo'lishi kerak" })
+  // `require_tld: false` — dev'da fayl ombori `http://localhost:9000/...` (avval dev'da avatar 400 olardi).
+  @IsUrl(
+    { require_tld: false, require_protocol: true, protocols: ['http', 'https'] },
+    { message: "avatarUrl http(s):// bilan boshlanadigan to'g'ri URL bo'lishi kerak" },
+  )
+  @MaxLength(500)
   avatarUrl?: string;
 }
