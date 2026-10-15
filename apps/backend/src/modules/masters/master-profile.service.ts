@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { FileCleanupService } from '../upload/file-cleanup.service.js';
 import type { AddPortfolioDto } from './dto/add-portfolio.dto.js';
 import type { CreateServiceDto } from './dto/create-service.dto.js';
 import type { UpdateServiceDto } from './dto/update-service.dto.js';
@@ -24,7 +25,10 @@ export type AdminCreateMasterInput = Required<
 
 @Injectable()
 export class MasterProfileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fileCleanup: FileCleanupService,
+  ) {}
 
   async getMine(userId: string) {
     const profile = await this.prisma.masterProfile.findUnique({
@@ -258,6 +262,8 @@ export class MasterProfileService {
     if (count === 0) {
       throw new NotFoundException('Portfolio rasmi topilmadi');
     }
+
+    await this.fileCleanup.deleteIfUnreferenced(url);
 
     return { url };
   }

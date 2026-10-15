@@ -1,5 +1,6 @@
 import {
   CreateBucketCommand,
+  DeleteObjectCommand,
   HeadBucketCommand,
   PutBucketPolicyCommand,
   PutObjectCommand,
@@ -93,6 +94,30 @@ describe('StorageService', () => {
       expect(command.input.ContentType).toBe(mimetype);
 
       expect(url).toBe(`http://localhost:9000/ustatop-uploads/${key}`);
+    });
+  });
+
+  describe('keyFromPublicUrl / deleteFile', () => {
+    const uuid = '0b9f8c2e-4a8d-4c55-9a43-7e3c3f1a2b10';
+
+    it("faqat shu bucket'dagi o'zimiz yuklagan fayl uchun kalit qaytaradi", () => {
+      expect(storageService.keyFromPublicUrl(`http://localhost:9000/ustatop-uploads/images/${uuid}.webp`)).toBe(
+        `images/${uuid}.webp`,
+      );
+      expect(storageService.keyFromPublicUrl(`https://example.com/ustatop-uploads/images/${uuid}.png`)).toBeNull();
+      expect(storageService.keyFromPublicUrl('http://localhost:9000/ustatop-uploads/images/qo-lda-nom.png')).toBeNull();
+      expect(storageService.keyFromPublicUrl(`http://localhost:9000/ustatop-uploads/../secret/${uuid}.png`)).toBeNull();
+      expect(storageService.keyFromPublicUrl(`http://localhost:9000/ustatop-uploads-other/images/${uuid}.png`)).toBeNull();
+    });
+
+    it("DeleteObjectCommand'ni bucket va kalit bilan yuboradi", async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await storageService.deleteFile(`images/${uuid}.png`);
+
+      const command = mockSend.mock.calls[0][0];
+      expect(command).toBeInstanceOf(DeleteObjectCommand);
+      expect(command.input).toEqual({ Bucket: 'ustatop-uploads', Key: `images/${uuid}.png` });
     });
   });
 });
