@@ -24,9 +24,9 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | B. Backend | 2 | 7 |
 | C. Admin panel | 2 | 6 |
 | D. Mobil ilova integratsiyasi | 7 | 13 |
-| E. Deploy va operatsiya | 0 | 8 |
+| E. Deploy va operatsiya | 0 | 9 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **13** | **44** |
+| **Jami** | **13** | **45** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -65,7 +65,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Murakkablik: buyurtmasi bor foydalanuvchini FK tufayli o'chirib bo'lmaydi (TZ §4.0) → anonimlashtirish kerak. Avval TZ'ga yoziladi, schema o'zgarsa tasdiq so'raladi.
   - Tayyor mezoni: `DELETE /auth/me` (yoki TZ'da kelishilgan shakl), shaxsiy ma'lumot tozalanadi, token darhol yaroqsiz, buyurtma tarixi saqlanadi; unit + e2e test.
 - [x] **B-04 · E2e qamrovini kengaytirish** — Claude — ✅ Bajarildi (2026-10-16, PR #33)
-  - Qo'shildi: `masters` (filtrlar, bloklangan usta, xizmat/portfolio egaligi, band holati), `reviews` (403/400 qoidalari, reyting qayta hisoblash, yangilash), `favorites`, `upload` (haqiqiy MinIO, magic bytes, 413). Topilgan xato tuzatildi: portfolio `url` protokolsiz oddiy so'zni ham qabul qilardi.
+  - Qo'shildi: `masters` (filtrlar, bloklangan usta, xizmat/portfolio egaligi, band holati), `reviews` (403/400 qoidalari, reyting qayta hisoblash, yangilash), `favorites`, `upload` (haqiqiy MinIO, magic bytes, 413 — CI'da MinIO yo'qligi sababli hozircha faqat lokal, E-09). Topilgan xato tuzatildi: portfolio `url` protokolsiz oddiy so'zni ham qabul qilardi.
   - Hozir e2e faqat auth / admin / orders. Masters (upsert, xizmat egaligi, portfolio), reviews (403 qoidasi, reyting qayta hisoblash), favorites va upload e2e'siz.
   - Tayyor mezoni: `masters`, `reviews`, `favorites`, `upload` uchun e2e fayllar; CI `e2e` job'ida MinIO ham ko'tariladi; hammasi yashil.
 - [ ] **B-05 · MinIO'da yetim fayllar** — Gemini
@@ -162,6 +162,10 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Tayyor mezoni: rate limit Nginx ortida haqiqiy IP bo'yicha ishlashi tekshirilgan (`TRUST_PROXY`), TLS/sarlavhalar tekshiruvi, `pnpm audit` 0, Postgres/Redis/MinIO portlari tashqaridan yopiq, `/uploads` faqat o'qish.
 - [ ] **E-08 · Operatsion qo'llanma** — Claude
   - Tayyor mezoni: `docs/DEPLOY.md`ga qo'shilgan: hodisa yuz berganda nima qilish (xizmat tushdi, disk to'ldi, DB tiklash), admin qo'shish/olib tashlash, sirlarni almashtirish (JWT secret, MinIO, Eskiz).
+- [ ] **E-09 · MinIO image'i registry'larda yo'q — S3 serverini almashtirish** — Claude 🔒👤 (E-02 blokeri)
+  - 2026-10-16 da aniqlandi: `quay.io/minio/minio` va `minio/minio` (Docker Hub) image'larini endi yuklab bo'lmaydi ("denied" / "no such manifest"). Lokal mashinada faqat keshdagi `RELEASE.2025-09-07` bor. Natija: CI'da MinIO ko'tarib bo'lmaydi (upload e2e o'tkazib yuboriladi) va `docker-compose.prod.yml` yangi VPS'da ishga tushmaydi.
+  - Kod `@aws-sdk/client-s3` ishlatadi — S3-mos istalgan server mos keladi, faqat compose va `.env` o'zgaradi. Variantlar: boshqa S3-mos server (masalan Garage, SeaweedFS), MinIO'ni manbadan o'zimiz yig'ish, yoki tashqi obyekt saqlash xizmati — tanlov foydalanuvchida (yangi tashqi xizmat).
+  - Tayyor mezoni: tanlangan server dev compose, prod compose va CI e2e'da ishlaydi; `upload.e2e-spec.ts` CI'da haqiqatan bajariladi; `/uploads` Nginx orqali o'qiladi; DEPLOY.md yangilangan.
 
 ## F. Reliz
 

@@ -15,8 +15,18 @@ const PNG_1X1 = Buffer.from(
   'base64',
 );
 
-// Haqiqiy MinIO kerak (dev: `docker compose up -d minio`, CI: e2e job'da ko'tariladi).
-describe('Upload (e2e)', () => {
+// Haqiqiy MinIO kerak (dev: `docker compose up -d minio`). CI'da MinIO yo'q — ommaviy image'lari registry'lardan
+// olib tashlangan (TASKS.md E-09), shuning uchun MinIO javob bermasa blok ogohlantirish bilan o'tkazib yuboriladi.
+const STORAGE_ORIGIN = new URL(process.env.STORAGE_PUBLIC_URL ?? 'http://localhost:9000/ustatop-uploads').origin;
+const minioAvailable = await fetch(`${STORAGE_ORIGIN}/minio/health/live`, { signal: AbortSignal.timeout(2000) })
+  .then((res) => res.ok)
+  .catch(() => false);
+
+if (!minioAvailable) {
+  console.warn(`[upload.e2e] MinIO (${STORAGE_ORIGIN}) javob bermadi — upload e2e testlari o'tkazib yuborildi`);
+}
+
+describe.skipIf(!minioAvailable)('Upload (e2e)', () => {
   let app: INestApplication<App>;
   const prisma = new PrismaClient();
   let token: string;
