@@ -48,6 +48,8 @@ model User {
   fcmToken        String?
   isPhoneVerified Boolean  @default(false)
   isBlocked       Boolean  @default(false)
+  // Foydalanuvchi akkauntini o'chirgan vaqt (anonimlashtirilgan, docs/TZ.md §4.3). null — faol akkaunt.
+  deletedAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

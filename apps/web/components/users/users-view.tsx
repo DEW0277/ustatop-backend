@@ -113,21 +113,28 @@ export function UsersView() {
                   <TableRow key={user.id}>
                     <TableCell>
                       <div className="font-medium">{user.name}</div>
-                      <div className="text-sm text-muted-foreground">{user.phone}</div>
+                      <div className="text-sm text-muted-foreground">{user.deletedAt ? '—' : user.phone}</div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{ROLE_LABELS[user.role]}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.isBlocked ? 'destructive' : 'outline'}>
-                        {user.isBlocked ? 'Bloklangan' : 'Faol'}
-                      </Badge>
-                      {!user.isPhoneVerified && (
+                      {user.deletedAt ? (
+                        <Badge variant="secondary">O&apos;chirilgan</Badge>
+                      ) : (
+                        <Badge variant={user.isBlocked ? 'destructive' : 'outline'}>
+                          {user.isBlocked ? 'Bloklangan' : 'Faol'}
+                        </Badge>
+                      )}
+                      {!user.deletedAt && !user.isPhoneVerified && (
                         <Badge variant="ghost" className="ml-1">Tasdiqlanmagan</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(user.createdAt)}</TableCell>
-                    <TableCell className="text-right"><BlockUserAction user={user} /></TableCell>
+                    <TableCell className="text-right">
+                      {/* O'chirilgan akkauntni blokdan chiqarib bo'lmaydi (backend 409) — amal ko'rsatilmaydi. */}
+                      {!user.deletedAt && <BlockUserAction user={user} />}
+                    </TableCell>
                   </TableRow>
                 ))}
             </TableBody>

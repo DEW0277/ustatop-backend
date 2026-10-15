@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.type.js';
@@ -111,6 +111,7 @@ export class AdminService {
           avatarUrl: true,
           isBlocked: true,
           isPhoneVerified: true,
+          deletedAt: true,
           createdAt: true,
           masterProfile: { select: { id: true, isVerified: true } },
         },
@@ -122,10 +123,11 @@ export class AdminService {
     ]);
 
     return {
-      items: users.map(({ masterProfile, avatarUrl, createdAt, ...user }) => ({
+      items: users.map(({ masterProfile, avatarUrl, createdAt, deletedAt, ...user }) => ({
         ...user,
         avatarUrl: avatarUrl ?? undefined,
         masterId: masterProfile?.id,
+        deletedAt: deletedAt?.toISOString(),
         createdAt: createdAt.toISOString(),
       })),
       total,
@@ -139,7 +141,10 @@ export class AdminService {
       throw new BadRequestException("O'zingizni bloklab bo'lmaydi");
     }
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, deletedAt: true },
+    });
 
     if (!user) {
       throw new NotFoundException(`Foydalanuvchi topilmadi: ${userId}`);
@@ -148,6 +153,11 @@ export class AdminService {
     // Admin akkauntlari faqat DB orqali boshqariladi — panel orqali boshqa adminni chetlatib bo'lmaydi.
     if (user.role === Role.ADMIN) {
       throw new ForbiddenException("Administratorni bloklab bo'lmaydi");
+    }
+
+    // O'chirilgan (anonimlashtirilgan) akkaunt doim bloklangan qoladi — blokdan chiqarish uni "tiriltirmasin".
+    if (user.deletedAt) {
+      throw new ConflictException("Foydalanuvchi akkauntini o'chirgan — holatini o'zgartirib bo'lmaydi");
     }
 
     await this.prisma.user.update({ where: { id: userId }, data: { isBlocked } });

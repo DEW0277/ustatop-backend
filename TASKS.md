@@ -20,13 +20,13 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 
 | Bo'lim | Bajarildi | Jami |
 |---|---|---|
-| A. Tezkor tuzatishlar va tartib | 2 | 4 |
-| B. Backend | 3 | 7 |
+| A. Tezkor tuzatishlar va tartib | 3 | 4 |
+| B. Backend | 4 | 7 |
 | C. Admin panel | 2 | 6 |
 | D. Mobil ilova integratsiyasi | 7 | 13 |
 | E. Deploy va operatsiya | 1 | 9 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **15** | **45** |
+| **Jami** | **17** | **45** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -42,7 +42,8 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [x] **A-02 · `docs/TZ.md`ni haqiqiy holat bilan sinxronlash** — Claude — ✅ Bajarildi (2026-10-16, PR #32)
   - §0 da "🔄 Jarayonda" turibdi, §7.4 jadvalida 3, 4, 5-bandlar belgilanmagan — aslida hammasi merge qilingan (PR #29, #30, #24).
   - Tayyor mezoni: §0 va §7.4 yangilangan; §7.4 qolgan ishlar uchun shu faylga havola beradi (ikki joyda ikki xil ro'yxat bo'lmasin); §3 daraxtiga `TASKS.md` qo'shilgan.
-- [ ] **A-03 · Eskirgan branch'larni tozalash** — Claude 🔒👤
+- [x] **A-03 · Eskirgan branch'larni tozalash** — Claude 🔒👤 — ✅ Bajarildi (2026-10-16, foydalanuvchi tasdig'i bilan, PR'siz)
+  - 13 ta merge qilingan branch (lokal + origin) va `../texnozor-gemini` worktree'si o'chirildi. `feat/ci-claude` qoldirildi — PR #26 merge qilinmagan (yopilgan, o'rniga #27).
   - 9 ta merge qilingan branch lokal va `origin`da qolgan (`feat/ci-claude`, `feat/fcm-claude`, `fix/web-polish-gemini`, ...); Gemini worktree'si (`../texnozor-gemini`) eski branch'da.
   - Tayyor mezoni: foydalanuvchi tasdig'idan keyin faqat `main` va faol branch'lar qoladi.
 - [ ] **A-04 · `main` himoyasi bo'yicha qaror** — 👤
@@ -60,7 +61,8 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Kerak: Firebase loyihasi va service account kalitlari (foydalanuvchidan).
   - Bog'liqlik: D-12.
   - Tayyor mezoni: `PUSH_PROVIDER=fcm` bilan haqiqiy qurilmaga buyurtma yaratilganda / status o'zgarganda / usta tasdiqlanganda bildirishnoma keladi; yaroqsiz token bazadan o'chishi tekshirilgan.
-- [ ] **B-03 · Akkauntni o'chirish endpointi** — Claude 🔒👤 ⚠️
+- [x] **B-03 · Akkauntni o'chirish endpointi** — Claude 🔒👤 ⚠️ — ✅ Bajarildi (2026-10-16, PR #36)
+  - `DELETE /auth/me` — anonimlashtirish (TZ §4.3), `users.deletedAt` (additiv migratsiya), admin panelda "O'chirilgan" belgisi. Ilova tomoni — D-13.
   - App Store va Google Play akkaunt yaratadigan ilovalardan ilova ichida akkauntni o'chirish imkoniyatini talab qiladi. Hozir bunday endpoint yo'q.
   - Murakkablik: buyurtmasi bor foydalanuvchini FK tufayli o'chirib bo'lmaydi (TZ §4.0) → anonimlashtirish kerak. Avval TZ'ga yoziladi, schema o'zgarsa tasdiq so'raladi.
   - Tayyor mezoni: `DELETE /auth/me` (yoki TZ'da kelishilgan shakl), shaxsiy ma'lumot tozalanadi, token darhol yaroqsiz, buyurtma tarixi saqlanadi; unit + e2e test.

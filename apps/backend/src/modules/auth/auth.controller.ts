@@ -2,9 +2,11 @@ import { Body, Controller, Delete, Get, Post, Put, UseGuards } from '@nestjs/com
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { ResponseMessage } from '../../common/decorators/response-message.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.type.js';
+import { AccountDeletionService } from './account-deletion.service.js';
 import { AuthService } from './auth.service.js';
 import { AdminLoginDto } from './dto/admin-login.dto.js';
 import { RegisterFcmTokenDto } from './dto/register-fcm-token.dto.js';
@@ -19,7 +21,10 @@ const AUTH_THROTTLE = { default: { limit: 5, ttl: 60_000 } };
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly accountDeletion: AccountDeletionService,
+  ) {}
 
   @Throttle(AUTH_THROTTLE)
   @Post('send-otp')
@@ -52,6 +57,18 @@ export class AuthController {
   @ApiErrorResponses(401)
   getMe(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.getMe(user.id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Delete('me')
+  @ResponseMessage("Akkaunt o'chirildi")
+  @ApiOperation({
+    summary: "Akkauntni o'chirish (qaytarib bo'lmaydi): shaxsiy ma'lumot anonimlashtiriladi, buyurtma/sharh tarixi qoladi",
+  })
+  @ApiErrorResponses(401, 403)
+  deleteMe(@CurrentUser() user: AuthenticatedUser) {
+    return this.accountDeletion.deleteAccount(user.id);
   }
 
   @ApiBearerAuth()

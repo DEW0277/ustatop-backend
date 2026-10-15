@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { UploadModule } from '../upload/upload.module.js';
+import { AccountDeletionService } from './account-deletion.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { MockSmsProvider } from './sms/mock-sms.provider.js';
@@ -11,6 +13,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 @Module({
   imports: [
     UploadModule,
+    NotificationsModule,
     // PassportModule endi common/auth/shared-auth.module.ts orqali global ro'yxatga olingan.
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -28,6 +31,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
   controllers: [AuthController],
   providers: [
     AuthService,
+    AccountDeletionService,
     JwtStrategy,
     // SMS_MODE=mock hozircha qat'iy MockSmsProvider'ga bog'langan.
     // Real provider ulanganda: SMS_MODE qiymatiga qarab useClass tanlovchi factory yoziladi.
