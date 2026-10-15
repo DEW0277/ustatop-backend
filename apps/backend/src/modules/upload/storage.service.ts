@@ -19,13 +19,13 @@ export class StorageService implements OnModuleInit {
   private readonly publicUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    const rawEndpoint = this.configService.get<string>('MINIO_ENDPOINT', 'localhost');
-    const port = this.configService.get<number | string>('MINIO_PORT', 9000);
-    const useSsl = String(this.configService.get<string | boolean>('MINIO_USE_SSL', false)) === 'true';
-    const accessKeyId = this.configService.get<string>('MINIO_ACCESS_KEY', 'ustatop');
-    const secretAccessKey = this.configService.get<string>('MINIO_SECRET_KEY', 'ustatop_dev_secret');
+    const rawEndpoint = this.env('S3_ENDPOINT', 'MINIO_ENDPOINT') ?? 'localhost';
+    const port = this.env('S3_PORT', 'MINIO_PORT') ?? '3900';
+    const useSsl = this.env('S3_USE_SSL', 'MINIO_USE_SSL') === 'true';
+    const accessKeyId = this.env('S3_ACCESS_KEY', 'MINIO_ACCESS_KEY') ?? '';
+    const secretAccessKey = this.env('S3_SECRET_KEY', 'MINIO_SECRET_KEY') ?? '';
 
-    this.bucketName = this.configService.get<string>('MINIO_BUCKET', 'ustatop-uploads');
+    this.bucketName = this.env('S3_BUCKET', 'MINIO_BUCKET') ?? 'ustatop-uploads';
     this.publicUrl = this.configService.get<string>(
       'STORAGE_PUBLIC_URL',
       `http://${rawEndpoint}:${port}/${this.bucketName}`,
@@ -50,11 +50,17 @@ export class StorageService implements OnModuleInit {
     });
   }
 
+  // Fayl ombori S3-mos istalgan server (hozir Garage). `MINIO_*` — eski nomlar, faqat moslik uchun o'qiladi.
+  private env(name: string, legacyName: string): string | undefined {
+    const value = this.configService.get<string | number | boolean>(name) ?? this.configService.get(legacyName);
+    return value === undefined || value === '' ? undefined : String(value);
+  }
+
   async onModuleInit(): Promise<void> {
     try {
       await this.ensureBucket();
     } catch (error: any) {
-      this.logger.error(`MinIO ulanishida xatolik yuz berdi: ${error?.message}`);
+      this.logger.error(`Fayl omboriga (S3) ulanishda xatolik yuz berdi: ${error?.message}`);
     }
   }
 
@@ -92,12 +98,22 @@ export class StorageService implements OnModuleInit {
       ],
     };
 
-    await this.s3Client.send(
-      new PutBucketPolicyCommand({
-        Bucket: this.bucketName,
-        Policy: JSON.stringify(policy),
-      }),
-    );
+    try {
+      await this.s3Client.send(
+        new PutBucketPolicyCommand({
+          Bucket: this.bucketName,
+          Policy: JSON.stringify(policy),
+        }),
+      );
+    } catch (error: any) {
+      // Garage bucket policy'ni qo'llab-quvvatlamaydi — public o'qish uning "website" rejimi orqali
+      // (`deploy/garage/init.sh` yoqadi). Bu xato emas.
+      if (error?.name === 'NotImplemented' || error?.Code === 'NotImplemented') {
+        this.logger.log(`Bucket policy qo'llab-quvvatlanmaydi — public o'qish ombor tomonida sozlangan.`);
+        return;
+      }
+      throw error;
+    }
     this.logger.log(`Bucket "${this.bucketName}" uchun public-read policy o'rnatildi.`);
   }
 

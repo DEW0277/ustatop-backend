@@ -1,0 +1,26 @@
+# Garage — S3-mos fayl ombori (MinIO o'rniga, TASKS.md E-09). Dev va production uchun bitta konfiguratsiya.
+# Sirlar faylda emas, env orqali: GARAGE_RPC_SECRET (32 bayt hex), GARAGE_ADMIN_TOKEN.
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+
+# Bitta server — bitta nusxa. Fayllar xavfsizligi backup orqali (docs/DEPLOY.md §6).
+replication_factor = 1
+
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "127.0.0.1:3901"
+
+[s3_api]
+# Backend S3 klienti `us-east-1` bilan imzolaydi — region mos kelishi shart.
+s3_region = "us-east-1"
+api_bind_addr = "[::]:3900"
+root_domain = ".s3.garage.internal"
+
+# Public o'qish: Garage bucket policy'ni qo'llab-quvvatlamaydi, o'rniga "website" rejimi. So'rov
+# `Host: <bucket>.web.garage.internal` bilan keladi — buni nginx qo'yadi (dev: storage-proxy, prod: nginx).
+[s3_web]
+bind_addr = "[::]:3902"
+root_domain = ".web.garage.internal"
+
+[admin]
+api_bind_addr = "[::]:3903"

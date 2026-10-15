@@ -1,4 +1,4 @@
-# nginx image bu faylni ishga tushishda envsubst qiladi (faqat ${DOMAIN} va ${MINIO_BUCKET} almashtiriladi;
+# nginx image bu faylni ishga tushishda envsubst qiladi (faqat ${DOMAIN} va ${S3_BUCKET} almashtiriladi;
 # $host kabi nginx o'zgaruvchilari tegilmaydi).
 
 # Docker ichki DNS — konteyner qayta yaratilib IP o'zgarsa ham nginx yangi manzilni topadi.
@@ -59,12 +59,15 @@ server {
         proxy_pass $backend;
     }
 
-    # Yuklangan fayllar: MinIO bucket'i (public-read), faqat o'qish.
+    # Yuklangan fayllar: Garage "website" endpoint'i (bucket public o'qish uchun ochilgan), faqat o'qish.
+    # Garage bucket'ni Host bo'yicha tanlaydi (garage.toml: [s3_web] root_domain). DIQQAT: bu yerda
+    # proxy_set_header yozilgani uchun server darajasidagi sarlavhalar meros bo'lmaydi — bu yerda kerak ham emas.
     location /uploads/ {
         limit_except GET HEAD { deny all; }
-        set $minio http://minio:9000;
-        rewrite ^/uploads/(.*)$ /${MINIO_BUCKET}/$1 break;
-        proxy_pass $minio;
+        set $garage http://garage:3902;
+        rewrite ^/uploads/(.*)$ /$1 break;
+        proxy_set_header Host ${S3_BUCKET}.web.garage.internal;
+        proxy_pass $garage;
         proxy_hide_header x-amz-request-id;
         proxy_hide_header x-amz-id-2;
         expires 30d;

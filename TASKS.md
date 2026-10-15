@@ -24,9 +24,9 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | B. Backend | 4 | 7 |
 | C. Admin panel | 2 | 6 |
 | D. Mobil ilova integratsiyasi | 7 | 13 |
-| E. Deploy va operatsiya | 1 | 9 |
+| E. Deploy va operatsiya | 2 | 9 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **17** | **45** |
+| **Jami** | **18** | **45** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -151,7 +151,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Bog'liqlik: E-01. `docs/DEPLOY.md` §1–3 bo'yicha, `ALLOW_MOCK_SMS_IN_PRODUCTION=true` bilan — **manzil ommaga e'lon qilinmaydi** (mock OTP bilan istalgan mijoz/usta raqami nomidan kirish mumkin; admin panel alohida — login + parol).
   - Tayyor mezoni: `dc ps` hammasi healthy, `https://<domen>/api/v1/regions` va `/login` ishlaydi, seed qo'llangan, admin panelga kirilgan.
 - [ ] **E-03 · Backup va sertifikat cron'lari** — Claude
-  - Tayyor mezoni: kunlik `pg_dump` + MinIO arxivi cron'da, **boshqa joyga** nusxa (rclone / obyekt saqlash), haftalik nginx reload; backup'dan tiklash bir marta amalda sinab ko'rilgan.
+  - Tayyor mezoni: kunlik `pg_dump` + Garage arxivi cron'da, **boshqa joyga** nusxa (rclone / obyekt saqlash), haftalik nginx reload; backup'dan tiklash bir marta amalda sinab ko'rilgan.
 - [ ] **E-04 · CD — avtomatik deploy** — Claude 👤
   - TZ §6: "`main`ga merge → SSH orqali deploy" hali rejada. Image'lar hozir VPS'ning o'zida yig'iladi.
   - Tayyor mezoni: GitHub Actions workflow (qo'lda tasdiq / `workflow_dispatch` bilan), SSH kaliti repo secret'ida, sha bo'yicha `IMAGE_TAG` (rollback uchun), DEPLOY.md yangilangan.
@@ -162,11 +162,12 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Bog'liqlik: B-01, B-02.
   - Tayyor mezoni: `SMS_MODE=eskiz`, `ALLOW_MOCK_SMS_IN_PRODUCTION=false`, `PUSH_PROVIDER=fcm`, `SWAGGER_ENABLED=false`; sinov davridagi soxta foydalanuvchi/buyurtmalar tozalangan; `123456` bilan kirib bo'lmasligi tekshirilgan.
 - [ ] **E-07 · Yuklama va xavfsizlik tekshiruvi (production'da)** — Claude
-  - Tayyor mezoni: rate limit Nginx ortida haqiqiy IP bo'yicha ishlashi tekshirilgan (`TRUST_PROXY`), TLS/sarlavhalar tekshiruvi, `pnpm audit` 0, Postgres/Redis/MinIO portlari tashqaridan yopiq, `/uploads` faqat o'qish.
+  - Tayyor mezoni: rate limit Nginx ortida haqiqiy IP bo'yicha ishlashi tekshirilgan (`TRUST_PROXY`), TLS/sarlavhalar tekshiruvi, `pnpm audit` 0, Postgres/Redis/Garage portlari tashqaridan yopiq, `/uploads` faqat o'qish.
 - [x] **E-08 · Operatsion qo'llanma** — Claude — ✅ Bajarildi (2026-10-16, PR #35)
   - `docs/DEPLOY.md` §9 hodisalar jadvali, §10 adminlarni boshqarish (qo'shimcha admin, parol, olib tashlash — SQL dev bazada sinab ko'rilgan), §11 sirlarni almashtirish. Haqiqiy VPS'da hali sinalmagan.
   - Tayyor mezoni: `docs/DEPLOY.md`ga qo'shilgan: hodisa yuz berganda nima qilish (xizmat tushdi, disk to'ldi, DB tiklash), admin qo'shish/olib tashlash, sirlarni almashtirish (JWT secret, MinIO, Eskiz).
-- [ ] **E-09 · MinIO image'i registry'larda yo'q — S3 serverini almashtirish** — Claude 🔒👤 (E-02 blokeri)
+- [x] **E-09 · MinIO image'i registry'larda yo'q — S3 serverini almashtirish** — Claude 🔒👤 — ✅ Bajarildi (2026-10-16, PR #37; foydalanuvchi tanlovi: Garage)
+  - Garage v2.4.1 (dev, prod, CI), `deploy/garage/init.sh` (idempotent sozlash), dev `storage-proxy` (public URL formati o'zgarmadi), env `S3_*` (`MINIO_*` fallback bilan). Haqiqiy VPS'da hali sinalmagan (E-02).
   - 2026-10-16 da aniqlandi: `quay.io/minio/minio` va `minio/minio` (Docker Hub) image'larini endi yuklab bo'lmaydi ("denied" / "no such manifest"). Lokal mashinada faqat keshdagi `RELEASE.2025-09-07` bor. Natija: CI'da MinIO ko'tarib bo'lmaydi (upload e2e o'tkazib yuboriladi) va `docker-compose.prod.yml` yangi VPS'da ishga tushmaydi.
   - Kod `@aws-sdk/client-s3` ishlatadi — S3-mos istalgan server mos keladi, faqat compose va `.env` o'zgaradi. Variantlar: boshqa S3-mos server (masalan Garage, SeaweedFS), MinIO'ni manbadan o'zimiz yig'ish, yoki tashqi obyekt saqlash xizmati — tanlov foydalanuvchida (yangi tashqi xizmat).
   - Tayyor mezoni: tanlangan server dev compose, prod compose va CI e2e'da ishlaydi; `upload.e2e-spec.ts` CI'da haqiqatan bajariladi; `/uploads` Nginx orqali o'qiladi; DEPLOY.md yangilangan.

@@ -1,11 +1,11 @@
 # UstaTop — production deploy (Contabo VPS)
 
-Bitta VPS, Docker Compose. Tashqariga faqat Nginx (80/443) ochiq; Postgres, Redis, MinIO faqat ichki tarmoqda.
+Bitta VPS, Docker Compose. Tashqariga faqat Nginx (80/443) ochiq; Postgres, Redis, Garage (fayl ombori) faqat ichki tarmoqda.
 
 ```
 Internet → nginx (TLS)
              ├── /api/v1/*  → backend (NestJS, 3000)
-             ├── /uploads/* → minio (bucket, faqat o'qish)
+             ├── /uploads/* → garage (website endpoint, faqat o'qish)
              └── /*         → web (Next.js admin panel, 3001; /api/auth/*, /api/backend/* ham shu yerda)
 ```
 
@@ -19,7 +19,7 @@ Fayllar: `docker-compose.prod.yml`, `apps/backend/Dockerfile`, `apps/web/Dockerf
 - **SMS hali mock.** `SMS_MODE=mock` da OTP doim `123456` — istalgan mijoz/usta raqami nomidan kirish mumkin (admin panelga emas: u faqat login + parol bilan ochiladi). Backend production'da mock bilan **ishga tushmaydi**; yopiq sinov uchun `ALLOW_MOCK_SMS_IN_PRODUCTION=true` qo'yiladi. Ommaga ochishdan oldin haqiqiy SMS provider (Eskiz.uz) ulanishi shart.
 - **Mobil ilova manzili**: ilova `https://<domen>/api/v1` ga murojaat qilishi kerak.
 - Push: Firebase kalitlari bo'lmasa `PUSH_PROVIDER=log` qoladi (bildirishnomalar yuborilmaydi).
-- **MinIO image'i (2026-10-16 holati)**: `quay.io/minio/minio` va `minio/minio` image'larini endi ommaviy registry'lardan yuklab bo'lmaydi — yangi VPS'da `dc build`/`dc up` MinIO'ni ko'tara olmaydi. Deploy'dan oldin S3-mos server bo'yicha qaror kerak (`TASKS.md` E-09).
+- **Fayl ombori — Garage** (2026-10-16 dan, MinIO o'rniga — uning ommaviy image'lari endi yo'q). `garage-init` har `up`da layout, S3 kalit, bucket va public o'qishni idempotent sozlaydi (`deploy/garage/init.sh`).
 
 ## 1. VPS'ni tayyorlash (bir marta)
 
@@ -43,7 +43,7 @@ cp .env.production.example .env.production && chmod 600 .env.production
 nano .env.production
 ```
 
-Majburiy: `DOMAIN`, `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `JWT_SECRET` (`openssl rand -hex 32`), `ADMIN_LOGIN`, `ADMIN_PASSWORD` (kamida 12 belgi, `openssl rand -base64 18`), `ADMIN_PHONE`, va SMS bo'yicha qaror (0-band).
+Majburiy: `DOMAIN`, `POSTGRES_PASSWORD`, `S3_ACCESS_KEY` (`echo GK$(openssl rand -hex 12)`), `S3_SECRET_KEY`, `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN` (har biri `openssl rand -hex 32`), `JWT_SECRET` (`openssl rand -hex 32`), `ADMIN_LOGIN`, `ADMIN_PASSWORD` (kamida 12 belgi, `openssl rand -base64 18`), `ADMIN_PHONE`, va SMS bo'yicha qaror (0-band).
 
 ## 3. Birinchi ishga tushirish
 
@@ -112,12 +112,17 @@ dc exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --cl
 dc up -d
 ```
 
-MinIO fayllari (`minio_data` volume):
+Fayllar (Garage: `garage_meta` — SQLite metadata, `garage_data` — fayl bloklari; ikkalasi birga kerak). Izchil nusxa
+uchun Garage bir necha soniyaga to'xtatiladi (shu vaqtda rasm yuklash/ochish ishlamaydi — kechasi bajaring):
 
 ```bash
-docker run --rm -v ustatop_minio_data:/data:ro -v /opt/backups:/backup alpine \
-  tar czf /backup/minio-$(date +%F).tar.gz -C /data .
+dc stop garage
+docker run --rm -v ustatop_garage_meta:/meta:ro -v ustatop_garage_data:/data:ro -v /opt/backups:/backup alpine \
+  tar czf /backup/garage-$(date +%F).tar.gz -C / meta data
+dc start garage
 ```
+
+Tiklash: `dc stop garage`, ikkala volume'ni tozalab arxivni `-C /` bilan ochish (`/meta`, `/data`), `dc start garage`.
 
 ## 7. Sertifikat
 
@@ -142,7 +147,7 @@ Loglar konteyner boshiga 5×10 MB bilan cheklangan.
 | backend qayta-qayta o'chadi, logda "Production konfiguratsiyasi xavfsiz emas" | `JWT_SECRET` qisqa, `SMS_MODE=mock` ruxsatsiz yoki `CORS_ORIGINS` bo'sh |
 | nginx ishga tushmaydi: `cannot load certificate` | 3-banddagi sertifikat qadami bajarilmagan yoki `DOMAIN` boshqa |
 | Admin panelda kirishda 403 "Ruxsat etilmagan so'rov manbai" | Panel boshqa domendan ochilgan — faqat `https://<DOMAIN>` |
-| Rasmlar ochilmaydi | `dc logs backend` da bucket policy xabari; `MINIO_BUCKET` nginx va backend'da bir xil bo'lishi kerak |
+| Rasmlar ochilmaydi | `dc logs garage-init` ("Garage tayyor" bo'lishi kerak); `S3_BUCKET` nginx, backend va garage-init'da bir xil bo'lishi kerak |
 
 ## 9. Hodisalar: nima qilish kerak
 
@@ -154,7 +159,7 @@ Har qanday hodisada birinchi qadam: `dc ps` (qaysi servis `unhealthy`/`exited`) 
 | backend qayta-qayta o'chadi | `dc logs --tail=100 backend` | "Production konfiguratsiyasi xavfsiz emas" — 8-banddagi jadval. Prisma ulanish xatosi — `dc ps postgres`. Yangilashdan keyin boshlangan bo'lsa — 5-band (rollback). |
 | `migrate` xato bilan to'xtagan | `dc logs migrate` | Backend eski versiyada qoladi (yangilanmaydi). Migratsiyani tuzatib qayta deploy qiling; bazaga qo'lda tegishdan oldin backup oling (6-band). |
 | Disk to'ldi | `df -h`; `docker system df`; `du -sh /opt/backups` | `docker image prune -a` (ishlatilmayotgan eski image'lar; rollback uchun kerakli teg'larni o'chirmang), eski backup'lar (`find /opt/backups -mtime +14 -delete`). Postgres disk to'lib to'xtagan bo'lsa — joy bo'shatib `dc up -d postgres`. |
-| Rasmlar ochilmaydi / yuklanmaydi | `dc logs minio`; `dc logs backend \| grep -i storage` | MinIO tushgan bo'lsa `dc up -d minio`. Bucket policy xabari — 8-band. |
+| Rasmlar ochilmaydi / yuklanmaydi | `dc logs garage`; `dc logs garage-init`; `dc logs backend \| grep -i "S3\|storage"` | Garage tushgan bo'lsa `dc up -d garage garage-init`. Disk to'lgan bo'lsa — yuqoridagi qator. |
 | Bazani tiklash kerak | — | 6-band ("Tiklash"). Tiklashdan oldin joriy holatdan ham backup oling. |
 | Admin panelga hech kim kira olmaydi | `dc logs backend \| grep admin/login` | Parolni unutgan — 10-band ("Parolni almashtirish"). "Juda ko'p xato urinish" (429) — 15 daqiqa kuting yoki `dc exec redis redis-cli DEL admin-login:attempts:<login>`. |
 | Shubhali faollik (begona admin sessiyasi va h.k.) | `dc logs backend` | Darhol: admin parolini almashtiring (10-band) va `JWT_SECRET`ni almashtiring (11-band) — barcha sessiyalar bekor bo'ladi. |
@@ -198,7 +203,7 @@ Har almashtirishdan keyin: `chmod 600 .env.production`, eski qiymatni hech qayer
 |---|---|---|
 | `JWT_SECRET` | `openssl rand -hex 32` → `.env.production` → `dc up -d backend` | **Barcha** sessiyalar (mobil foydalanuvchilar ham, adminlar ham) bekor bo'ladi — hamma qayta kiradi. |
 | `ADMIN_PASSWORD` | 10-band | Faqat shu adminning keyingi kirishi. Mavjud sessiyasi tugamaguncha amal qiladi — zudlik bo'lsa `JWT_SECRET`ni ham almashtiring. |
-| `MINIO_ROOT_PASSWORD` | `.env.production` → `dc up -d minio backend` (MinIO root hisobini har ishga tushishda env'dan oladi) | Qisqa vaqt rasm yuklash ishlamaydi; fayllar saqlanib qoladi. |
+| `S3_SECRET_KEY` (Garage kaliti) | Yangi juftlik: `S3_ACCESS_KEY=GK$(openssl rand -hex 12)`, `S3_SECRET_KEY=$(openssl rand -hex 32)` → `.env.production` → `dc up -d garage-init backend` (init yangi kalitni import qilib bucket'ga ruxsat beradi). Eski kalitni o'chirish: `dc exec garage /garage key delete --yes <eski GK...>` | Fayllar saqlanib qoladi; qisqa vaqt yuklash ishlamaydi. |
 | `POSTGRES_PASSWORD` | Env faqat birinchi ishga tushirishda qo'llanadi: avval `dc exec postgres sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB" -c "ALTER USER \"$POSTGRES_USER\" PASSWORD '"'"'yangi-parol'"'"';"'`, keyin `.env.production` → `dc up -d migrate backend` | Backend qisqa vaqt qayta ulanadi. |
 | `SMS_PROVIDER_API_KEY` / Eskiz | `.env.production` → `dc up -d backend` | Almashtirish paytida SMS yuborilmaydi. |
 | `FIREBASE_*` | Firebase konsolida yangi service account kaliti → `.env.production` → `dc up -d backend` → eski kalitni konsolda o'chiring | Push qisqa vaqt yuborilmaydi; qurilma tokenlari saqlanib qoladi. |

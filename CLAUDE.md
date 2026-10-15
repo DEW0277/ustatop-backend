@@ -22,7 +22,7 @@ Qolgan barcha ishlar [`TASKS.md`](TASKS.md)da (qoidalar: AGENTS.md §8). Sening 
 ## Loyihani lokal ishga tushirish
 
 ```bash
-docker compose up -d               # postgres (localhost:5455), redis (6379), minio (9000/9001)
+docker compose up -d               # postgres (5455), redis (6379), garage S3 (3900), fayllar (9000, storage-proxy)
 pnpm install                       # root — barcha workspace'lar uchun
 cd apps/backend && cp .env.example .env   # birinchi marta ishga tushirishda
 cd /path/to/repo
@@ -60,5 +60,5 @@ Agar checklist'dan biror band o'tmasa — PR'ni merge qilma, o'zgartirish so'rab
 ## Muhim eslatmalar
 
 - SMS OTP hozircha **mock** (`123456`) — `SmsProvider` interfeysini shunday yozki, keyin real provider (Eskiz.uz) ulash faqat bitta implementatsiya class'ini almashtirish bilan bo'lsin (strategy pattern), boshqa joyni o'zgartirmasdan.
-- MinIO production'da Contabo VPS'da ishlaydi — dev'da ham xuddi shu S3 client kodi ishlashi kerak (faqat `.env`dagi endpoint farq qiladi), kod ichida "local disk fallback" yozma.
+- Fayl ombori — Garage (S3-mos; MinIO image'lari endi yo'q, 2026-10-16 dan). Production'da Contabo VPS'da ishlaydi — dev'da ham xuddi shu S3 client kodi ishlashi kerak (faqat `.env`dagi `S3_*` farq qiladi), kod ichida "local disk fallback" yozma va Garage'ga xos API'ga bog'lanma (bucket sozlash — `deploy/garage/init.sh`).
 - Mobil ilova alohida repoda — backend DTO o'zgarsa, PR tavsifida "⚠️ Mobile app contract impact" deb yoz (AGENTS.md §5).
