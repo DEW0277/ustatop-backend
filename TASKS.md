@@ -1,7 +1,7 @@
 # TASKS.md — UstaTop: 100% tugatishgacha qolgan ishlar
 
 > Loyihaning **yagona jonli vazifalar ro'yxati**. Arxitektura va qarorlar — [`docs/TZ.md`](docs/TZ.md), agent qoidalari — [`AGENTS.md`](AGENTS.md) / [`CLAUDE.md`](CLAUDE.md).
-> Holat sanasi: **2026-10-13** (`main` = `1be4f74`, PR #30 gacha merge qilingan, CI yashil).
+> Holat sanasi: **2026-10-16** (`main` = `1be4f74`, PR #30 gacha merge qilingan, CI yashil).
 
 ## Qanday ishlatiladi (barcha agentlar uchun majburiy)
 
@@ -20,13 +20,13 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 
 | Bo'lim | Bajarildi | Jami |
 |---|---|---|
-| A. Tezkor tuzatishlar va tartib | 1 | 4 |
+| A. Tezkor tuzatishlar va tartib | 2 | 4 |
 | B. Backend | 1 | 7 |
 | C. Admin panel | 2 | 6 |
 | D. Mobil ilova integratsiyasi | 0 | 13 |
 | E. Deploy va operatsiya | 0 | 8 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **4** | **44** |
+| **Jami** | **5** | **44** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -39,7 +39,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [x] **A-01 · Root `package.json` bo'sh (0 bayt)** — Claude — ✅ Bajarildi (2026-10-12, `git checkout -- package.json`, PR'siz — fayl commit qilinmagan edi)
   - Ishchi papkada commit qilinmagan o'zgarish faylni bo'shatib qo'ygan; `pnpm install` / `pnpm dev` / `pnpm lint` ishlamaydi.
   - Tayyor mezoni: `git checkout -- package.json` (yoki ataylab qilingan bo'lsa to'g'ri tarkib), `pnpm lint && pnpm test` o'tadi.
-- [ ] **A-02 · `docs/TZ.md`ni haqiqiy holat bilan sinxronlash** — Claude
+- [x] **A-02 · `docs/TZ.md`ni haqiqiy holat bilan sinxronlash** — Claude — ✅ Bajarildi (2026-10-16, PR #32)
   - §0 da "🔄 Jarayonda" turibdi, §7.4 jadvalida 3, 4, 5-bandlar belgilanmagan — aslida hammasi merge qilingan (PR #29, #30, #24).
   - Tayyor mezoni: §0 va §7.4 yangilangan; §7.4 qolgan ishlar uchun shu faylga havola beradi (ikki joyda ikki xil ro'yxat bo'lmasin); §3 daraxtiga `TASKS.md` qo'shilgan.
 - [ ] **A-03 · Eskirgan branch'larni tozalash** — Claude 🔒👤
@@ -101,7 +101,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 ## D. Mobil ilova integratsiyasi (`/Users/macstore.uz/Desktop/mobile-app`, alohida repo) 🔒
 
 > Ilovaning o'z `TASKS.md`i "RELEASE_READY" deydi, lekin amalda **hech bir ekran API qatlamidan foydalanmaydi**: 11 ta ekran/komponent `@/mock`dan to'g'ridan-to'g'ri import qiladi, `loginWithOtp` istalgan 4 xonali kodni qabul qiladi, `src/services/api/*` esa xatoda jimgina mock'ga qaytadi. Bu bo'lim — loyihaning eng katta qolgan qismi.
-> Alohida repo — tegishdan oldin foydalanuvchidan aniq ruxsat olinadi (TZ §7.4).
+> Alohida repo — tegishdan oldin foydalanuvchidan aniq ruxsat olinadi (2026-10-16: ruxsat berildi — git init + GitHub private repo).
 
 - [ ] **D-01 · Ilovani git'ga olish** — 👤 + Claude
   - `mobile-app/` hozir git repo emas — tarix ham, zaxira ham yo'q.
