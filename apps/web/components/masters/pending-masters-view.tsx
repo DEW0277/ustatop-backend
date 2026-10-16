@@ -20,6 +20,7 @@ import { ApiError, api } from '@/lib/api-client';
 import { formatDate } from '@/lib/format';
 import type { Paginated, PendingMaster } from '@/lib/types';
 import { PENDING_MASTERS_QUERY_KEY } from './masters-query';
+import { MasterDetailDialog } from './master-detail-dialog';
 import { VerifyMasterAction } from './verify-master-action';
 
 const SKELETON_ROWS = 5;
@@ -140,7 +141,10 @@ export function PendingMastersView() {
                       {formatDate(master.createdAt)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <VerifyMasterAction master={master} />
+                      <div className="flex items-center justify-end gap-1">
+                        <MasterDetailDialog master={master} />
+                        <VerifyMasterAction master={master} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

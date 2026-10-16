@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateTime, formatShortDate, UZ_MONTHS } from './format';
+import { formatDate, formatDateTime, formatPrice, formatShortDate, UZ_MONTHS } from './format';
 
 describe('formatDate', () => {
   it('oddiy sanani to‘g‘ri formatlaydi', () => {
@@ -73,5 +73,20 @@ describe('formatShortDate', () => {
     expect(formatShortDate('2026-10-09T09:05:00Z')).toBe('9-okt');
     expect(formatShortDate('2026-10-09T20:30:00Z')).toBe('10-okt');
     expect(formatShortDate('invalid')).toBe('—');
+  });
+});
+
+describe('formatPrice', () => {
+  it("minglarni probel bilan ajratadi va so'm qo'shadi", () => {
+    expect(formatPrice(150000)).toBe("150 000 so'm");
+    expect(formatPrice(1250000)).toBe("1 250 000 so'm");
+    expect(formatPrice(999)).toBe("999 so'm");
+    expect(formatPrice(49999.6)).toBe("50 000 so'm");
+  });
+
+  it("narx yo'q yoki 0 bo'lsa — kelishuv asosida", () => {
+    expect(formatPrice(0)).toBe('Kelishuv asosida');
+    expect(formatPrice(null)).toBe('Kelishuv asosida');
+    expect(formatPrice(undefined)).toBe('Kelishuv asosida');
   });
 });

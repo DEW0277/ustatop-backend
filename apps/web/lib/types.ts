@@ -54,6 +54,16 @@ export interface AdminMaster extends PendingMaster {
   isAvailable: boolean;
 }
 
+// `GET /admin/masters/:id` — moderatsiya uchun to'liq ma'lumot.
+export type PriceType = 'hourly' | 'fixed' | 'starting_at';
+
+export interface AdminMasterDetail extends AdminMaster {
+  workingHours: { start: string; end: string; workDays: string[] };
+  services: { id: string; title: string; price: number; priceType: PriceType; currency: string }[];
+  portfolioImages: string[];
+  userCreatedAt: string;
+}
+
 // `GET /admin/stats/dashboard`
 export interface DashboardStats {
   users: {

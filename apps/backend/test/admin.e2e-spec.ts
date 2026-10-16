@@ -178,6 +178,38 @@ describe('Admin e2e', () => {
     });
   });
 
+  describe('usta tafsiloti (GET /admin/masters/:id)', () => {
+    it("portfolio, xizmatlar va ish vaqti bilan qaytaradi; CLIENT 403, yo'q usta 404, UUID emas 400", async () => {
+      await prisma.masterService.create({ data: { masterId: masterProfileId, title: 'E2E xizmat', price: 1000 } });
+      await prisma.portfolioImage.create({ data: { masterId: masterProfileId, url: 'https://example.com/e2e.jpg' } });
+
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/admin/masters/${masterProfileId}`)
+        .set(...authHeader(adminToken))
+        .expect(200);
+      expect(res.body.data).toMatchObject({
+        id: masterProfileId,
+        services: [expect.objectContaining({ title: 'E2E xizmat', price: 1000 })],
+        portfolioImages: ['https://example.com/e2e.jpg'],
+        workingHours: expect.objectContaining({ start: expect.any(String) }),
+        userCreatedAt: expect.any(String),
+      });
+
+      await request(app.getHttpServer())
+        .get(`/api/v1/admin/masters/${masterProfileId}`)
+        .set(...authHeader(clientToken))
+        .expect(403);
+      await request(app.getHttpServer())
+        .get('/api/v1/admin/masters/00000000-0000-4000-8000-000000000000')
+        .set(...authHeader(adminToken))
+        .expect(404);
+      await request(app.getHttpServer())
+        .get('/api/v1/admin/masters/not-a-uuid')
+        .set(...authHeader(adminToken))
+        .expect(400);
+    });
+  });
+
   describe("usta qo'shish (POST /admin/masters)", () => {
     const body = (phone: string) => ({
       phone,

@@ -79,6 +79,13 @@ export class AdminController {
     return this.adminService.createMaster(dto);
   }
 
+  @Get('masters/:id')
+  @ApiOperation({ summary: "Bitta ustaning to'liq ma'lumoti: portfolio, xizmatlar, ish vaqti (Admin)" })
+  @ApiErrorResponses(400, 404)
+  getMaster(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminService.getMaster(id);
+  }
+
   @Patch('masters/:id/verify')
   @ResponseMessage('Usta holati yangilandi')
   @ApiOperation({ summary: 'Ustani tasdiqlash (yoki tasdiqni bekor qilish) (Admin)' })

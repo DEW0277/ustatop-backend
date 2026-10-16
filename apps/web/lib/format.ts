@@ -89,3 +89,12 @@ export function formatShortDate(iso: string | Date | null | undefined): string {
   if (!parts) return '—';
   return `${parts.day}-${UZ_MONTHS[parts.monthIndex]}`;
 }
+
+/**
+ * Narxni mobil ilovadagidek formatlaydi: "150 000 so'm" (minglar oddiy probel bilan), 0 — "Kelishuv asosida".
+ */
+export function formatPrice(price: number | null | undefined): string {
+  if (!price || !Number.isFinite(price) || price <= 0) return 'Kelishuv asosida';
+  const rounded = Math.round(price);
+  return `${String(rounded).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} so'm`;
+}

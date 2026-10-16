@@ -12,6 +12,7 @@ describe('AdminController', () => {
     listPendingMasters: ReturnType<typeof vi.fn>;
     listMasters: ReturnType<typeof vi.fn>;
     createMaster: ReturnType<typeof vi.fn>;
+    getMaster: ReturnType<typeof vi.fn>;
     setMasterVerified: ReturnType<typeof vi.fn>;
     listOrders: ReturnType<typeof vi.fn>;
   };
@@ -30,6 +31,7 @@ describe('AdminController', () => {
       listPendingMasters: vi.fn(),
       listMasters: vi.fn(),
       createMaster: vi.fn(),
+      getMaster: vi.fn(),
       setMasterVerified: vi.fn(),
       listOrders: vi.fn(),
     };
@@ -58,6 +60,14 @@ describe('AdminController', () => {
 
       expect(adminService.listMasters).toHaveBeenCalledWith(query);
       expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('getMaster', () => {
+    it('adminService.getMaster ni id bilan chaqiradi', async () => {
+      adminService.getMaster.mockResolvedValueOnce({ id: 'm-1' });
+      expect(await controller.getMaster('m-1')).toEqual({ id: 'm-1' });
+      expect(adminService.getMaster).toHaveBeenCalledWith('m-1');
     });
   });
 
