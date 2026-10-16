@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -8,10 +9,12 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.type.js';
+import { AuthService } from '../auth/auth.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { AdminService } from './admin.service.js';
 import { AdminStatsService } from './admin-stats.service.js';
 import { BlockUserDto } from './dto/block-user.dto.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { CreateMasterDto } from './dto/create-master.dto.js';
 import { ListAdminOrdersQueryDto } from './dto/list-admin-orders-query.dto.js';
 import { ListAdminReviewsQueryDto } from './dto/list-admin-reviews-query.dto.js';
@@ -32,7 +35,18 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly statsService: AdminStatsService,
     private readonly reviewsService: ReviewsService,
+    private readonly authService: AuthService,
   ) {}
+
+  // Panel proksisi faqat `admin/*`ni o'tkazadi — shuning uchun parol almashtirish shu yerda, `auth/*`da emas.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Put('me/password')
+  @ResponseMessage('Parol almashtirildi')
+  @ApiOperation({ summary: "O'z parolimni almashtirish (Admin)" })
+  @ApiErrorResponses(400, 429)
+  changePassword(@CurrentUser() admin: AuthenticatedUser, @Body() dto: ChangePasswordDto) {
+    return this.authService.changeAdminPassword(admin.id, dto.currentPassword, dto.newPassword);
+  }
 
   @Get('stats/dashboard')
   @ApiOperation({ summary: 'Umumiy statistika va so\'nggi 30 kunlik trend (Admin)' })

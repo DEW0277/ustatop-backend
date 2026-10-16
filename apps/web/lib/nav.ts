@@ -13,4 +13,5 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/regions', label: 'Viloyatlar' },
   { href: '/districts', label: 'Tumanlar' },
   { href: '/categories', label: 'Kategoriyalar' },
+  { href: '/settings', label: 'Sozlamalar' },
 ];

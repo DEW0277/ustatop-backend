@@ -146,6 +146,59 @@ export class AuthService {
 
   async adminLogin(login: string, password: string): Promise<{ user: UserSession; token: string }> {
     const attemptsKey = adminLoginAttemptsKey(login);
+    await this.assertNotLockedOut(attemptsKey);
+
+    const user = await this.prisma.user.findUnique({ where: { login } });
+    const canLogin = !!user && user.role === Role.ADMIN && !user.isBlocked && !!user.passwordHash;
+    this.dummyHash ??= hashPassword('dummy-password');
+    const passwordOk = await verifyPassword(password, canLogin ? user.passwordHash! : await this.dummyHash);
+
+    if (!canLogin || !passwordOk) {
+      await this.registerFailedAttempt(attemptsKey);
+      // Sabab (login yo'q / parol xato / bloklangan) ataylab oshkor qilinmaydi.
+      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+    }
+
+    await this.redis.del(attemptsKey);
+
+    const session = this.buildSession(user);
+    return { user: session, token: session.token };
+  }
+
+  // `PUT /admin/me/password`. Xato urinishlar login bilan bir xil hisoblagichda — o'g'irlangan sessiya orqali
+  // joriy parolni cheksiz taxmin qilib bo'lmaydi. 401 emas, 400: panel 401 da sessiyani tugatib yuboradi.
+  async changeAdminPassword(userId: string, currentPassword: string, newPassword: string): Promise<{ changed: true }> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    if (user.role !== Role.ADMIN || !user.login || !user.passwordHash) {
+      throw new ForbiddenException("Parolni faqat login bilan kiradigan administrator almashtira oladi");
+    }
+
+    const attemptsKey = adminLoginAttemptsKey(user.login);
+    await this.assertNotLockedOut(attemptsKey);
+
+    if (!(await verifyPassword(currentPassword, user.passwordHash))) {
+      await this.registerFailedAttempt(attemptsKey);
+      throw new BadRequestException({
+        message: "Joriy parol noto'g'ri",
+        errors: { currentPassword: ["Joriy parol noto'g'ri"] },
+      });
+    }
+
+    if (currentPassword === newPassword) {
+      throw new BadRequestException({
+        message: 'Yangi parol joriy paroldan farq qilishi kerak',
+        errors: { newPassword: ['Yangi parol joriy paroldan farq qilishi kerak'] },
+      });
+    }
+
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword(newPassword) } });
+    await this.redis.del(attemptsKey);
+
+    return { changed: true };
+  }
+
+  private async assertNotLockedOut(attemptsKey: string): Promise<void> {
     const attempts = Number((await this.redis.get(attemptsKey)) ?? 0);
 
     if (attempts >= MAX_ADMIN_LOGIN_ATTEMPTS) {
@@ -155,25 +208,13 @@ export class AuthService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
+  }
 
-    const user = await this.prisma.user.findUnique({ where: { login } });
-    const canLogin = !!user && user.role === Role.ADMIN && !user.isBlocked && !!user.passwordHash;
-    this.dummyHash ??= hashPassword('dummy-password');
-    const passwordOk = await verifyPassword(password, canLogin ? user.passwordHash! : await this.dummyHash);
-
-    if (!canLogin || !passwordOk) {
-      const failed = await this.redis.incr(attemptsKey);
-      if (failed === 1) {
-        await this.redis.expire(attemptsKey, ADMIN_LOGIN_LOCK_SECONDS);
-      }
-      // Sabab (login yo'q / parol xato / bloklangan) ataylab oshkor qilinmaydi.
-      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+  private async registerFailedAttempt(attemptsKey: string): Promise<void> {
+    const failed = await this.redis.incr(attemptsKey);
+    if (failed === 1) {
+      await this.redis.expire(attemptsKey, ADMIN_LOGIN_LOCK_SECONDS);
     }
-
-    await this.redis.del(attemptsKey);
-
-    const session = this.buildSession(user);
-    return { user: session, token: session.token };
   }
 
   async getMe(userId: string): Promise<UserSession> {

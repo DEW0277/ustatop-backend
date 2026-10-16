@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, HttpException, UnauthorizedException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { hashPassword } from '../../common/crypto/password.js';
+import { hashPassword, verifyPassword } from '../../common/crypto/password.js';
 import { AuthService } from './auth.service.js';
 
 function createDeps() {
@@ -235,6 +235,65 @@ describe('AuthService', () => {
       expect(error).toBeInstanceOf(HttpException);
       expect((error as HttpException).getStatus()).toBe(429);
       expect(deps.prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('changeAdminPassword', () => {
+    const admin = async () => ({
+      id: 'a-1',
+      role: 'ADMIN',
+      login: 'admin',
+      passwordHash: await hashPassword('joriy-parol-123'),
+    });
+
+    beforeEach(() => {
+      deps.redis.get.mockResolvedValue(null);
+    });
+
+    it("joriy parol to'g'ri bo'lsa yangi xeshni saqlaydi va urinishlar hisobini tozalaydi", async () => {
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue(await admin());
+
+      expect(await service.changeAdminPassword('a-1', 'joriy-parol-123', 'yangi-parol-456')).toEqual({ changed: true });
+
+      const saved = deps.prisma.user.update.mock.calls[0][0];
+      expect(saved.where).toEqual({ id: 'a-1' });
+      expect(saved.data.passwordHash).toMatch(/^scrypt\$/);
+      expect(await verifyPassword('yangi-parol-456', saved.data.passwordHash)).toBe(true);
+      expect(deps.redis.del).toHaveBeenCalledWith('admin-login:attempts:admin');
+    });
+
+    it("joriy parol noto'g'ri — 400 (401 emas) va urinish sanaladi", async () => {
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue(await admin());
+
+      await expect(service.changeAdminPassword('a-1', 'xato', 'yangi-parol-456')).rejects.toBeInstanceOf(BadRequestException);
+      expect(deps.redis.incr).toHaveBeenCalledWith('admin-login:attempts:admin');
+      expect(deps.prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("yangi parol joriysi bilan bir xil bo'lsa 400", async () => {
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue(await admin());
+
+      await expect(
+        service.changeAdminPassword('a-1', 'joriy-parol-123', 'joriy-parol-123'),
+      ).rejects.toMatchObject({ response: { errors: { newPassword: expect.any(Array) } } });
+      expect(deps.prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("blok holatida (5 xato) to'g'ri parol bilan ham 429, parol tekshirilmaydi", async () => {
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue(await admin());
+      deps.redis.get.mockResolvedValue('5');
+      deps.redis.ttl.mockResolvedValue(300);
+
+      await expect(service.changeAdminPassword('a-1', 'joriy-parol-123', 'yangi-parol-456')).rejects.toMatchObject({
+        status: 429,
+      });
+      expect(deps.prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("login/parolsiz akkaunt uchun 403", async () => {
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue({ id: 'a-2', role: 'ADMIN', login: null, passwordHash: null });
+
+      await expect(service.changeAdminPassword('a-2', 'x', 'yangi-parol-456')).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 

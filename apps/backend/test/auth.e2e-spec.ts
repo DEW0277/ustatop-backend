@@ -160,6 +160,36 @@ describe('Admin login (e2e)', () => {
     expect(response.body.data).toBeUndefined();
   });
 
+  it("admin o'z parolini almashtiradi: eski parol bilan endi kirib bo'lmaydi, yangisi bilan kiriladi", async () => {
+    const login1 = await request(app.getHttpServer()).post('/api/v1/auth/admin/login').send({ login, password }).expect(201);
+    const token = login1.body.data.token as string;
+    const newPassword = 'e2e-Yangi-parol-2';
+
+    await request(app.getHttpServer())
+      .put('/api/v1/admin/me/password')
+      .set(...authHeader(token))
+      .send({ currentPassword: 'xato-joriy-parol', newPassword })
+      .expect(400);
+    await request(app.getHttpServer())
+      .put('/api/v1/admin/me/password')
+      .set(...authHeader(token))
+      .send({ currentPassword: password, newPassword: 'qisqa' })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .put('/api/v1/admin/me/password')
+      .set(...authHeader(token))
+      .send({ currentPassword: password, newPassword })
+      .expect(200)
+      .expect((res) => expect(res.body.data).toEqual({ changed: true }));
+
+    await request(app.getHttpServer()).post('/api/v1/auth/admin/login').send({ login, password }).expect(401);
+    await request(app.getHttpServer()).post('/api/v1/auth/admin/login').send({ login, password: newPassword }).expect(201);
+
+    // Keyingi testlar asl parol bilan ishlashi uchun qaytarib qo'yamiz.
+    await db.user.update({ where: { login }, data: { passwordHash: await hashPassword(password) } });
+  });
+
   it("oddiy foydalanuvchi (login/parolsiz) admin login orqali kira olmaydi", async () => {
     await otpLogin(app, testPhone(ADMIN_TAG, 2));
 
