@@ -24,9 +24,9 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | B. Backend | 4 | 7 |
 | C. Admin panel | 2 | 6 |
 | D. Mobil ilova integratsiyasi | 11 | 13 |
-| E. Deploy va operatsiya | 2 | 9 |
+| E. Deploy va operatsiya | 2 | 10 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **22** | **45** |
+| **Jami** | **22** | **46** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -90,6 +90,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Hozir faqat jadvallar; ustaning xizmatlari, portfolio rasmlari va buyurtmalarini ko'rib tasdiqlash imkoni yo'q — moderator rasmlarni ko'rmasdan tasdiqlaydi.
   - Tayyor mezoni: TZ §4.1 ga endpoint qo'shilgan, usta kartasi (dialog yoki sahifa) portfolio va xizmatlar bilan.
 - [ ] **C-03 · Maxfiylik siyosati va foydalanish shartlari sahifalari** — Gemini 👤
+  > 🔄 Jarayonda (2026-10-16, PR #39): `/privacy` va `/terms` auth'siz ochiladi, platformaning haqiqiy ishlashiga mos **loyiha** matni bilan (`apps/web/lib/legal/*`). Qolgani 👤: matnni tekshirish, `[KVADRAT QAVS]` joylarni (tashkilot, SMS/hosting provayderi, aloqa, yosh chegarasi) to'ldirish, keyin `LEGAL_DRAFT = false`.
   - Do'konlar ommaviy URL talab qiladi (F-02). Matnni foydalanuvchi beradi.
   - Tayyor mezoni: `/privacy` va `/terms` auth'siz ochiladi (`proxy.ts` ularni login'ga yo'naltirmaydi).
 - [x] **C-04 · Admin panelda usta qo'shish** — Claude — ✅ Bajarildi (2026-10-12, PR #31)
@@ -176,6 +177,9 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - 2026-10-16 da aniqlandi: `quay.io/minio/minio` va `minio/minio` (Docker Hub) image'larini endi yuklab bo'lmaydi ("denied" / "no such manifest"). Lokal mashinada faqat keshdagi `RELEASE.2025-09-07` bor. Natija: CI'da MinIO ko'tarib bo'lmaydi (upload e2e o'tkazib yuboriladi) va `docker-compose.prod.yml` yangi VPS'da ishga tushmaydi.
   - Kod `@aws-sdk/client-s3` ishlatadi — S3-mos istalgan server mos keladi, faqat compose va `.env` o'zgaradi. Variantlar: boshqa S3-mos server (masalan Garage, SeaweedFS), MinIO'ni manbadan o'zimiz yig'ish, yoki tashqi obyekt saqlash xizmati — tanlov foydalanuvchida (yangi tashqi xizmat).
   - Tayyor mezoni: tanlangan server dev compose, prod compose va CI e2e'da ishlaydi; `upload.e2e-spec.ts` CI'da haqiqatan bajariladi; `/uploads` Nginx orqali o'qiladi; DEPLOY.md yangilangan.
+- [ ] **E-10 · Shaxsiy ma'lumotlarni O'zbekistonda saqlash talabi** — 👤 (yuridik, E-01/E-02 dan oldin)
+  - "Shaxsga doir ma'lumotlar to'g'risida"gi qonun O'zbekiston fuqarolarining shaxsiy ma'lumotlarini O'zbekiston hududidagi serverlarda saqlashni talab qiladi (Claude'ning bilimi bo'yicha — yurist tasdiqlashi kerak). Rejadagi Contabo VPS chet elda.
+  - Tayyor mezoni: yurist xulosasi; kerak bo'lsa server O'zbekistondagi hosting'ga (yoki ma'lumotlar bazasi/fayllar mahalliy serverga) ko'chirilgan; maxfiylik siyosatining 5-bandi shunga mos.
 
 ## F. Reliz
 
