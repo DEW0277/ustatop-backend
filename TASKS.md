@@ -22,11 +22,11 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 |---|---|---|
 | A. Tezkor tuzatishlar va tartib | 3 | 4 |
 | B. Backend | 4 | 7 |
-| C. Admin panel | 3 | 6 |
+| C. Admin panel | 4 | 6 |
 | D. Mobil ilova integratsiyasi | 12 | 13 |
 | E. Deploy va operatsiya | 2 | 10 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **24** | **46** |
+| **Jami** | **25** | **46** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -100,7 +100,8 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [x] **C-05 · Admin panelga login + parol bilan kirish** — Claude — ✅ Bajarildi (2026-10-13, PR #31)
   - `POST /auth/admin/login` (TZ §4.1), `users.login`/`passwordHash` (additiv migratsiya), scrypt, 5 xato urinishdan keyin 15 daqiqa blok; ADMIN uchun OTP kirishi yopildi; seed `ADMIN_LOGIN` + `ADMIN_PASSWORD`.
   - Tayyor mezoni: login sahifasi login/parol, unit + e2e testlar, brauzerda jonli tekshirilgan, hujjatlar va `.env*.example` yangilangan.
-- [ ] **C-06 · Admin parolini paneldan almashtirish va adminlarni boshqarish** — Claude 👤 (ixtiyoriy)
+- [x] **C-06 · Admin parolini paneldan almashtirish va adminlarni boshqarish** — Claude 👤 (ixtiyoriy) — ✅ Bajarildi (2026-10-16, PR #41)
+  - `PUT /admin/me/password` + "Sozlamalar" sahifasi (joriy parol tekshiriladi, xato urinishlar login bloki bilan umumiy). Qo'shimcha admin qo'shish/olib tashlash — hozircha DEPLOY.md §10 (SQL); panel UI kerak bo'lsa alohida vazifa.
   - Hozir parol faqat `ADMIN_PASSWORD` + `prisma db seed` orqali almashtiriladi va bitta admin bor.
   - Tayyor mezoni: TZ'ga endpoint qo'shilgan; "Parolni almashtirish" (eski parol tekshiriladi) va kerak bo'lsa yangi admin qo'shish.
 

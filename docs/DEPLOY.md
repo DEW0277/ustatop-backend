@@ -168,7 +168,7 @@ Har qanday hodisada birinchi qadam: `dc ps` (qaysi servis `unhealthy`/`exited`) 
 
 Admin panelga faqat `login` + parol bilan kiriladi (`users.login`, `users.passwordHash`, rol `ADMIN`). Parol `scrypt` bilan xeshlanadi — bazaga hech qachon ochiq parol yozmang.
 
-**Birinchi admin / asosiy admin paroli** — `.env.production`dagi `ADMIN_LOGIN`, `ADMIN_PASSWORD`, `ADMIN_PHONE` va seed (3-band, 4-qadam). **Parolni almashtirish**: `ADMIN_PASSWORD`ni o'zgartiring va seed'ni qayta ishga tushiring — boshqa ma'lumotlarga tegmaydi.
+**Birinchi admin / asosiy admin paroli** — `.env.production`dagi `ADMIN_LOGIN`, `ADMIN_PASSWORD`, `ADMIN_PHONE` va seed (3-band, 4-qadam). **Parolni almashtirish**: odatda admin panelning o'zida — **Sozlamalar** sahifasi (joriy parol kerak). Parol unutilgan bo'lsa: `ADMIN_PASSWORD`ni o'zgartiring va seed'ni qayta ishga tushiring — boshqa ma'lumotlarga tegmaydi. Diqqat: seed har ishga tushganda asosiy admin parolini `.env.production`dagi qiymatga qaytaradi — paneldan almashtirgach `ADMIN_PASSWORD`ni ham yangilang yoki seed'ni qayta ishlatmang.
 
 **Qo'shimcha admin** (panelda hali bunday sahifa yo'q — `TASKS.md` C-06):
 

@@ -3,6 +3,7 @@ import { AdminController } from './admin.controller.js';
 import type { AdminService } from './admin.service.js';
 import type { AdminStatsService } from './admin-stats.service.js';
 import type { ReviewsService } from '../reviews/reviews.service.js';
+import type { AuthService } from '../auth/auth.service.js';
 
 describe('AdminController', () => {
   let controller: AdminController;
@@ -19,6 +20,7 @@ describe('AdminController', () => {
   let statsService: {
     getDashboard: ReturnType<typeof vi.fn>;
   };
+  let authService: { changeAdminPassword: ReturnType<typeof vi.fn> };
   let reviewsService: {
     listForAdmin: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
@@ -38,6 +40,7 @@ describe('AdminController', () => {
     statsService = {
       getDashboard: vi.fn(),
     };
+    authService = { changeAdminPassword: vi.fn() };
     reviewsService = {
       listForAdmin: vi.fn(),
       remove: vi.fn(),
@@ -47,6 +50,7 @@ describe('AdminController', () => {
       adminService as unknown as AdminService,
       statsService as unknown as AdminStatsService,
       reviewsService as unknown as ReviewsService,
+      authService as unknown as AuthService,
     );
   });
 
@@ -60,6 +64,18 @@ describe('AdminController', () => {
 
       expect(adminService.listMasters).toHaveBeenCalledWith(query);
       expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('changePassword', () => {
+    it("joriy admin id'si bilan authService'ga uzatadi", async () => {
+      authService.changeAdminPassword.mockResolvedValueOnce({ changed: true });
+      const admin = { id: 'a-1', phone: '+998900000001', role: 'ADMIN' as const };
+
+      expect(await controller.changePassword(admin, { currentPassword: 'eski', newPassword: 'yangi-parol-123' })).toEqual({
+        changed: true,
+      });
+      expect(authService.changeAdminPassword).toHaveBeenCalledWith('a-1', 'eski', 'yangi-parol-123');
     });
   });
 
