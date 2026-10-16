@@ -23,10 +23,10 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | A. Tezkor tuzatishlar va tartib | 3 | 4 |
 | B. Backend | 4 | 7 |
 | C. Admin panel | 2 | 6 |
-| D. Mobil ilova integratsiyasi | 7 | 13 |
+| D. Mobil ilova integratsiyasi | 11 | 13 |
 | E. Deploy va operatsiya | 2 | 9 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **18** | **45** |
+| **Jami** | **22** | **45** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -104,10 +104,11 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 
 ## D. Mobil ilova integratsiyasi (`/Users/macstore.uz/Desktop/mobile-app`, alohida repo) 🔒
 
-> Ilovaning o'z `TASKS.md`i "RELEASE_READY" deydi, lekin amalda **hech bir ekran API qatlamidan foydalanmaydi**: 11 ta ekran/komponent `@/mock`dan to'g'ridan-to'g'ri import qiladi, `loginWithOtp` istalgan 4 xonali kodni qabul qiladi, `src/services/api/*` esa xatoda jimgina mock'ga qaytadi. Bu bo'lim — loyihaning eng katta qolgan qismi.
-> Alohida repo — tegishdan oldin foydalanuvchidan aniq ruxsat olinadi (2026-10-16: ruxsat berildi — git init + GitHub private repo).
+> 2026-10-12 holati (tarix uchun): ilova to'liq mock ma'lumotda edi. 2026-10-16 ga kelib barcha ekranlar backend API'ga ulangan, mock olib tashlangan — qolgan ishlar quyida ochiq turgan bandlar.
+> Alohida repo: https://github.com/DEW0277/ustatop-mobile (2026-10-16 dan git'da). O'zgarishlar shu repoda PR orqali, CI yashil bo'lgach merge qilinadi; bu yerda faqat vazifa holati belgilanadi.
 
-- [ ] **D-01 · Ilovani git'ga olish** — 👤 + Claude
+- [x] **D-01 · Ilovani git'ga olish** — 👤 + Claude — ✅ Bajarildi (2026-10-16, https://github.com/DEW0277/ustatop-mobile, private)
+  - `.gitignore` (sirlar, imzolash fayllari, native build'lar), birinchi commit'dan oldin sir/kalit qidiruvi. CI: `tsc --noEmit` + Android/web `expo export` (ustatop-mobile #2).
   - `mobile-app/` hozir git repo emas — tarix ham, zaxira ham yo'q.
   - Tayyor mezoni: `git init`, `.gitignore`, GitHub'da private repo, birinchi commit.
 - [x] **D-02 · API manzili va konfiguratsiya** — Claude — ✅ Bajarildi (2026-10-16, Claude)
@@ -116,12 +117,14 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Foydalanuvchi so'rovi bo'yicha bitta joy: `mobile-app/src/config.ts` → `SERVER_URL` (`https://<domen>`, `/api/v1` avtomatik qo'shiladi). Bo'sh bo'lsa dev'da Metro hosti `:3000` avtomatik olinadi.
 - [x] **D-03 · Mock fallback'ni olib tashlash** — Claude — ✅ Bajarildi (2026-10-16, Claude)
   - Tayyor mezoni: `mockAdapter` faqat aniq dev bayrog'i bilan ishlaydi; production build'da tarmoq xatosi foydalanuvchiga xato holati sifatida ko'rsatiladi, soxta ma'lumot emas.
-- [ ] **D-04 · Haqiqiy autentifikatsiya** — Claude
+- [x] **D-04 · Haqiqiy autentifikatsiya** — Claude — ✅ Bajarildi (2026-10-16, ustatop-mobile #1; telefonda hali sinalmagan — F-03)
+  - Qolgan qism bajarildi: token `expo-secure-store`da (Keychain/Keystore), eski AsyncStorage sessiyasi avtomatik ko'chiriladi.
   - 2026-10-16 holati: API orqali login, 6 katak, 401 → sessiya tozalanadi, xato xabarlari ko'rsatiladi, `updateProfile` faqat `name`/`avatarUrl` — **qolgan**: token hali AsyncStorage'da (`expo-secure-store` yo'q).
   - Tayyor mezoni: `send-otp`/`verify-otp` haqiqiy API orqali; OTP **6 katak** (TZ §4.0); token xavfsiz saqlanadi (`expo-secure-store`); 401 da sessiya tozalanib login'ga o'tadi; 429 (120 soniya / urinishlar limiti) va bloklangan foydalanuvchi xabarlari ko'rsatiladi; `updateProfile` faqat `name`/`avatarUrl` yuboradi.
 - [x] **D-05 · Ma'lumotnomalar API'dan** — Gemini — ✅ Bajarildi (2026-10-16, Claude)
   - Tayyor mezoni: viloyat, tuman, kategoriyalar `GET /regions|districts|categories`dan (keshlash bilan); `RegionListScreen`, `DistrictListScreen`, `HomeScreen`da `@/mock` importi yo'q.
-- [ ] **D-06 · Ustalar ro'yxati, qidiruv va usta sahifasi** — Claude
+- [x] **D-06 · Ustalar ro'yxati, qidiruv va usta sahifasi** — Claude — ✅ Bajarildi (2026-10-16, ustatop-mobile #1; telefonda hali sinalmagan — F-03)
+  - Qolgan qism bajarildi: `usePaginatedQuery` — ustalar ro'yxati va qidiruvda cheksiz scroll (20 tadan).
   - 2026-10-16 holati: barcha ekranlar API'dan, filtr/`sortBy` serverda, yuklanish/xato holatlari bor — **qolgan**: cheksiz scroll (hozir `limit=100`, 100 dan ortiq usta ko'rinmaydi).
   - Tayyor mezoni: `MasterListScreen`, `SearchScreen`, `HomeScreen` (tavsiya etilganlar), `MasterDetailScreen` `GET /masters` / `GET /masters/:id`dan; sahifalash (cheksiz scroll) — 20 tadan ortiq usta ko'rinadi; filtr va `sortBy` server tomonda; yuklanish/bo'sh/xato holatlari.
 - [x] **D-07 · Sevimlilar** — Gemini — ✅ Bajarildi (2026-10-16, Claude)
@@ -133,13 +136,15 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [x] **D-10 · Usta kabineti** — Claude — ✅ Bajarildi (2026-10-16, Claude)
   - "Usta bo'lish" formasi **olib tashlanadi** (B-07: profilni faqat admin yaratadi) — o'rniga "administratorga murojaat qiling" ma'lumoti; usta rejimi faqat profili bor foydalanuvchiga ko'rinadi.
   - Tayyor mezoni: `GET /masters/me/profile` (404 = usta emas) va `PUT` (faqat tahrirlash), xizmatlar CRUD, `PATCH /masters/me/availability`; `useMasterProfileStore` lokal mock emas.
-- [ ] **D-11 · Rasm yuklash** — Claude
+- [x] **D-11 · Rasm yuklash** — Claude — ✅ Bajarildi (2026-10-16, ustatop-mobile #1; telefonda hali sinalmagan — F-03)
+  - `expo-image-picker` (galereya/kamera, ruxsat matnlari o'zbekcha), 10 MB oldindan tekshiruv, multipart `POST /upload/single`; portfolio, usta avatari va mijoz avatari. Namuna (Unsplash) rasmlar olib tashlandi.
   - Portfolio hozir tayyor "preset" rasmlardan tanlaydi; `expo-image-picker` o'rnatilmagan.
   - Tayyor mezoni: galereya/kameradan tanlash → `POST /upload/single` → avatar (`PUT /auth/profile`) va portfolio (`POST`/`DELETE /masters/me/portfolio`); hajm/format xatolari ko'rsatiladi.
 - [ ] **D-12 · Push bildirishnomalar** — Claude 👤
   - Bog'liqlik: B-02 (Firebase loyihasi).
   - Tayyor mezoni: ruxsat so'rash, FCM token olish, login'dan keyin `PUT /auth/fcm-token`, logout'da `DELETE`; bildirishnoma bosilganda tegishli buyurtma ochiladi.
 - [ ] **D-13 · Akkauntni o'chirish va huquqiy havolalar** — Gemini
+  > 🔄 Jarayonda: "Akkauntni o'chirish" (ikki bosqichli tasdiq → `DELETE /auth/me`) tayyor (ustatop-mobile #1). Qolgani — maxfiylik siyosati / shartlar havolalari, C-03 sahifalari tayyor bo'lgach.
   - Bog'liqlik: B-03, C-03.
   - Tayyor mezoni: Profil ekranida "Akkauntni o'chirish" (tasdiqlash bilan) va maxfiylik siyosati / shartlar havolalari.
 
