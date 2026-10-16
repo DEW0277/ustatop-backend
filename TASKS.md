@@ -22,11 +22,11 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 |---|---|---|
 | A. Tezkor tuzatishlar va tartib | 3 | 4 |
 | B. Backend | 4 | 7 |
-| C. Admin panel | 2 | 6 |
-| D. Mobil ilova integratsiyasi | 11 | 13 |
+| C. Admin panel | 3 | 6 |
+| D. Mobil ilova integratsiyasi | 12 | 13 |
 | E. Deploy va operatsiya | 2 | 10 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **22** | **46** |
+| **Jami** | **24** | **46** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -86,7 +86,8 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [ ] **C-01 · To'liq qo'lda QA (production build)** — Claude
   - Barcha 8 bo'lim (`NAV_ITEMS`) production build'da, haqiqiy seed ma'lumot bilan: login/logout, filtrlar, sahifalash, har bir mutatsiya, 401/403/409 holatlari, mobil kenglik.
   - Tayyor mezoni: topilgan har bir xato alohida vazifa/PR bo'lib tuzatilgan yoki shu faylga qo'shilgan.
-- [ ] **C-02 · Usta/foydalanuvchi batafsil ko'rinishi** — Gemini 👤 (ixtiyoriy)
+- [x] **C-02 · Usta/foydalanuvchi batafsil ko'rinishi** — Gemini 👤 (ixtiyoriy) — ✅ Bajarildi (2026-10-16, Claude, PR #40)
+  - `GET /admin/masters/:id` (TZ §4.1) + Ustalar sahifasida "Batafsil" oynasi: portfolio, xizmatlar va narxlar, ish vaqti, reyting, tasdiqlash tugmasi. Foydalanuvchi tafsiloti qilinmadi (jadvaldagi ma'lumot yetarli).
   - Hozir faqat jadvallar; ustaning xizmatlari, portfolio rasmlari va buyurtmalarini ko'rib tasdiqlash imkoni yo'q — moderator rasmlarni ko'rmasdan tasdiqlaydi.
   - Tayyor mezoni: TZ §4.1 ga endpoint qo'shilgan, usta kartasi (dialog yoki sahifa) portfolio va xizmatlar bilan.
 - [ ] **C-03 · Maxfiylik siyosati va foydalanish shartlari sahifalari** — Gemini 👤
@@ -144,8 +145,8 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [ ] **D-12 · Push bildirishnomalar** — Claude 👤
   - Bog'liqlik: B-02 (Firebase loyihasi).
   - Tayyor mezoni: ruxsat so'rash, FCM token olish, login'dan keyin `PUT /auth/fcm-token`, logout'da `DELETE`; bildirishnoma bosilganda tegishli buyurtma ochiladi.
-- [ ] **D-13 · Akkauntni o'chirish va huquqiy havolalar** — Gemini
-  > 🔄 Jarayonda: "Akkauntni o'chirish" (ikki bosqichli tasdiq → `DELETE /auth/me`) tayyor (ustatop-mobile #1). Qolgani — maxfiylik siyosati / shartlar havolalari, C-03 sahifalari tayyor bo'lgach.
+- [x] **D-13 · Akkauntni o'chirish va huquqiy havolalar** — Gemini — ✅ Bajarildi (2026-10-16, Claude, ustatop-mobile #1, #4; telefonda hali sinalmagan — F-03)
+  - Profil: "Akkauntni o'chirish" (ikki bosqichli tasdiq) va maxfiylik siyosati / shartlar havolalari (`LEGAL_URLS`, C-03 sahifalari).
   - Bog'liqlik: B-03, C-03.
   - Tayyor mezoni: Profil ekranida "Akkauntni o'chirish" (tasdiqlash bilan) va maxfiylik siyosati / shartlar havolalari.
 

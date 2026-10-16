@@ -27,6 +27,7 @@ import {
 import type { AdminMaster, Paginated } from '@/lib/types';
 import { MasterFilters } from './master-filters';
 import { MASTERS_QUERY_KEY } from './masters-query';
+import { MasterDetailDialog } from './master-detail-dialog';
 import { VerifyMasterAction } from './verify-master-action';
 
 const SKELETON_ROWS = 6;
@@ -206,7 +207,10 @@ export function AllMastersView() {
                       {formatDate(master.createdAt)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <VerifyMasterAction master={master} />
+                      <div className="flex items-center justify-end gap-1">
+                        <MasterDetailDialog master={master} />
+                        <VerifyMasterAction master={master} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

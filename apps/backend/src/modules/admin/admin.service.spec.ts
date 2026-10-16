@@ -55,6 +55,54 @@ describe('AdminService', () => {
     });
   });
 
+  describe('getMaster', () => {
+    it("yo'q usta uchun 404", async () => {
+      deps.prisma.masterProfile.findUnique.mockResolvedValue(null);
+      await expect(service.getMaster('nope')).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("ro'yxat shakliga ish vaqti, xizmatlar, portfolio va akkaunt sanasini qo'shadi", async () => {
+      deps.prisma.masterProfile.findUnique.mockResolvedValue({
+        id: 'm-1',
+        userId: 'u-1',
+        firstName: 'Ali',
+        lastName: 'Valiyev',
+        phone: '+998901112233',
+        telegram: '@ali',
+        bio: 'Tajribali usta',
+        experienceYears: 5,
+        isVerified: false,
+        address: 'Manzil',
+        createdAt: new Date('2026-10-10T10:00:00.000Z'),
+        region: { id: 'r-1', nameUz: 'Toshkent' },
+        district: { id: 'd-1', nameUz: 'Chilonzor' },
+        categories: [],
+        user: { avatarUrl: null, isBlocked: false, createdAt: new Date('2026-10-01T08:00:00.000Z') },
+        rating: 4.5,
+        reviewCount: 2,
+        completedOrdersCount: 3,
+        isAvailable: true,
+        workingHours: { start: '09:00', end: '18:00', workDays: ['mon'] },
+        services: [{ id: 's-1', title: 'Rozetka', price: 50000, priceType: 'fixed', currency: 'UZS' }],
+        portfolio: [{ url: 'https://x/2.jpg' }, { url: 'https://x/1.jpg' }],
+      });
+
+      const result = await service.getMaster('m-1');
+
+      expect(result).toMatchObject({
+        id: 'm-1',
+        fullName: 'Ali Valiyev',
+        telegram: '@ali',
+        rating: 4.5,
+        workingHours: { start: '09:00', end: '18:00', workDays: ['mon'] },
+        services: [{ id: 's-1', title: 'Rozetka', price: 50000 }],
+        portfolioImages: ['https://x/2.jpg', 'https://x/1.jpg'],
+        userCreatedAt: '2026-10-01T08:00:00.000Z',
+      });
+      expect(result).not.toHaveProperty('portfolio');
+    });
+  });
+
   describe('createMaster', () => {
     it("profilni yaratib, ro'yxatdagi bilan bir xil shaklda qaytaradi va bildirishnoma yubormaydi", async () => {
       const dto = { phone: '+998901112233', firstName: 'Ali', lastName: 'Valiyev' } as never;

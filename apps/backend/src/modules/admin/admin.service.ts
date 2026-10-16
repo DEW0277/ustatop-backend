@@ -225,6 +225,34 @@ export class AdminService {
     };
   }
 
+  async getMaster(masterId: string) {
+    const master = await this.prisma.masterProfile.findUnique({
+      where: { id: masterId },
+      select: {
+        ...masterWithStatsSelect,
+        workingHours: true,
+        services: {
+          select: { id: true, title: true, price: true, priceType: true, currency: true },
+          orderBy: { createdAt: 'asc' },
+        },
+        portfolio: { select: { url: true }, orderBy: { sortOrder: 'desc' } },
+        user: { select: { avatarUrl: true, isBlocked: true, createdAt: true } },
+      },
+    });
+
+    if (!master) {
+      throw new NotFoundException(`Usta topilmadi: ${masterId}`);
+    }
+
+    return {
+      ...toAdminMasterWithStats(master),
+      workingHours: master.workingHours,
+      services: master.services,
+      portfolioImages: master.portfolio.map((image) => image.url),
+      userCreatedAt: master.user.createdAt.toISOString(),
+    };
+  }
+
   async createMaster(dto: CreateMasterDto) {
     const id = await this.masterProfiles.createByAdmin(dto);
 
