@@ -13,3 +13,11 @@ build/
 coverage/
 .vscode/
 *.tsbuildinfo
+.worktrees/
+playwright-report/
+test-results/
+
+# Agent tooling (local, not committed)
+.claude/skills/
+.agents/
+skills-lock.json

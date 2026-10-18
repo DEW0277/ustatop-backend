@@ -1,0 +1,48 @@
+name: Agent vazifasi
+description: Agent pipeline bajaradigan vazifa (Definition of Ready)
+title: "[task] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        To'liq to'ldirilgan issue'ga `agent-ready` label qo'yilsa, pipeline o'zi reja tuzadi, kod yozadi, tekshiradi va PR ochadi.
+        Holatlar: `agent-ready` → `agent:planning` → `agent:coding` → `agent:verifying` → `agent:review` → merge.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Maqsad
+      description: Nima o'zgarishi kerak va nima uchun (1–3 gap).
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Kontekst
+      description: Qaysi sahifa/modul/endpoint; tegishli fayllar, havolalar, skrinshotlar.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Qabul mezonlari (acceptance criteria)
+      description: Har biri tekshirib bo'ladigan bo'lsin.
+      value: |
+        - [ ] AC-1:
+        - [ ] AC-2:
+    validations:
+      required: true
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Kiritilmaydi (out of scope)
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Murakkablik (ixtiyoriy maslahat — planner yakuniy qaror qiladi)
+      options:
+        - Avto (planner hal qilsin)
+        - Oddiy — UI / CRUD / boilerplate (Gemini)
+        - Murakkab — biznes mantiq / xavfsizlik (Sonnet)
+    validations:
+      required: false
