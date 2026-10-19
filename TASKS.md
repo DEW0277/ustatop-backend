@@ -160,6 +160,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Tayyor mezoni: `dc ps` hammasi healthy, `https://<domen>/api/v1/regions` va `/login` ishlaydi, seed qo'llangan, admin panelga kirilgan.
 - [ ] **E-03 · Backup va sertifikat cron'lari** — Claude
   - Tayyor mezoni: kunlik `pg_dump` + Garage arxivi cron'da, **boshqa joyga** nusxa (rclone / obyekt saqlash), haftalik nginx reload; backup'dan tiklash bir marta amalda sinab ko'rilgan.
+  > 🔄 Jarayonda: `deploy/backup/` (`backup.sh`, `restore.sh`, lokal sinov `test-local.sh`) va CI shellcheck — PR #47. Qolgan: VPS'da cron o'rnatish, tashqi saqlash joyini tanlash va `rclone` sozlash, haqiqiy serverda tiklash sinovi (E-01/E-02 dan keyin).
 - [ ] **E-04 · CD — avtomatik deploy** — Claude 👤
   - TZ §6: "`main`ga merge → SSH orqali deploy" hali rejada. Image'lar hozir VPS'ning o'zida yig'iladi.
   - Tayyor mezoni: GitHub Actions workflow (qo'lda tasdiq / `workflow_dispatch` bilan), SSH kaliti repo secret'ida, sha bo'yicha `IMAGE_TAG` (rollback uchun), DEPLOY.md yangilangan.
