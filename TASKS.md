@@ -21,12 +21,12 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | Bo'lim | Bajarildi | Jami |
 |---|---|---|
 | A. Tezkor tuzatishlar va tartib | 3 | 4 |
-| B. Backend | 4 | 7 |
+| B. Backend | 4 | 8 |
 | C. Admin panel | 4 | 6 |
 | D. Mobil ilova integratsiyasi | 12 | 13 |
 | E. Deploy va operatsiya | 3 | 11 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **26** | **47** |
+| **Jami** | **26** | **48** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -80,6 +80,10 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [x] **B-07 · Usta profilini faqat admin yaratadi** — Claude ⚠️ — ✅ Bajarildi (2026-10-13, PR #31)
   - `PUT /masters/me/profile` endi faqat mavjud profilni tahrirlaydi; profili yo'q foydalanuvchi 403 oladi (TZ §4.0). Ilova tomoni — D-10.
   - Tayyor mezoni: unit + e2e testlar, TZ yangilangan.
+- [ ] **B-08 · Do'kon tekshiruvchisi uchun kirish (review akkaunt)** — Claude 🔒👤
+  - Bog'liqlik: B-01. Real SMS yoqilgach Google Play / App Store tekshiruvchilari SMS kodni ololmaydi — "App access" bo'limiga ishlaydigan login kerak, aks holda ilova rad etiladi.
+  - Taklif: production `.env`da `REVIEW_PHONE` + `REVIEW_OTP` — faqat shu raqamga SMS yuborilmaydi va kod qat'iy; raqam oddiy CLIENT (admin emas), kerak bo'lsa alohida usta akkaunti ham. Xavfsizlik: kod uzun va tasodifiy, faqat tekshiruv davrida yoqiladi, urinishlar limiti amal qiladi.
+  - Tayyor mezoni: unit + e2e test, DEPLOY.md'da yoqish/o'chirish tartibi, `mobile-app/docs/PLAY_STORE.md` §5 yangilangan.
 
 ## C. Admin panel (`apps/web`)
 
@@ -93,6 +97,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [ ] **C-03 · Maxfiylik siyosati va foydalanish shartlari sahifalari** — Gemini 👤
   > 🔄 Jarayonda (2026-10-16, PR #39): `/privacy` va `/terms` auth'siz ochiladi, platformaning haqiqiy ishlashiga mos **loyiha** matni bilan (`apps/web/lib/legal/*`). Qolgani 👤: matnni tekshirish, `[KVADRAT QAVS]` joylarni (tashkilot, SMS/hosting provayderi, aloqa, yosh chegarasi) to'ldirish, keyin `LEGAL_DRAFT = false`.
   - Do'konlar ommaviy URL talab qiladi (F-02). Matnni foydalanuvchi beradi.
+  - 2026-10-17: `/delete-account` qo'shildi (Google Play Data safety "Delete account URL" talabi) — matn TZ §4.3 ga mos, `[EMAIL]` to'ldiriladi.
   - Tayyor mezoni: `/privacy` va `/terms` auth'siz ochiladi (`proxy.ts` ularni login'ga yo'naltirmaydi).
 - [x] **C-04 · Admin panelda usta qo'shish** — Claude — ✅ Bajarildi (2026-10-12, PR #31)
   - `POST /admin/masters` (TZ §4.1): telefon bo'yicha akkaunt yaratadi yoki mavjud mijozga profil biriktiradi; Ustalar sahifasida "Usta qo'shish" dialogi.
@@ -193,11 +198,13 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [ ] **F-01 · Dasturchi akkauntlari** — 👤
   - Tayyor mezoni: Google Play Console va (iOS kerak bo'lsa) Apple Developer akkauntlari, Expo/EAS akkaunti.
 - [ ] **F-02 · Do'kon materiallari** — 👤 + Gemini
+  - 2026-10-17 (Claude, ustatop-mobile `chore/play-store-release`): ilova ikonkasi/adaptive/splash, Play Console'ga kiritiladigan hamma narsa `mobile-app/store/google-play/` da (uz/ru listing, ikonka 512, feature graphic, reliz izohlari, App content / Data safety / Content rating javoblari), jarayon — `mobile-app/docs/PLAY_STORE.md`. **Qolgan 👤**: skrinshotlar, kontakt email, matnlarni tasdiqlash.
   - Tayyor mezoni: ilova ikonkasi, skrinshotlar, tavsif (uz/ru), maxfiylik siyosati URL (C-03), ma'lumotlar xavfsizligi anketasi (telefon raqami, rasmlar, push token).
 - [ ] **F-03 · Staging'da to'liq oqim sinovi** — Claude + 👤
   - Bog'liqlik: D-02…D-12, E-02.
   - Tayyor mezoni: haqiqiy qurilmada (Android, kerak bo'lsa iOS) ssenariy: admin ustani qo'shadi → usta o'z raqami bilan kiradi, xizmat/portfolio qo'shadi → mijoz ro'yxatdan o'tadi va buyurtma beradi → usta qabul qiladi/yakunlaydi → mijoz sharh qoldiradi → admin sharhni o'chiradi; har qadamda push keladi.
 - [ ] **F-04 · Production build** — Claude
+  - 2026-10-17: build konfiguratsiyasi tayyor (`eas.json` remote versionCode + `eas submit` → internal/draft, `SERVER_URL` tekshiruvi `eas-build-pre-install`da, ruxsatlar tozalangan). Qolgani: E-02 dan keyin `SERVER_URL`, `eas init` (👤), build va yuklash.
   - Tayyor mezoni: EAS `production` profili (AAB / IPA) production API manziliga qaragan, versiya va `uz.ustatop.app` identifikatori to'g'ri, ichki sinov trekiga yuklangan.
 - [ ] **F-05 · Yopiq beta** — 👤
   - Tayyor mezoni: bir nechta haqiqiy usta va mijoz bilan sinov; topilgan xatolar shu faylga vazifa sifatida qo'shilgan va yopilgan.

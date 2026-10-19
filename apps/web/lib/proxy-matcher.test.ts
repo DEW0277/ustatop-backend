@@ -7,13 +7,13 @@ const matches = (path: string) => config.matcher.some((pattern) => new RegExp(`^
 
 describe('proxy matcher', () => {
   it("admin sahifalarini cookie'siz login'ga yo'naltiradi", () => {
-    for (const path of ['/', '/users', '/masters', '/orders/123', '/privacy-settings', '/terms2']) {
+    for (const path of ['/', '/users', '/masters', '/orders/123', '/privacy-settings', '/terms2', '/delete-accounts']) {
       expect(matches(path)).toBe(true);
     }
   });
 
   it("login, ommaviy huquqiy sahifalar, API va statik fayllarni chetlab o'tadi", () => {
-    for (const path of ['/login', '/privacy', '/privacy/', '/terms', '/api/auth/login', '/_next/static/x.js', '/favicon.ico']) {
+    for (const path of ['/login', '/privacy', '/privacy/', '/terms', '/delete-account', '/api/auth/login', '/_next/static/x.js', '/favicon.ico']) {
       expect(matches(path)).toBe(false);
     }
   });
