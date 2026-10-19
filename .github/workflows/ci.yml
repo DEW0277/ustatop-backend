@@ -67,3 +67,12 @@ jobs:
       - run: pnpm --filter backend test:e2e
         env:
           E2E_REQUIRE_STORAGE: '1'
+
+  shellcheck:
+    name: Shellcheck (deploy scripts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck --version
+      - run: find deploy -type f -name '*.sh' -print0 | xargs -0 shellcheck -x
