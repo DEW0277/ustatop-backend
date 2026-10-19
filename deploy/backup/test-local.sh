@@ -386,6 +386,18 @@ case_offsite_stub() {
   run_script offsite_stub backup
   assert "(d) inline remote -> exit 2 (got $RC)" [ "$RC" -eq 2 ]
   assert "(d) no new set" [ -z "$(new_sets "$before")" ]
+  # (e) other malformed remotes are rejected before anything happens, and the remote path is never logged
+  local bad
+  for bad in "plainname" "a,b:c" "offsite:path=x" ":s3:bucket" "-x:y"; do
+    before=$(list_sets)
+    T_REMOTE=$bad
+    T_PATH="$TMP/stubbin:$PATH"
+    run_script offsite_stub backup
+    assert "(e) remote '$bad' -> exit 2 (got $RC)" [ "$RC" -eq 2 ]
+    assert "(e) remote '$bad': no new set" [ -z "$(new_sets "$before")" ]
+  done
+  assert "(e) remote path not echoed to the log" sh -c "! grep -q 'ustatop-backups' '$LOGS/offsite_stub.log'"
+  assert "(e) rclone sentinel never reaches rclone argv" sh -c "! grep -qF -- '$SENTINEL_RCLONE' '$TMP/rclone.args'"
   unset STUB_DIR
   end_case
 }

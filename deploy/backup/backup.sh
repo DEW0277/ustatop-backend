@@ -60,7 +60,7 @@ retention_re='^[0-9]+$'
 if [ -n "$REMOTE" ]; then
   # Only a *named* remote from rclone.conf is allowed: inline remotes (":s3,secret_access_key=...:bucket")
   # would put credentials into the command line and the logs.
-  remote_re='^[A-Za-z0-9_-]+:[^,=]*$'
+  remote_re='^[A-Za-z0-9_][A-Za-z0-9_-]*:[^,=]*$' # first char not '-': no option injection
   [[ $REMOTE =~ $remote_re ]] || fail 2 "BACKUP_RCLONE_REMOTE must be a named remote (name:path); configure a named remote in rclone.conf"
 fi
 
