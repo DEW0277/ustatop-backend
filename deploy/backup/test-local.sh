@@ -402,6 +402,95 @@ case_offsite_stub() {
   end_case
 }
 
+# ---------------------------------------------------------------- restore cases
+
+mutate_state() { # damage the data after the backup: delete rows + add a new object
+  psql_q "DELETE FROM backup_probe WHERE id <= 50" >/dev/null
+  s3_put after-backup.txt "uploaded after the backup" >/dev/null
+}
+
+assert_restored() { # data is back to the state captured in SET1
+  assert "postgres fingerprint restored" [ "$(fingerprint 2>/dev/null)" = "$FP0" ]
+  assert "probe.txt restored (sha256 via public path)" [ "$(s3_pub_sha probe.txt)" = "$PROBE_SHA" ]
+  assert "after-backup.txt is gone (404)" [ "$(s3_pub_code after-backup.txt)" = 404 ]
+}
+
+case_restore_requires_yes() {
+  begin_case restore_requires_yes
+  mutate_state
+  local fp_mut
+  fp_mut=$(fingerprint)
+  assert "state is really damaged before the test" [ "$fp_mut" != "$FP0" ]
+
+  run_script restore_requires_yes restore "$SET1"
+  assert "restore without --yes -> exit 2 (got $RC)" [ "$RC" -eq 2 ]
+  assert "postgres fingerprint unchanged" [ "$(fingerprint)" = "$fp_mut" ]
+  assert "after-backup.txt still there" [ "$(s3_pub_code after-backup.txt)" = 200 ]
+  assert "garage running" service_running garage
+  assert "postgres running" service_running postgres
+
+  run_script restore_requires_yes restore --list
+  assert "--list exit 0 (got $RC)" [ "$RC" -eq 0 ]
+  assert "--list prints the set name" grep -q "$SET1" "$LOGS/restore_requires_yes.log"
+  assert "--list changed nothing" [ "$(fingerprint)" = "$fp_mut" ]
+  end_case
+}
+
+case_restore_rejects_corrupt() {
+  begin_case restore_rejects_corrupt
+  local fp_mut bad="$TMP/corrupt/$SET1"
+  fp_mut=$(fingerprint)
+
+  # (a) one byte appended to db.dump -> checksum mismatch
+  mkdir -p "$TMP/corrupt"
+  cp -R "$BACKUP_DIR/$SET1" "$bad"
+  printf 'x' >>"$bad/db.dump"
+  run_script restore_rejects_corrupt restore --yes "$bad"
+  assert "(a) corrupt db.dump -> failure (got exit $RC)" rc_fail
+  assert "(a) postgres fingerprint unchanged" [ "$(fingerprint)" = "$fp_mut" ]
+  assert "(a) garage running (nothing stopped)" service_running garage
+  assert "(a) after-backup.txt still there" [ "$(s3_pub_code after-backup.txt)" = 200 ]
+
+  # (b) archive with an absolute path entry (valid checksums!) -> rejected before anything destructive
+  rm -rf "$TMP/corrupt"
+  mkdir -p "$TMP/corrupt" "$TMP/evil-src"
+  cp -R "$BACKUP_DIR/$SET1" "$bad"
+  echo evil >"$TMP/evil-src/evil.txt"
+  tar czPf "$bad/garage.tar.gz" "$TMP/evil-src/evil.txt" 2>/dev/null
+  (cd "$bad" && sha256_files db.dump garage.tar.gz MANIFEST >SHA256SUMS)
+  run_script restore_rejects_corrupt restore --yes "$bad"
+  assert "(b) unsafe tar entry -> failure (got exit $RC)" rc_fail
+  assert "(b) postgres fingerprint unchanged" [ "$(fingerprint)" = "$fp_mut" ]
+  assert "(b) garage running" service_running garage
+  assert "(b) after-backup.txt still there" [ "$(s3_pub_code after-backup.txt)" = 200 ]
+  rm -rf "$TMP/corrupt" "$TMP/evil-src"
+  end_case
+}
+
+case_restore_in_place() {
+  begin_case restore_in_place
+  # state is still damaged from restore_requires_yes
+  run_script restore_in_place restore --yes "$SET1"
+  assert "restore --yes exit 0 (got $RC)" [ "$RC" -eq 0 ]
+  assert_restored
+  assert "garage running" service_running garage
+  assert "postgres running" service_running postgres
+  end_case
+}
+
+case_restore_fresh_volumes() {
+  begin_case restore_fresh_volumes
+  dc down -v --remove-orphans >/dev/null 2>&1
+  dc up -d --wait postgres >/dev/null 2>&1
+  dc up -d garage >/dev/null 2>&1
+  assert "fresh postgres is empty" [ -z "$(psql_q "SELECT to_regclass('backup_probe')" 2>/dev/null)" ]
+  run_script restore_fresh_volumes restore --yes latest
+  assert "restore --yes latest exit 0 (got $RC)" [ "$RC" -eq 0 ]
+  assert_restored
+  assert "garage running" service_running garage
+  end_case
+}
+
 case_no_secrets_in_logs() {
   begin_case no_secrets_in_logs
   local name val
@@ -432,7 +521,10 @@ case_backup_fail_pg
 case_backup_fail_garage_restart
 case_offsite_skip
 case_offsite_stub
-# (restore cases are added here)
+case_restore_requires_yes
+case_restore_rejects_corrupt
+case_restore_in_place
+case_restore_fresh_volumes
 case_no_secrets_in_logs
 case_isolation
 
