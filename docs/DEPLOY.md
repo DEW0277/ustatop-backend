@@ -96,33 +96,83 @@ Qaytish: `.env.production`da `IMAGE_TAG`ni avvalgi sha'ga o'zgartiring → `dc u
 
 ## 6. Backup va tiklash
 
-Postgres (har kecha, 14 kun saqlanadi) — `crontab -e`:
+Ikkita skript (`deploy/backup/`): `backup.sh` va `restore.sh`. Ikkalasi ham VPS'da default'lar bilan ishlaydi
+(`/opt/ustatop`, `/opt/backups`, project `ustatop`); boshqacha bo'lsa flag yoki env beriladi (`--help`).
+Sirlarni skript o'qimaydi — `.env.production` faqat `docker compose --env-file` sifatida uzatiladi.
+
+### Backup
+
+Bir marta: `sudo mkdir -p /opt/backups && sudo chown $USER /opt/backups`. Keyin kunlik cron (`crontab -e`):
 
 ```cron
-0 3 * * * cd /opt/ustatop && docker compose -f docker-compose.prod.yml --env-file .env.production exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB"' > /opt/backups/db-$(date +\%F).dump && find /opt/backups -name 'db-*.dump' -mtime +14 -delete
+# BACKUP_RCLONE_REMOTE=offsite:ustatop-backups
+0 3 * * * /opt/ustatop/deploy/backup/backup.sh >> /opt/backups/backup.log 2>&1
 ```
 
-(`sudo mkdir -p /opt/backups && sudo chown $USER /opt/backups`.) Backup'ni boshqa joyga ham nusxalang (masalan `rclone` bilan) — VPS diski buzilsa, shu serverdagi nusxa yordam bermaydi.
+(Tashqi nusxa kerak bo'lsa birinchi qatorni izohdan chiqaring — pastdagi "Tashqi nusxa" bandi.)
 
-Tiklash:
+Qo'lda: `/opt/ustatop/deploy/backup/backup.sh`. Skript:
+
+1. `pg_dump -Fc` oladi va `pg_restore --list` bilan tekshiradi (postgres ishlamasa shu yerda to'xtaydi, Garage'ga tegilmaydi);
+2. Garage'ni bir necha soniyaga to'xtatib `garage_meta` + `garage_data` ni arxivlaydi va darhol qayta ishga tushiradi
+   (shu vaqtda rasm yuklash/ochish ishlamaydi — shuning uchun kechasi; xato bo'lsa ham Garage qayta yoqiladi);
+3. hammasini `/opt/backups/<YYYY-MM-DD_HHMMSS>/` (UTC) papkasiga yozadi, avval `.<nom>.partial` ichida — yarim backup
+   to'liq set bo'lib ko'rinmaydi;
+4. `--retention-days N` (yoki `BACKUP_RETENTION_DAYS`, default 14) dan eski set papkalarini o'chiradi;
+5. `BACKUP_RCLONE_REMOTE` berilgan bo'lsa nusxani tashqariga yuboradi.
+
+**Set formati:** `db.dump` (pg custom format), `garage.tar.gz` (faqat `meta/` va `data/`), `SHA256SUMS`, `MANIFEST`
+(`created_utc`, `project`, `app_git_sha`; sir yo'q). Papka `700`, fayllar `600` (dump'da telefon raqamlari/parol xeshlari,
+Garage metadata'sida S3 maxfiy kaliti bor). Retention faqat nomi `YYYY-MM-DD_HHMMSS` naqshiga mos papkalarga tegadi:
+**eski bitta fayldagi `db-*.dump` nusxalari retention'ga kirmaydi** — ularni qo'lda o'chiring.
+
+**Exit kodlar:** `0` — tayyor · `1` — ish vaqtidagi xato · `2` — noto'g'ri flag/konfiguratsiya (hech narsa qilinmagan) ·
+`3` — lokal backup tayyor, lekin tashqi nusxa muvaffaqiyatsiz. Log qatorlari `[backup] <UTC vaqt> ...` ko'rinishida.
+`.lock` papkasi bo'lsa va boshqa backup/restore ishlamayotgan bo'lsa (skript `kill -9` qilingan) — `rmdir /opt/backups/.lock`.
+
+### Tashqi nusxa (rclone)
+
+VPS diski buzilsa, shu serverdagi nusxa yordam bermaydi — set'ni boshqa joyga ham yuboring. `rclone` o'rnating va
+**nomli remote** sozlang (`rclone config`; sirlar `~/.config/rclone/rclone.conf`da, `chmod 600`, yoki
+`RCLONE_CONFIG_<NOM>_*` env'da). Skriptga faqat nom beriladi: `BACKUP_RCLONE_REMOTE=offsite:ustatop-backups`.
+`:s3,secret_access_key=...:bucket` kabi inline remote (ichida `,` yoki `=`) rad etiladi (exit 2) — maxfiy kalit
+buyruq satriga va logga tushmasligi uchun. Nusxa `rclone copy` bilan (`sync` emas) — tashqaridagi eski nusxalar
+o'chirilmaydi, ularning retention'i saqlash xizmatining o'zida sozlanadi.
+
+Arxivda S3 maxfiy kaliti va shaxsiy ma'lumot bor, shuning uchun nusxani **shifrlang**: `crypt` remote yarating
+(`rclone config` → `crypt`, asosiy remote ustida) va `BACKUP_RCLONE_REMOTE=offsite-crypt:ustatop-backups` ishlating.
+Crypt parolini serverdan tashqarida ham saqlang — usiz nusxani ochib bo'lmaydi. `BACKUP_RCLONE_REMOTE` bo'sh bo'lsa
+skript ogohlantirish chiqaradi va faqat lokal nusxa qoladi. Remote berilgan, lekin `rclone` o'rnatilmagan bo'lsa — exit 3.
+
+### Tiklash
+
+Tiklash bazadagi barcha ma'lumotni va Garage'dagi barcha fayllarni **almashtiradi**. Tartib:
 
 ```bash
-dc stop backend web
-dc exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < /opt/backups/db-2026-10-12.dump
-dc up -d
+/opt/ustatop/deploy/backup/backup.sh              # 1) joriy holatdan ham backup oling (restore o'zi olmaydi)
+/opt/ustatop/deploy/backup/restore.sh --list      # 2) mavjud set'lar (eskidan yangiga) va hajmi
+/opt/ustatop/deploy/backup/restore.sh --yes 2026-10-12_030001    # 3) set nomi, `latest` yoki papka yo'li
 ```
 
-Fayllar (Garage: `garage_meta` — SQLite metadata, `garage_data` — fayl bloklari; ikkalasi birga kerak). Izchil nusxa
-uchun Garage bir necha soniyaga to'xtatiladi (shu vaqtda rasm yuklash/ochish ishlamaydi — kechasi bajaring):
+`--yes`siz skript faqat nima qilinishini yozadi va exit 2 bilan chiqadi (hech narsa o'zgarmaydi). `--yes` bilan:
+checksum (`SHA256SUMS`) va arxiv yozuvlari (faqat `meta/`, `data/`; `..`, `/` bilan boshlanuvchi yo'l va link rad
+etiladi) tekshiriladi; ishlab turgan `backend`/`web` to'xtatiladi; Postgres `pg_restore --clean --if-exists
+--single-transaction` bilan tiklanadi; Garage to'xtatilib volume'lar tozalanadi va arxiv ochiladi, Garage ko'tarilib
+`garage-init` ishlaydi; to'xtatilgan `backend`/`web` qayta ishga tushadi. Xato bo'lsa Garage qayta yoqiladi, lekin
+`backend`/`web` **qayta ishga tushirilmaydi** (yarim tiklangan bazada ishlamasin) — xato xabari qanday davom ettirishni aytadi.
+Server butunlay yo'qolgan bo'lsa: 1–3-bandlar bo'yicha yangi VPS tayyorlang, `dc up -d postgres garage`, backup papkasini
+`/opt/backups`ga qaytaring (tashqi nusxadan: `rclone copy offsite-crypt:ustatop-backups/<set> /opt/backups/<set>`) va
+yuqoridagi `restore.sh --yes` ni ishga tushiring, so'ng `dc up -d`.
+
+Tekshirish:
 
 ```bash
-dc stop garage
-docker run --rm -v ustatop_garage_meta:/meta:ro -v ustatop_garage_data:/data:ro -v /opt/backups:/backup alpine \
-  tar czf /backup/garage-$(date +%F).tar.gz -C / meta data
-dc start garage
+dc ps                                              # hammasi healthy
+curl -fsS https://<domen>/api/v1/regions           # API javob beradi
+curl -fsSI https://<domen>/uploads/<mavjud-fayl>   # rasm ochiladi
 ```
 
-Tiklash: `dc stop garage`, ikkala volume'ni tozalab arxivni `-C /` bilan ochish (`/meta`, `/data`), `dc start garage`.
+Lokal sinov (Docker kerak, dev stack'ka tegmaydi — alohida `ustatop-backuptest` project): `/bin/bash deploy/backup/test-local.sh`.
 
 ## 7. Sertifikat
 
@@ -158,9 +208,9 @@ Har qanday hodisada birinchi qadam: `dc ps` (qaysi servis `unhealthy`/`exited`) 
 | Sayt/API ochilmaydi | `dc ps`; `curl -I https://<domen>/login`; `curl -fsS https://<domen>/api/v1/regions` | Faqat bitta servis tushgan bo'lsa: `dc up -d <servis>`. Hammasi tushgan bo'lsa — server qayta yuklangandir: `dc up -d`. nginx tushgan bo'lsa — 7-band (sertifikat). |
 | backend qayta-qayta o'chadi | `dc logs --tail=100 backend` | "Production konfiguratsiyasi xavfsiz emas" — 8-banddagi jadval. Prisma ulanish xatosi — `dc ps postgres`. Yangilashdan keyin boshlangan bo'lsa — 5-band (rollback). |
 | `migrate` xato bilan to'xtagan | `dc logs migrate` | Backend eski versiyada qoladi (yangilanmaydi). Migratsiyani tuzatib qayta deploy qiling; bazaga qo'lda tegishdan oldin backup oling (6-band). |
-| Disk to'ldi | `df -h`; `docker system df`; `du -sh /opt/backups` | `docker image prune -a` (ishlatilmayotgan eski image'lar; rollback uchun kerakli teg'larni o'chirmang), eski backup'lar (`find /opt/backups -mtime +14 -delete`). Postgres disk to'lib to'xtagan bo'lsa — joy bo'shatib `dc up -d postgres`. |
+| Disk to'ldi | `df -h`; `docker system df`; `du -sh /opt/backups` | `docker image prune -a` (ishlatilmayotgan eski image'lar; rollback uchun kerakli teg'larni o'chirmang), eski backup set'lar (`ls /opt/backups`; keraksizini `rm -rf`, yoki `BACKUP_RETENTION_DAYS`ni kamaytiring — 6-band). Postgres disk to'lib to'xtagan bo'lsa — joy bo'shatib `dc up -d postgres`. |
 | Rasmlar ochilmaydi / yuklanmaydi | `dc logs garage`; `dc logs garage-init`; `dc logs backend \| grep -i "S3\|storage"` | Garage tushgan bo'lsa `dc up -d garage garage-init`. Disk to'lgan bo'lsa — yuqoridagi qator. |
-| Bazani tiklash kerak | — | 6-band ("Tiklash"). Tiklashdan oldin joriy holatdan ham backup oling. |
+| Bazani tiklash kerak | `/opt/ustatop/deploy/backup/restore.sh --list` | Avval `backup.sh` (joriy holat), keyin `restore.sh --yes <set>` — 6-band ("Tiklash"). |
 | Admin panelga hech kim kira olmaydi | `dc logs backend \| grep admin/login` | Parolni unutgan — 10-band ("Parolni almashtirish"). "Juda ko'p xato urinish" (429) — 15 daqiqa kuting yoki `dc exec redis redis-cli DEL admin-login:attempts:<login>`. |
 | Shubhali faollik (begona admin sessiyasi va h.k.) | `dc logs backend` | Darhol: admin parolini almashtiring (10-band) va `JWT_SECRET`ni almashtiring (11-band) — barcha sessiyalar bekor bo'ladi. |
 
