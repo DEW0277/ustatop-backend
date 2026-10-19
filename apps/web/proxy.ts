@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // /login, ommaviy huquqiy sahifalar (/privacy, /terms — mobil ilova va do'konlar havola qiladi), /api/*
+  // /login, ommaviy huquqiy sahifalar (/privacy, /terms, /delete-account — mobil ilova va do'konlar havola qiladi), /api/*
   // (route handler'lar o'zi tekshiradi), statik fayllar va ikonkalar chetlab o'tiladi.
-  matcher: ['/((?!login(?:/|$)|privacy(?:/|$)|terms(?:/|$)|api(?:/|$)|_next/|favicon\\.ico$).*)'],
+  matcher: ['/((?!login(?:/|$)|privacy(?:/|$)|terms(?:/|$)|delete-account(?:/|$)|api(?:/|$)|_next/|favicon\\.ico$).*)'],
 };
