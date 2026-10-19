@@ -62,3 +62,10 @@ Agar checklist'dan biror band o'tmasa — PR'ni merge qilma, o'zgartirish so'rab
 - SMS OTP hozircha **mock** (`123456`) — `SmsProvider` interfeysini shunday yozki, keyin real provider (Eskiz.uz) ulash faqat bitta implementatsiya class'ini almashtirish bilan bo'lsin (strategy pattern), boshqa joyni o'zgartirmasdan.
 - Fayl ombori — Garage (S3-mos; MinIO image'lari endi yo'q, 2026-10-16 dan). Production'da Contabo VPS'da ishlaydi — dev'da ham xuddi shu S3 client kodi ishlashi kerak (faqat `.env`dagi `S3_*` farq qiladi), kod ichida "local disk fallback" yozma va Garage'ga xos API'ga bog'lanma (bucket sozlash — `deploy/garage/init.sh`).
 - Mobil ilova alohida repoda — backend DTO o'zgarsa, PR tavsifida "⚠️ Mobile app contract impact" deb yoz (AGENTS.md §5).
+
+## Agent pipeline va skill'lar
+
+- `agent-ready` label'li issue → lokal `/ship-issue <N>` (yoki `bash scripts/agent/pipeline.sh <N>`): architect reja yozadi (`docs/plans/issue-<N>.md`), Gemini/Sonnet kod yozadi, verifier tekshiradi, PR ochiladi. Test kirish nuqtasi: `bash scripts/agent/test.sh` (root `lint` + `typecheck` + `test`).
+- CI'dagi avtomatik agent workflow'lari (`agent-pipeline.yml`, `agent-routines.yml`, `deploy-dev.yml`) ataylab qo'shilmagan — kit shablonlari tag'ni force-push qiladi va Gemini'ni secret'lar yonida `--dangerously-skip-permissions` bilan ishga tushiradi.
+- Loyiha skill'lari lokal o'rnatiladi (git'da emas): `npx skills add prisma/skills --skill prisma-client-api --skill prisma-cli -a claude-code -y`, `npx skills add kadajett/agent-nestjs-skills --skill nestjs-best-practices -a claude-code -y`, `npx skills add vercel-labs/agent-skills --skill vercel-react-best-practices -a claude-code -y`.
+- `prisma-cli` skill'i Prisma 7 uchun yozilgan — bu loyiha 6.19.3 da (AGENTS.md). Undagi `prisma.config.ts`, driver adapter va v7 buyruqlarini qo'llama.
