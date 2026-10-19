@@ -7,8 +7,9 @@ set -euo pipefail
 umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC2034 # read by lib.sh log helpers
 LOG_PREFIX=restore
-# shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR source=lib.sh
 source "$SCRIPT_DIR/lib.sh"
 
 usage() {
@@ -59,8 +60,17 @@ done
 
 finalize_config
 
-sorted_sets() { # complete set names, oldest first
-  { ls -1 "$BACKUP_DIR" 2>/dev/null || true; } | { grep -E "$SET_NAME_RE" || true; } | sort
+sorted_sets() { # complete set names (directories only), oldest first
+  local d name
+  for d in "$BACKUP_DIR"/*/; do
+    [ -d "$d" ] || continue # unmatched glob stays literal
+    name=${d%/}
+    [ ! -L "$name" ] || continue
+    name=${name##*/}
+    if [[ $name =~ $SET_NAME_RE ]]; then
+      printf '%s\n' "$name"
+    fi
+  done | sort
 }
 
 if [ "$DO_LIST" = 1 ]; then
@@ -175,6 +185,7 @@ log "starting postgres"
 dcmp up -d --wait postgres >/dev/null
 dcmp exec -T postgres pg_restore --list <"$SET_DIR/db.dump" >/dev/null || fail 1 "db.dump failed verification (pg_restore --list)"
 log "restoring database"
+# shellcheck disable=SC2016 # $POSTGRES_* must expand inside the container, not on the host
 dcmp exec -T postgres sh -c 'pg_restore --clean --if-exists --no-owner --single-transaction --exit-on-error -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <"$SET_DIR/db.dump"
 log "database restored"
 

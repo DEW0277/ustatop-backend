@@ -6,8 +6,9 @@ set -euo pipefail
 umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC2034 # read by lib.sh log helpers
 LOG_PREFIX=backup
-# shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR source=lib.sh
 source "$SCRIPT_DIR/lib.sh"
 
 usage() {
@@ -55,7 +56,11 @@ done
 
 # ---- validate everything before touching anything ---------------------------------------------------------
 retention_re='^[0-9]+$'
-[[ $RETENTION_DAYS =~ $retention_re ]] && [ "$RETENTION_DAYS" -ge 1 ] || fail 2 "retention days must be an integer >= 1"
+if [[ $RETENTION_DAYS =~ $retention_re ]]; then
+  [ "$RETENTION_DAYS" -ge 1 ] || fail 2 "retention days must be an integer >= 1"
+else
+  fail 2 "retention days must be an integer >= 1"
+fi
 
 if [ -n "$REMOTE" ]; then
   # Only a *named* remote from rclone.conf is allowed: inline remotes (":s3,secret_access_key=...:bucket")
@@ -108,6 +113,7 @@ log "start: set $SET_NAME (project $PROJECT)"
 
 # 1) Postgres. If it is not running this fails here and Garage is not touched.
 log "pg_dump"
+# shellcheck disable=SC2016 # $POSTGRES_* must expand inside the container, not on the host
 dcmp exec -T postgres sh -c 'pg_dump -Fc -U "$POSTGRES_USER" "$POSTGRES_DB"' >"$PARTIAL_DIR/db.dump"
 [ -s "$PARTIAL_DIR/db.dump" ] || fail 1 "pg_dump produced an empty file"
 dcmp exec -T postgres pg_restore --list <"$PARTIAL_DIR/db.dump" >/dev/null || fail 1 "db.dump failed verification (pg_restore --list)"

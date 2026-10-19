@@ -5,7 +5,9 @@
 # The secrets file is never read by these scripts: it is only handed to `docker compose --env-file`.
 
 LOG_PREFIX="${LOG_PREFIX:-script}"
+# shellcheck disable=SC2034 # consumed by backup.sh (retention find)
 SET_NAME_GLOB='[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9]'
+# shellcheck disable=SC2034 # consumed by restore.sh (set name validation)
 SET_NAME_RE='^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}$'
 
 now_utc() { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -41,6 +43,7 @@ parse_common_flag() {
         --project) PROJECT=$2 ;;
         --backup-dir) BACKUP_DIR=$2 ;;
       esac
+      # shellcheck disable=SC2034 # read by the sourcing scripts' argument loops
       CONSUMED=2
       ;;
   esac

@@ -76,6 +76,7 @@ run_script() { # run_script <case> <backup|restore> [args...]
 }
 
 psql_q() { # psql_q <sql>  -> single value on stdout
+  # shellcheck disable=SC2016 # $POSTGRES_USER/$POSTGRES_DB/$1 must expand inside the container shell
   dc exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -tAq -c "$1"' sh "$1"
 }
 
@@ -106,7 +107,17 @@ rc_fail() { [ "$RC" -ne 0 ] && [ "$RC" -ne 126 ] && [ "$RC" -ne 127 ]; }
 
 service_running() { dc ps --status running --services 2>/dev/null | grep -qx "$1"; }
 
-list_sets() { ls -1 "$BACKUP_DIR" 2>/dev/null | grep -E "$SET_RE" || true; }
+list_sets() { # set directories in $BACKUP_DIR, one name per line
+  local d name
+  for d in "$BACKUP_DIR"/*/; do
+    [ -d "$d" ] || continue # unmatched glob stays literal
+    name=${d%/}
+    name=${name##*/}
+    if [[ $name =~ $SET_RE ]]; then
+      printf '%s\n' "$name"
+    fi
+  done
+}
 
 new_sets() { # new_sets <before-list>  -> sets that appeared since
   printf '%s\n' "$1" | sort >"$TMP/sets.before"
@@ -250,11 +261,11 @@ case_backup_ok() {
   bad=$(tar tzf "$d/garage.tar.gz" 2>/dev/null | grep -vE '^(meta|data)(/|$)' || true)
   assert "tar has only meta/ and data/ entries" [ -z "$bad" ]
   assert "tar lists meta/" sh -c "tar tzf '$d/garage.tar.gz' | grep -q '^meta/'"
-  assert "dir mode 700" [ "$(ls -ld "$d" | cut -c1-10)" = "drwx------" ]
+  assert "dir mode 700" [ -n "$(find "$d" -maxdepth 0 -type d -perm 700)" ]
   for f in db.dump garage.tar.gz SHA256SUMS MANIFEST; do
-    assert "$f mode 600" [ "$(ls -l "$d/$f" | cut -c1-10)" = "-rw-------" ]
+    assert "$f mode 600" [ -n "$(find "$d/$f" -maxdepth 0 -type f -perm 600)" ]
   done
-  assert "no .partial leftovers" [ -z "$(ls -A "$BACKUP_DIR" | grep partial || true)" ]
+  assert "no .partial leftovers" [ -z "$(find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -name '*partial*')" ]
   assert "garage running again" service_running garage
   end_case
 }
@@ -300,7 +311,7 @@ case_backup_fail_pg() {
   assert "backup fails (got exit $RC)" rc_fail
   assert "no new complete set" [ -z "$(new_sets "$before")" ]
   assert "retention did not run (old fake set kept)" test -d "$BACKUP_DIR/2020-01-02_000000"
-  assert "no .partial leftovers" [ -z "$(ls -A "$BACKUP_DIR" | grep partial || true)" ]
+  assert "no .partial leftovers" [ -z "$(find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -name '*partial*')" ]
   assert "garage still running" service_running garage
   dc up -d --wait postgres >/dev/null 2>&1
   assert "postgres back up" service_running postgres
