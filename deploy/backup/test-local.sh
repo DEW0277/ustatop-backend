@@ -50,6 +50,10 @@ sha256_of_stdin() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum | cut -d' ' -f1; else shasum -a 256 | cut -d' ' -f1; fi
 }
 
+sha256_files() { # sha256_files file...  (relative names)
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi
+}
+
 sha_check_dir() { # sha_check_dir DIR  (verifies SHA256SUMS inside DIR)
   if command -v sha256sum >/dev/null 2>&1; then (cd "$1" && sha256sum -c SHA256SUMS >/dev/null 2>&1)
   else (cd "$1" && shasum -a 256 -c SHA256SUMS >/dev/null 2>&1); fi
@@ -460,6 +464,8 @@ case_restore_rejects_corrupt() {
   (cd "$bad" && sha256_files db.dump garage.tar.gz MANIFEST >SHA256SUMS)
   run_script restore_rejects_corrupt restore --yes "$bad"
   assert "(b) unsafe tar entry -> failure (got exit $RC)" rc_fail
+  assert "(b) rejected because of the archive listing, not the checksum" grep -q 'garage.tar.gz' "$LOGS/restore_rejects_corrupt.log"
+  assert "(b) archive rejection message present" grep -Eq 'unsafe path|unexpected entry' "$LOGS/restore_rejects_corrupt.log"
   assert "(b) postgres fingerprint unchanged" [ "$(fingerprint)" = "$fp_mut" ]
   assert "(b) garage running" service_running garage
   assert "(b) after-backup.txt still there" [ "$(s3_pub_code after-backup.txt)" = 200 ]
