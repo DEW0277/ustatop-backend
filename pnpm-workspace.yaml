@@ -5,12 +5,28 @@ overrides:
   # @nestjs/platform-express o'zining ichki multer nusxasini oladi (2.2.0) — bu DoS zaifliklariga
   # ega versiya (GHSA-qvfw-j98x-7q72 va boshqalar). Bizning to'g'ridan-to'g'ri pin (2.3.0, package.json)
   # faqat bizning importlarimizga tegadi, shuning uchun butun daraxt bo'ylab majburlanadi.
-  multer: "^2.3.0"
+  multer: "^2.4.0"
   # `prisma`ning ichki `@prisma/config`i va `firebase-admin`ning Google Cloud zanjiri orqali keladi
   # (`pnpm audit`, GHSA-ggr8-5vv4-36mx / GHSA-w5hq-g745-h8pq) — ikkalasi ham runtime so'rov yo'lida
   # ishlatilmaydi (CLI konfiguratsiya va ishlatilmayotgan Firebase xususiyati), lekin bepul tuzatiladi.
   deepmerge-ts: "^8.0.0"
   uuid: "^11.1.1"
+  # 2026-10-19 `pnpm audit --prod` (TASKS.md E-11): transitive versions with published fixes that
+  # `pnpm update` does not lift inside the parents' ranges. Remove an entry once its parent ships the fix.
+  # express (Nest platform-express) — IP spoofing behind `trust proxy`, GHSA critical
+  proxy-addr: "^2.0.8"
+  # next — librsvg CVE in sharp; postcss source maps DoS
+  sharp: "^0.35.5"
+  source-map-js: "^1.2.2"
+  # @hookform/resolvers > ajv — host normalization
+  fast-uri: "^3.1.8"
+  # firebase-admin > google-gax — certificate auth context, ReDoS-style brace expansion (2.x line only)
+  "@grpc/grpc-js": "^1.14.5"
+  "brace-expansion@<2": "^1.1.21"
+  "brace-expansion@>=2 <3": "^2.1.7"
+  "brace-expansion@>=5 <6": "^5.0.12"
+  # dev tooling only (shadcn CLI)
+  "@modelcontextprotocol/sdk": "^1.31.0"
 allowBuilds:
   '@firebase/util': true
   '@prisma/client': true
@@ -21,3 +37,9 @@ allowBuilds:
   protobufjs: true
   sharp: false
   unrs-resolver: true
+auditConfig:
+  ignoreGhsas:
+    # braces (stack-exhaustion DoS): no fixed release exists yet (latest 3.0.3, advisory says >=3.0.4).
+    # Dev tooling only — eslint-config-next and the shadcn CLI glob local files; nothing in the
+    # production images. Remove when braces ships a fix (re-check: `pnpm audit`).
+    - GHSA-vfj7-8cjw-p6xm

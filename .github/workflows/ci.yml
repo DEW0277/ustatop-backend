@@ -26,6 +26,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Known advisories fail the build (TASKS.md E-11). An unfixable one goes to
+      # pnpm-workspace.yaml auditConfig.ignoreGhsas with a reason, never a skipped step.
+      - name: Dependency audit
+        run: pnpm audit
       - run: pnpm --filter backend exec prisma generate
       - run: pnpm lint
       - run: pnpm typecheck

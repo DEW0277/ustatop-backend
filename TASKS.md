@@ -24,9 +24,9 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | B. Backend | 4 | 7 |
 | C. Admin panel | 4 | 6 |
 | D. Mobil ilova integratsiyasi | 12 | 13 |
-| E. Deploy va operatsiya | 2 | 10 |
+| E. Deploy va operatsiya | 3 | 11 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **25** | **46** |
+| **Jami** | **26** | **47** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -182,6 +182,10 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [ ] **E-10 · Shaxsiy ma'lumotlarni O'zbekistonda saqlash talabi** — 👤 (yuridik, E-01/E-02 dan oldin)
   - "Shaxsga doir ma'lumotlar to'g'risida"gi qonun O'zbekiston fuqarolarining shaxsiy ma'lumotlarini O'zbekiston hududidagi serverlarda saqlashni talab qiladi (Claude'ning bilimi bo'yicha — yurist tasdiqlashi kerak). Rejadagi Contabo VPS chet elda.
   - Tayyor mezoni: yurist xulosasi; kerak bo'lsa server O'zbekistondagi hosting'ga (yoki ma'lumotlar bazasi/fayllar mahalliy serverga) ko'chirilgan; maxfiylik siyosatining 5-bandi shunga mos.
+- [x] **E-11 · Bog'liqliklardagi zaifliklar (audit regressiyasi)** — Claude — ✅ Bajarildi (2026-10-19, PR #__PR__)
+  - 2026-10-19 da aniqlandi: `pnpm audit --prod` 22 ta zaiflik (2 critical, 10 high) — E-07 talab qiladigan 0 dan orqaga ketgan, CI audit ishlatmagani uchun sezilmagan. Eng og'irlari: `next` 16.3.5 (Image Optimization SSRF, self-hosted kesh zaharlash; `next/og` RCE — ilovada `next/og` ishlatilmaydi), `proxy-addr` (Express `trust proxy` ortida IP spoofing).
+  - Qilindi: `next`/`eslint-config-next` 16.3.8; `shadcn` web'da devDependency'ga o'tkazildi (faqat CLI va build vaqtidagi CSS); ichki versiyalar `pnpm-workspace.yaml` `overrides` bilan (har biri izohli); tuzatilgan versiyasi chiqmagan bitta dev-only advisory (`braces`, GHSA-vfj7-8cjw-p6xm) `auditConfig.ignoreGhsas`da sababi bilan; CI'ga `pnpm audit` qadami qo'shildi.
+  - Tayyor mezoni: `pnpm audit` va `pnpm audit --prod` 0 (ignore'siz sinovda 1 bilan yiqiladi), CI'da audit qadami yashil, lint/typecheck/test/build/e2e/Docker build o'tadi.
 
 ## F. Reliz
 
