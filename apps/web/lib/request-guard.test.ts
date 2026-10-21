@@ -60,4 +60,15 @@ describe('safeNextPath', () => {
       expect(safeNextPath(bad)).toBe('/');
     }
   });
+
+  it('boshqaruv belgilari va backslash orqali open redirect urinishlarini "/" ga aylantiradi', () => {
+    for (const bad of ['/\t/evil.com', '/\n/evil.com', '/\r//evil.com', '/\u0000x', '/\u007f', '/users\\x']) {
+      expect(safeNextPath(bad)).toBe('/');
+    }
+  });
+
+  it('oddiy so\'rov va hash saqlanadi', () => {
+    expect(safeNextPath('/users?page=2')).toBe('/users?page=2');
+    expect(safeNextPath('/masters#top')).toBe('/masters#top');
+  });
 });
