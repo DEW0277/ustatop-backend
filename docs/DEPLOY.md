@@ -156,8 +156,9 @@ dc build
 #    80-port bo'sh bo'lishi kerak)
 #    DOMAIN qiymati qo'shtirnoqli ("..." yoki '...') yoki CRLF bilan yozilgan bo'lsa ham to'g'ri olinadi.
 DOMAIN=$(sed -n 's/^DOMAIN=//p' .env.production | head -n 1 | tr -d "\"'\r")
+EMAIL=you@example.com   # o'zingizning haqiqiy pochtangiz (sertifikat muddati haqidagi ogohlantirishlar shu yerga keladi)
 dc run --rm -p 80:80 --entrypoint certbot certbot certonly --standalone \
-  -d "$DOMAIN" --agree-tos -m <EMAIL> --no-eff-email       # <EMAIL> — o'zingizning haqiqiy pochtangiz (sertifikat muddati haqidagi ogohlantirishlar shu yerga keladi)
+  -d "$DOMAIN" --agree-tos -m "$EMAIL" --no-eff-email
 
 # 3) Hammasini ko'tarish (migratsiyalar `migrate` servisi orqali avtomatik qo'llanadi)
 dc up -d
