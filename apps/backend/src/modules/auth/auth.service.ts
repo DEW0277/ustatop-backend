@@ -20,6 +20,9 @@ import { SmsProvider } from './sms/sms-provider.js';
 import type { UserSession } from './types/user-session.type.js';
 
 const MOCK_OTP_CODE = '123456';
+// Admin sessiyasi 12 soat. Env emas, konstanta: web panel cookie'si (`apps/web/lib/config.ts` TOKEN_COOKIE_MAX_AGE)
+// aynan shu son bilan bir xil bo'lishi shart. CLIENT/MASTER tokeni modul standarti (`JWT_EXPIRES_IN ?? '30d'`).
+export const ADMIN_TOKEN_TTL_SECONDS = 12 * 60 * 60;
 const MIN_OTP_LENGTH = 4;
 const MAX_OTP_LENGTH = MOCK_OTP_CODE.length;
 // Kod bo'shligi kichik (4-6 xona) bo'lgani uchun urinishlar cheklanmasa, `POST /auth/verify-otp`ni
@@ -219,7 +222,7 @@ export class AuthService {
 
   async getMe(userId: string): Promise<UserSession> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    return this.buildSession(user);
+    return this.sessionWithoutRefresh(user);
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<UserSession> {
@@ -241,7 +244,7 @@ export class AuthService {
       await this.fileCleanup.deleteIfUnreferenced(previousAvatar);
     }
 
-    return this.buildSession(user);
+    return this.sessionWithoutRefresh(user);
   }
 
   // Bitta qurilma — bitta akkaunt: token boshqa foydalanuvchida turgan bo'lsa (shu telefonda avval boshqa
@@ -264,17 +267,30 @@ export class AuthService {
     return { registered: false };
   }
 
-  private buildSession(user: User): UserSession {
-    const token = this.jwtService.sign({ sub: user.id });
+  // `/auth/me` va `/auth/profile`: ADMIN uchun yangi token imzolanmaydi — aks holda o'g'irlangan token
+  // bu endpointlar orqali cheksiz yangilanib, 12 soatlik cheklov ma'nosiz bo'lardi. CLIENT/MASTER o'zgarmagan.
+  private sessionWithoutRefresh(user: User): UserSession {
+    return user.role === Role.ADMIN ? this.toSession(user) : this.buildSession(user);
+  }
 
+  private signToken(user: User): string {
+    return user.role === Role.ADMIN
+      ? this.jwtService.sign({ sub: user.id }, { expiresIn: ADMIN_TOKEN_TTL_SECONDS })
+      : this.jwtService.sign({ sub: user.id });
+  }
+
+  private toSession(user: User): UserSession {
     return {
       id: user.id,
       phone: user.phone,
       name: user.name,
       role: roleToApi(user.role),
       avatarUrl: user.avatarUrl ?? undefined,
-      token,
       createdAt: user.createdAt.toISOString(),
     };
+  }
+
+  private buildSession(user: User): UserSession & { token: string } {
+    return { ...this.toSession(user), token: this.signToken(user) };
   }
 }

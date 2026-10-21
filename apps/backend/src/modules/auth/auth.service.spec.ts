@@ -1,7 +1,8 @@
 import { BadRequestException, ForbiddenException, HttpException, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashPassword, verifyPassword } from '../../common/crypto/password.js';
-import { AuthService } from './auth.service.js';
+import { ADMIN_TOKEN_TTL_SECONDS, AuthService } from './auth.service.js';
 
 function createDeps() {
   const $transaction = vi.fn(async (operations: unknown[]) => Promise.all(operations));
@@ -235,6 +236,100 @@ describe('AuthService', () => {
       expect(error).toBeInstanceOf(HttpException);
       expect((error as HttpException).getStatus()).toBe(429);
       expect(deps.prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('admin sessiyasi (12 soat, yangilanmaydi)', () => {
+    const adminRow = async () => ({
+      id: 'a-1',
+      phone: '+998900000001',
+      name: 'Administrator',
+      role: 'ADMIN',
+      avatarUrl: null,
+      isBlocked: false,
+      login: 'admin',
+      passwordHash: await hashPassword('to-g-ri-parol'),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    const clientRow = {
+      id: 'c-1',
+      phone: '+998901234567',
+      name: 'Mijoz',
+      role: 'CLIENT',
+      avatarUrl: null,
+      isPhoneVerified: true,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+    const realJwt = () => new JwtService({ secret: 'x'.repeat(32), signOptions: { expiresIn: '30d' } });
+    const withRealJwt = () =>
+      new AuthService(
+        deps.prisma as never,
+        deps.redis as never,
+        realJwt() as never,
+        deps.smsProvider as never,
+        deps.configService as never,
+        deps.fileCleanup as never,
+      );
+    const lifetime = (token: string) => {
+      const payload = realJwt().decode(token) as { exp: number; iat: number };
+      return payload.exp - payload.iat;
+    };
+
+    it('ADMIN_TOKEN_TTL_SECONDS 12 soat', () => {
+      expect(ADMIN_TOKEN_TTL_SECONDS).toBe(43_200);
+    });
+
+    it('adminLogin tokeni 12 soat amal qiladi', async () => {
+      deps.redis.get.mockResolvedValue(null);
+      deps.prisma.user.findUnique.mockResolvedValue(await adminRow());
+
+      const result = await withRealJwt().adminLogin('admin', 'to-g-ri-parol');
+
+      expect(lifetime(result.token)).toBe(43_200);
+    });
+
+    it('verifyOtp (CLIENT) tokeni modul standarti bo\'yicha 30 kun amal qiladi', async () => {
+      deps.redis.get.mockResolvedValue('123456');
+      deps.prisma.user.findUnique.mockResolvedValue(clientRow);
+
+      const result = await withRealJwt().verifyOtp('+998901234567', '123456');
+
+      expect(lifetime(result.token)).toBe(2_592_000);
+    });
+
+    it("getMe ADMIN uchun token bermaydi (12 soatlik cheklov /auth/me orqali uzaytirilmasin)", async () => {
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue(await adminRow());
+
+      const session = await service.getMe('a-1');
+
+      expect(session).not.toHaveProperty('token');
+      expect(session.role).toBe('admin');
+      expect(deps.jwtService.sign).not.toHaveBeenCalled();
+    });
+
+    it('getMe CLIENT uchun token beradi (mobil kontrakt o\'zgarmagan)', async () => {
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue(clientRow);
+
+      const session = await service.getMe('c-1');
+
+      expect(session.token).toBe('signed.jwt.token');
+    });
+
+    it('updateProfile ADMIN uchun ham tokensiz', async () => {
+      deps.prisma.user.update.mockResolvedValue(await adminRow());
+
+      const session = await service.updateProfile('a-1', { name: 'Yangi' });
+
+      expect(session).not.toHaveProperty('token');
+      expect(deps.jwtService.sign).not.toHaveBeenCalled();
+    });
+
+    it('updateProfile CLIENT uchun token beradi', async () => {
+      deps.prisma.user.update.mockResolvedValue(clientRow);
+
+      const session = await service.updateProfile('c-1', { name: 'Yangi' });
+
+      expect(session.token).toBe('signed.jwt.token');
     });
   });
 

@@ -3,8 +3,9 @@ export const BACKEND_URL = (process.env.BACKEND_URL ?? 'http://localhost:3000/ap
 
 export const TOKEN_COOKIE = 'ustatop_admin_token';
 
-// JWT backend'da 30 kun yashaydi, panel cookie'si esa qisqaroq: admin sessiyasi 7 kundan oshmasin.
-export const TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+// Admin JWT backend'da 12 soat yashaydi (`ADMIN_TOKEN_TTL_SECONDS`, apps/backend auth.service.ts) va yangilanmaydi —
+// cookie muddati aynan shu son bilan bir xil bo'lishi shart.
+export const TOKEN_COOKIE_MAX_AGE = 60 * 60 * 12;
 
 export function tokenCookieOptions() {
   return {
