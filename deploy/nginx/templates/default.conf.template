@@ -71,6 +71,10 @@ server {
         proxy_hide_header x-amz-request-id;
         proxy_hide_header x-amz-id-2;
         expires 30d;
+        # Foydalanuvchi yuklagan fayllar brauzerda boshqa turdagi kontent sifatida talqin qilinmasin.
+        # DIQQAT: location ichida add_header bo'lsa server darajasidagi (HSTS) meros bo'lmaydi — shuning uchun HSTS ham shu yerda.
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
 
     # Admin panel (Next.js).
