@@ -16,25 +16,126 @@ Fayllar: `docker-compose.prod.yml`, `apps/backend/Dockerfile`, `apps/web/Dockerf
 
 ## 0. Deploy'dan oldin hal qilinishi kerak
 
-- **SMS hali mock.** `SMS_MODE=mock` da OTP doim `123456` — istalgan mijoz/usta raqami nomidan kirish mumkin (admin panelga emas: u faqat login + parol bilan ochiladi). Backend production'da mock bilan **ishga tushmaydi**; yopiq sinov uchun `ALLOW_MOCK_SMS_IN_PRODUCTION=true` qo'yiladi. Ommaga ochishdan oldin haqiqiy SMS provider (Eskiz.uz) ulanishi shart.
+- **SMS hali mock.** `SMS_MODE=mock` da OTP doim `123456` — shuning uchun production'da backend mock bilan **ishga tushmaydi**, agar quyidagilar bo'lmasa (yopiq sinov):
+  - `SMS_MODE=mock` va `ALLOW_MOCK_SMS_IN_PRODUCTION=true`;
+  - `MOCK_SMS_ALLOWED_PHONES` — OTP beriladigan raqamlar ro'yxati: vergul bilan ajratilgan, `+998901234567,+998901234568` (probelli `+998 90 123 45 67`, `998901234567` va 9 xonali variantlar ham qabul qilinadi). Ro'yxatda **yo'q** raqamga `send-otp` va `verify-otp` `403` qaytaradi ("Yopiq sinov: bu raqam bilan kirish hali ochilmagan"); mobil ilova bu xabarni Alert'da ko'rsatadi. Ro'yxat **bo'sh** yoki noto'g'ri raqamli bo'lsa backend ishga tushmaydi (8-band). Ro'yxat bo'lmasa `123456` bilan istalgan egasiz akkauntni egallash mumkin bo'lardi.
+  - `SMS_MODE` faqat `mock` bo'lishi mumkin (haqiqiy provider ulanmaguncha — `TASKS.md` B-01): `eskiz` kabi boshqa qiymatda production'da backend ishga tushmaydi. Admin panelga bu ta'sir qilmaydi (u faqat login + parol bilan ochiladi).
+  - Ro'yxatni o'zgartirish: `.env.production` → `dc up -d backend` (**qayta ishga tushirish shart** — env faqat start'da o'qiladi).
+  - Ommaga ochishdan oldin haqiqiy SMS provider (Eskiz.uz) ulanishi shart.
 - **Mobil ilova manzili**: ilova `https://<domen>/api/v1` ga murojaat qilishi kerak.
 - Push: Firebase kalitlari bo'lmasa `PUSH_PROVIDER=log` qoladi (bildirishnomalar yuborilmaydi).
 - **Fayl ombori — Garage** (2026-10-16 dan, MinIO o'rniga — uning ommaviy image'lari endi yo'q). `garage-init` har `up`da layout, S3 kalit, bucket va public o'qishni idempotent sozlaydi (`deploy/garage/init.sh`).
 
 ## 1. VPS'ni tayyorlash (bir marta)
 
-1. Ubuntu 22.04/24.04, kamida 2 vCPU / 4 GB RAM (image build shu serverda bajariladi).
+1. Ubuntu 22.04/24.04, **4–8 GB RAM**, kamida 2 vCPU (image build shu serverda bajariladi). Quyidagi xotira limitlari (5-qadam) shu hajmga hisoblangan.
 2. DNS: domen uchun `A` yozuvi VPS IP'siga.
-3. Docker Engine + Compose plugin: <https://docs.docker.com/engine/install/ubuntu/>
-4. Firewall:
-   ```bash
-   sudo ufw allow OpenSSH && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw enable
-   ```
-5. Kod:
+3. Docker Engine + Compose plugin: <https://docs.docker.com/engine/install/ubuntu/>. **Oddiy (root) Docker** ishlating, rootless emas: postgres uchun `oom_score_adj: -500` (5-qadam) rootless rejimda ishlamaydi. `sudo usermod -aG docker $USER` va qayta kiring.
+4. **Host'ni qattiqlashtirish** — quyidagi "Host hardening" bo'limi (SSH, ufw, avtomatik yangilanish, fail2ban, swap). Docker o'rnatilgandan keyin, lekin kodni olishdan oldin bajaring.
+5. **Konteyner xotira limitlari** `docker-compose.prod.yml`da berilgan (4–8 GB VPS uchun; jami ≈ 3.3 GB, qolgani host'dagi image build va OS uchun, swap bilan):
+
+   | Servis | `mem_limit` |
+   |---|---|
+   | backend va migrate (`x-backend`) | 768m |
+   | web | 512m |
+   | postgres | 1g (+ `oom_score_adj: -500`) |
+   | redis | 256m |
+   | garage | 512m |
+
+   nginx, certbot, garage-init — limitsiz (kichik). Nima uchun: bitta konteynerdagi xotira oqishi butun serverni (SSH'ni ham) yiqitmasin; limitdan oshgan konteyner o'zi qayta ishga tushadi. Host xotirasi to'liq tugasa, OOM-killer postgres'ni **oxirgi** navbatda tanlaydi (`oom_score_adj: -500`) — ma'lumotlar bazasi eng qimmat. Limit ostida `dc ps` yoki `docker stats --no-stream` bilan real sarfni kuzating; backend tez-tez "OOMKilled" bilan qayta ishga tushsa (`docker inspect --format '{{.State.OOMKilled}}' <konteyner>`) limitni oshiring.
+6. **Kodni olish** — deploy key bilan (quyida) yoki HTTPS bilan:
    ```bash
    sudo mkdir -p /opt/ustatop && sudo chown $USER /opt/ustatop
    git clone git@github.com:DEW0277/ustatop-backend.git /opt/ustatop && cd /opt/ustatop
    ```
+
+### Deploy key (VPS -> GitHub, faqat o'qish)
+
+Repo private, shuning uchun VPS'ga o'z kaliti kerak. Shaxsiy SSH kalitingizni serverga **qo'ymang** — repo bo'yicha read-only deploy key yetarli.
+
+```bash
+# VPS'da: parolsiz ed25519 kalit (server o'zi git pull qiladi)
+ssh-keygen -t ed25519 -C "ustatop-vps-deploy" -f ~/.ssh/ustatop_deploy -N ""
+cat >> ~/.ssh/config <<'EOF'
+Host github.com
+  IdentityFile ~/.ssh/ustatop_deploy
+  IdentitiesOnly yes
+EOF
+chmod 600 ~/.ssh/config
+cat ~/.ssh/ustatop_deploy.pub
+```
+
+Ochiq kalitni GitHub'ga qo'shing (yozish huquqisiz — `--allow-write` bermang):
+
+- brauzerda: repo -> Settings -> **Deploy keys** -> Add deploy key (**"Allow write access" belgilanmasin**); yoki
+- `gh` o'rnatilgan mashinadan (VPS'da emas): `gh repo deploy-key add ustatop_deploy.pub --repo DEW0277/ustatop-backend --title "contabo-vps"` (standart — faqat o'qish).
+
+```bash
+# GitHub host kaliti birinchi ulanishda so'raladi: ko'rsatilgan fingerprint'ni
+# https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints bilan solishtirib "yes" deng
+ssh -T git@github.com
+# "Hi DEW0277/ustatop-backend! You've successfully authenticated, but GitHub does not provide shell access." chiqishi kerak
+```
+
+**HTTPS muqobili:** GitHub'da faqat shu repo uchun fine-grained token (Repository permissions -> Contents: **Read-only**, muddati cheklangan) yarating, so'ng `git config --global credential.helper store && git clone https://github.com/DEW0277/ustatop-backend.git /opt/ustatop` — parol so'ralganda token'ni kiriting (`~/.git-credentials`da saqlanadi, `chmod 600`). Token tugasa `git pull` xato beradi — yangisini yaratib `~/.git-credentials`ni yangilang.
+
+### Host hardening (Ubuntu 24.04)
+
+**SSH parol bilan kirishni yopish.** Avval kalit bilan kirish ishlayotganiga ishonch hosil qiling. Joriy sessiyani **yopmang**.
+
+```bash
+# Drop-in fayl nomi 00- bilan boshlansin: sshd birinchi uchragan qiymatni oladi, cloud-init'ning
+# 50-cloud-init.conf'i (PasswordAuthentication yes) esa keyin o'qiladi.
+sudo tee /etc/ssh/sshd_config.d/00-hardening.conf >/dev/null <<'EOF'
+PasswordAuthentication no
+PermitRootLogin prohibit-password
+EOF
+sudo sshd -t && sudo systemctl reload ssh      # sshd -t xato bersa reload QILMANG
+sudo sshd -T | grep -iE '^(passwordauthentication|permitrootlogin)'
+```
+
+> **Ogohlantirish:** reload'dan keyin **ikkinchi terminal/ikkinchi SSH sessiyada** kalit bilan yangidan kirib ko'ring. Kira olmasangiz, birinchi (ochiq) sessiyada `/etc/ssh/sshd_config.d/00-hardening.conf`ni o'chirib `sudo systemctl reload ssh` qiling. Aks holda serverga kirish yo'qoladi (faqat provayder konsoli qoladi).
+
+**Firewall (ufw):**
+
+```bash
+sudo ufw allow OpenSSH && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw enable
+sudo ufw status verbose
+```
+
+Diqqat: Docker `ports:` bilan **publish qilingan** portlarni `iptables` orqali to'g'ridan-to'g'ri ochadi va **ufw'ni chetlab o'tadi**. Shuning uchun `docker-compose.prod.yml`da faqat nginx (80/443) `ports:` ishlatadi; postgres, redis, garage, backend, web'ga hech qachon `ports:` qo'shmang — ufw ularni yopib qo'ymaydi.
+
+**Avtomatik xavfsizlik yangilanishlari:**
+
+```bash
+sudo apt-get update && sudo apt-get install -y unattended-upgrades
+sudo dpkg-reconfigure -plow unattended-upgrades      # "Yes"
+systemctl status unattended-upgrades --no-pager | head -5
+```
+
+**fail2ban (SSH brute-force):**
+
+```bash
+sudo apt-get install -y fail2ban
+sudo tee /etc/fail2ban/jail.d/sshd.local >/dev/null <<'EOF'
+[sshd]
+enabled = true
+backend = systemd
+maxretry = 5
+bantime = 1h
+EOF
+sudo systemctl enable --now fail2ban && sudo systemctl restart fail2ban
+sudo fail2ban-client status sshd
+```
+
+**Swap fayl** (image build va xotira cho'qqilari uchun; Contabo'da odatda swap yo'q):
+
+```bash
+sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+free -h && swapon --show
+```
 
 ## 2. Sozlash
 
@@ -43,7 +144,7 @@ cp .env.production.example .env.production && chmod 600 .env.production
 nano .env.production
 ```
 
-Majburiy: `DOMAIN`, `POSTGRES_PASSWORD`, `S3_ACCESS_KEY` (`echo GK$(openssl rand -hex 12)`), `S3_SECRET_KEY`, `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN` (har biri `openssl rand -hex 32`), `JWT_SECRET` (`openssl rand -hex 32`), `ADMIN_LOGIN`, `ADMIN_PASSWORD` (kamida 12 belgi, `openssl rand -base64 18`), `ADMIN_PHONE`, va SMS bo'yicha qaror (0-band).
+Majburiy: `DOMAIN`, `POSTGRES_PASSWORD`, `S3_ACCESS_KEY` (`echo GK$(openssl rand -hex 12)`), `S3_SECRET_KEY`, `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN` (har biri `openssl rand -hex 32`), `JWT_SECRET` (`openssl rand -hex 32`), `ADMIN_LOGIN`, `ADMIN_PASSWORD` (kamida 12 belgi, `openssl rand -base64 18`), `ADMIN_PHONE`, va SMS bo'yicha qaror (0-band): yopiq sinov uchun `SMS_MODE=mock`, `ALLOW_MOCK_SMS_IN_PRODUCTION=true` va **`MOCK_SMS_ALLOWED_PHONES=+998901234567,+998901234568`** (sinovchilar raqamlari; ro'yxatda yo'q raqam `403` oladi, ro'yxat bo'sh bo'lsa backend ishga tushmaydi; o'zgartirgach `dc up -d backend`). `SMS_MODE`ga `mock`dan boshqa qiymat bermang — haqiqiy provider hali ulanmagan (`TASKS.md` B-01).
 
 ## 3. Birinchi ishga tushirish
 
@@ -53,14 +154,17 @@ dc build
 
 # 2) TLS sertifikat (nginx sertifikatsiz ishga tushmaydi, shuning uchun birinchi marta standalone rejimda;
 #    80-port bo'sh bo'lishi kerak)
+#    DOMAIN qiymati qo'shtirnoqli ("..." yoki '...') yoki CRLF bilan yozilgan bo'lsa ham to'g'ri olinadi.
+DOMAIN=$(sed -n 's/^DOMAIN=//p' .env.production | head -n 1 | tr -d "\"'\r")
 dc run --rm -p 80:80 --entrypoint certbot certbot certonly --standalone \
-  -d "$(grep '^DOMAIN=' .env.production | cut -d= -f2)" --agree-tos -m admin@example.uz --no-eff-email
+  -d "$DOMAIN" --agree-tos -m <EMAIL> --no-eff-email       # <EMAIL> — o'zingizning haqiqiy pochtangiz (sertifikat muddati haqidagi ogohlantirishlar shu yerga keladi)
 
 # 3) Hammasini ko'tarish (migratsiyalar `migrate` servisi orqali avtomatik qo'llanadi)
 dc up -d
 
-# 4) Boshlang'ich ma'lumot: viloyat/tuman/kategoriyalar + ADMIN_LOGIN/ADMIN_PASSWORD bo'yicha birinchi admin.
-#    Admin parolini almashtirish: .env.production'da ADMIN_PASSWORD'ni o'zgartirib shu buyruqni qayta ishga tushiring.
+# 4) Boshlang'ich ma'lumot: viloyat/tuman/kategoriyalar (FAQAT bo'sh bazada yaratiladi, mavjudlariga tegmaydi)
+#    + ADMIN_LOGIN/ADMIN_PASSWORD bo'yicha birinchi admin. Logda "Reference data: regions+districts created, categories created"
+#    chiqishi kerak (qayta ishga tushirilsa "skipped"). Admin parolini almashtirish: 10-band.
 dc run --rm backend node_modules/.bin/tsx prisma/seed.ts
 ```
 
@@ -70,6 +174,11 @@ Tekshirish:
 dc ps                                            # hammasi "healthy", migrate — "exited (0)"
 curl -fsS https://<domen>/api/v1/regions | head -c 200
 curl -I https://<domen>/login                     # 200
+curl -sI https://<domen>/login | grep -iE '^(x-frame-options|content-security-policy|x-content-type-options|referrer-policy)'   # 4 ta sarlavha
+curl -sI https://<domen>/uploads/ | grep -iE '^(x-content-type-options|strict-transport-security)'   # fayl bo'lmasa 404, lekin sarlavhalar bor
+
+# Sertifikat yangilanishi ishlashini oldindan tekshirish (haqiqiy sertifikatga tegmaydi):
+dc run --rm --entrypoint certbot certbot renew --webroot -w /var/www/certbot --dry-run
 ```
 
 ## 4. Yangilash
@@ -194,7 +303,8 @@ Loglar konteyner boshiga 5×10 MB bilan cheklangan.
 
 | Belgi | Sabab |
 |---|---|
-| backend qayta-qayta o'chadi, logda "Production konfiguratsiyasi xavfsiz emas" | `JWT_SECRET` qisqa, `SMS_MODE=mock` ruxsatsiz yoki `CORS_ORIGINS` bo'sh |
+| backend qayta-qayta o'chadi, logda "Production konfiguratsiyasi xavfsiz emas" | `JWT_SECRET` qisqa; `SMS_MODE=mock` `ALLOW_MOCK_SMS_IN_PRODUCTION=true`siz; `MOCK_SMS_ALLOWED_PHONES` bo'sh yoki noto'g'ri raqamli (xabarda qaysi element ekani ko'rsatiladi); `SMS_MODE=<mock'dan boshqa>` ("hali qo'llab-quvvatlanmaydi"); `CORS_ORIGINS` bo'sh |
+| Mobil ilovada kirishda `403` "Yopiq sinov: bu raqam bilan kirish hali ochilmagan" | Raqam `MOCK_SMS_ALLOWED_PHONES` ro'yxatida yo'q: ro'yxatga qo'shing va `dc up -d backend` |
 | nginx ishga tushmaydi: `cannot load certificate` | 3-banddagi sertifikat qadami bajarilmagan yoki `DOMAIN` boshqa |
 | Admin panelda kirishda 403 "Ruxsat etilmagan so'rov manbai" | Panel boshqa domendan ochilgan — faqat `https://<DOMAIN>` |
 | Rasmlar ochilmaydi | `dc logs garage-init` ("Garage tayyor" bo'lishi kerak); `S3_BUCKET` nginx, backend va garage-init'da bir xil bo'lishi kerak |
@@ -212,13 +322,13 @@ Har qanday hodisada birinchi qadam: `dc ps` (qaysi servis `unhealthy`/`exited`) 
 | Rasmlar ochilmaydi / yuklanmaydi | `dc logs garage`; `dc logs garage-init`; `dc logs backend \| grep -i "S3\|storage"` | Garage tushgan bo'lsa `dc up -d garage garage-init`. Disk to'lgan bo'lsa — yuqoridagi qator. |
 | Bazani tiklash kerak | `/opt/ustatop/deploy/backup/restore.sh --list` | Avval `backup.sh` (joriy holat), keyin `restore.sh --yes <set>` — 6-band ("Tiklash"). |
 | Admin panelga hech kim kira olmaydi | `dc logs backend \| grep admin/login` | Parolni unutgan — 10-band ("Parolni almashtirish"). "Juda ko'p xato urinish" (429) — 15 daqiqa kuting yoki `dc exec redis redis-cli DEL admin-login:attempts:<login>`. |
-| Shubhali faollik (begona admin sessiyasi va h.k.) | `dc logs backend` | Darhol: admin parolini almashtiring (10-band) va `JWT_SECRET`ni almashtiring (11-band) — barcha sessiyalar bekor bo'ladi. |
+| Shubhali faollik (begona admin sessiyasi va h.k.) | `dc logs backend` | Admin sessiyasi ko'pi bilan 12 soat amal qiladi va yangilanmaydi. Darhol: admin parolini almashtiring (10-band) va zudlik bo'lsa `JWT_SECRET`ni almashtiring (11-band) — barcha sessiyalar bekor bo'ladi. |
 
 ## 10. Adminlarni boshqarish
 
 Admin panelga faqat `login` + parol bilan kiriladi (`users.login`, `users.passwordHash`, rol `ADMIN`). Parol `scrypt` bilan xeshlanadi — bazaga hech qachon ochiq parol yozmang.
 
-**Birinchi admin / asosiy admin paroli** — `.env.production`dagi `ADMIN_LOGIN`, `ADMIN_PASSWORD`, `ADMIN_PHONE` va seed (3-band, 4-qadam). **Parolni almashtirish**: odatda admin panelning o'zida — **Sozlamalar** sahifasi (joriy parol kerak). Parol unutilgan bo'lsa: `ADMIN_PASSWORD`ni o'zgartiring va seed'ni qayta ishga tushiring — boshqa ma'lumotlarga tegmaydi. Diqqat: seed har ishga tushganda asosiy admin parolini `.env.production`dagi qiymatga qaytaradi — paneldan almashtirgach `ADMIN_PASSWORD`ni ham yangilang yoki seed'ni qayta ishlatmang.
+**Birinchi admin / asosiy admin paroli** — `.env.production`dagi `ADMIN_LOGIN`, `ADMIN_PASSWORD`, `ADMIN_PHONE` va seed (3-band, 4-qadam). **Parolni almashtirish**: odatda admin panelning o'zida — **Sozlamalar** sahifasi (joriy parol kerak). Parol unutilgan bo'lsa: `ADMIN_PASSWORD`ni o'zgartiring va seed'ni qayta ishga tushiring. Seed mavjud viloyat/tuman/kategoriyalarni **o'zgartirmaydi** (ular faqat bo'sh bazada yaratiladi; admin panelda tahrirlaganingiz saqlanadi), lekin asosiy adminning parol, login, rol va blok holatini har safar `.env.production`dagi qiymatga qaytaradi — paneldan parol almashtirgach `ADMIN_PASSWORD`ni ham yangilang yoki seed'ni qayta ishlatmang.
 
 **Qo'shimcha admin** (panelda hali bunday sahifa yo'q — `TASKS.md` C-06):
 
@@ -252,7 +362,7 @@ Har almashtirishdan keyin: `chmod 600 .env.production`, eski qiymatni hech qayer
 | Sir | Qanday | Ta'siri |
 |---|---|---|
 | `JWT_SECRET` | `openssl rand -hex 32` → `.env.production` → `dc up -d backend` | **Barcha** sessiyalar (mobil foydalanuvchilar ham, adminlar ham) bekor bo'ladi — hamma qayta kiradi. |
-| `ADMIN_PASSWORD` | 10-band | Faqat shu adminning keyingi kirishi. Mavjud sessiyasi tugamaguncha amal qiladi — zudlik bo'lsa `JWT_SECRET`ni ham almashtiring. |
+| `ADMIN_PASSWORD` | 10-band | Faqat shu adminning keyingi kirishi. Mavjud sessiyasi ko'pi bilan 12 soat amal qiladi (admin tokeni yangilanmaydi) — zudlik bo'lsa `JWT_SECRET`ni ham almashtiring. |
 | `S3_SECRET_KEY` (Garage kaliti) | Yangi juftlik: `S3_ACCESS_KEY=GK$(openssl rand -hex 12)`, `S3_SECRET_KEY=$(openssl rand -hex 32)` → `.env.production` → `dc up -d garage-init backend` (init yangi kalitni import qilib bucket'ga ruxsat beradi). Eski kalitni o'chirish: `dc exec garage /garage key delete --yes <eski GK...>` | Fayllar saqlanib qoladi; qisqa vaqt yuklash ishlamaydi. |
 | `POSTGRES_PASSWORD` | Env faqat birinchi ishga tushirishda qo'llanadi: avval `dc exec postgres sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB" -c "ALTER USER \"$POSTGRES_USER\" PASSWORD '"'"'yangi-parol'"'"';"'`, keyin `.env.production` → `dc up -d migrate backend` | Backend qisqa vaqt qayta ulanadi. |
 | `SMS_PROVIDER_API_KEY` / Eskiz | `.env.production` → `dc up -d backend` | Almashtirish paytida SMS yuborilmaydi. |
