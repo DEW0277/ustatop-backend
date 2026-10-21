@@ -193,7 +193,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - 2026-10-19 da aniqlandi: `pnpm audit --prod` 22 ta zaiflik (2 critical, 10 high) — E-07 talab qiladigan 0 dan orqaga ketgan, CI audit ishlatmagani uchun sezilmagan. Eng og'irlari: `next` 16.3.5 (Image Optimization SSRF, self-hosted kesh zaharlash; `next/og` RCE — ilovada `next/og` ishlatilmaydi), `proxy-addr` (Express `trust proxy` ortida IP spoofing).
   - Qilindi: `next`/`eslint-config-next` 16.3.8; `shadcn` web'da devDependency'ga o'tkazildi (faqat CLI va build vaqtidagi CSS); ichki versiyalar `pnpm-workspace.yaml` `overrides` bilan (har biri izohli); tuzatilgan versiyasi chiqmagan bitta dev-only advisory (`braces`, GHSA-vfj7-8cjw-p6xm) `auditConfig.ignoreGhsas`da sababi bilan; CI'ga `pnpm audit` qadami qo'shildi.
   - Tayyor mezoni: `pnpm audit` va `pnpm audit --prod` 0 (ignore'siz sinovda 1 bilan yiqiladi), CI'da audit qadami yashil, lint/typecheck/test/build/e2e/Docker build o'tadi.
-- [x] **E-12 · Deploy oldidan audit tuzatishlari** — Claude — ✅ Bajarildi (2026-10-22, PR #__PR__)
+- [x] **E-12 · Deploy oldidan audit tuzatishlari** — Claude — ✅ Bajarildi (2026-10-22, PR #49)
   - 1. Admin panel → backend so'rovlarida haqiqiy mijoz IP'si (`X-Forwarded-For`, nginx `X-Real-IP` dan) — rate limit va admin-login bloki mijozlar bo'yicha alohida.
   - 2. Production'da mock OTP faqat `MOCK_SMS_ALLOWED_PHONES` ro'yxatidagi raqamlarga (boshqasiga 403); `SMS_MODE≠mock` production'da rad etiladi.
   - 3. Seed viloyat/tuman/kategoriyalarni faqat bo'sh bazada yaratadi (admin tahrirlari qayta yozilmaydi, dublikat yo'q).
