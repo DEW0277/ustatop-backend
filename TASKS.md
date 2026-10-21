@@ -1,7 +1,7 @@
 # TASKS.md — UstaTop: 100% tugatishgacha qolgan ishlar
 
 > Loyihaning **yagona jonli vazifalar ro'yxati**. Arxitektura va qarorlar — [`docs/TZ.md`](docs/TZ.md), agent qoidalari — [`AGENTS.md`](AGENTS.md) / [`CLAUDE.md`](CLAUDE.md).
-> Holat sanasi: **2026-10-16** (`main` = `1be4f74`, PR #30 gacha merge qilingan, CI yashil).
+> Holat sanasi: **2026-10-22** (`main` = `3252b83`).
 
 ## Qanday ishlatiladi (barcha agentlar uchun majburiy)
 
@@ -24,9 +24,9 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | B. Backend | 4 | 8 |
 | C. Admin panel | 4 | 6 |
 | D. Mobil ilova integratsiyasi | 12 | 13 |
-| E. Deploy va operatsiya | 3 | 11 |
+| E. Deploy va operatsiya | 4 | 13 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **26** | **48** |
+| **Jami** | **27** | **50** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -162,6 +162,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Tayyor mezoni: Ubuntu 22.04/24.04 VPS (kamida 2 vCPU / 4 GB), domen `A` yozuvi, Claude uchun SSH kirish yoki foydalanuvchi buyruqlarni o'zi bajaradi.
 - [ ] **E-02 · Birinchi deploy (yopiq sinov)** — Claude + 👤
   - Bog'liqlik: E-01. `docs/DEPLOY.md` §1–3 bo'yicha, `ALLOW_MOCK_SMS_IN_PRODUCTION=true` bilan — **manzil ommaga e'lon qilinmaydi** (mock OTP bilan istalgan mijoz/usta raqami nomidan kirish mumkin; admin panel alohida — login + parol).
+  - 2026-10-22 (E-12): production'da mock OTP faqat `.env.production`dagi `MOCK_SMS_ALLOWED_PHONES` (vergul bilan ajratilgan `+998…` raqamlar) ro'yxatiga beriladi, ro'yxat bo'sh bo'lsa backend ishga tushmaydi — sinovchilar raqamlarini shu yerga yozing (`docs/DEPLOY.md` §0, §2); `SMS_MODE` faqat `mock`.
   - Tayyor mezoni: `dc ps` hammasi healthy, `https://<domen>/api/v1/regions` va `/login` ishlaydi, seed qo'llangan, admin panelga kirilgan.
 - [ ] **E-03 · Backup va sertifikat cron'lari** — Claude
   - Tayyor mezoni: kunlik `pg_dump` + Garage arxivi cron'da, **boshqa joyga** nusxa (rclone / obyekt saqlash), haftalik nginx reload; backup'dan tiklash bir marta amalda sinab ko'rilgan.
@@ -192,6 +193,31 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - 2026-10-19 da aniqlandi: `pnpm audit --prod` 22 ta zaiflik (2 critical, 10 high) — E-07 talab qiladigan 0 dan orqaga ketgan, CI audit ishlatmagani uchun sezilmagan. Eng og'irlari: `next` 16.3.5 (Image Optimization SSRF, self-hosted kesh zaharlash; `next/og` RCE — ilovada `next/og` ishlatilmaydi), `proxy-addr` (Express `trust proxy` ortida IP spoofing).
   - Qilindi: `next`/`eslint-config-next` 16.3.8; `shadcn` web'da devDependency'ga o'tkazildi (faqat CLI va build vaqtidagi CSS); ichki versiyalar `pnpm-workspace.yaml` `overrides` bilan (har biri izohli); tuzatilgan versiyasi chiqmagan bitta dev-only advisory (`braces`, GHSA-vfj7-8cjw-p6xm) `auditConfig.ignoreGhsas`da sababi bilan; CI'ga `pnpm audit` qadami qo'shildi.
   - Tayyor mezoni: `pnpm audit` va `pnpm audit --prod` 0 (ignore'siz sinovda 1 bilan yiqiladi), CI'da audit qadami yashil, lint/typecheck/test/build/e2e/Docker build o'tadi.
+- [x] **E-12 · Deploy oldidan audit tuzatishlari** — Claude — ✅ Bajarildi (2026-10-22, PR #__PR__)
+  - 1. Admin panel → backend so'rovlarida haqiqiy mijoz IP'si (`X-Forwarded-For`, nginx `X-Real-IP` dan) — rate limit va admin-login bloki mijozlar bo'yicha alohida.
+  - 2. Production'da mock OTP faqat `MOCK_SMS_ALLOWED_PHONES` ro'yxatidagi raqamlarga (boshqasiga 403); `SMS_MODE≠mock` production'da rad etiladi.
+  - 3. Seed viloyat/tuman/kategoriyalarni faqat bo'sh bazada yaratadi (admin tahrirlari qayta yozilmaydi, dublikat yo'q).
+  - 4. Avatar va portfolio URL'i faqat o'z omborimizniki (`POST /upload/single` natijasi), portfolio ≤ 20 ta.
+  - 5. Admin JWT 12 soat; `GET /auth/me` / `PUT /auth/profile` ADMIN uchun yangi token bermaydi (sessiya yangilanmaydi); panel cookie 12 soat.
+  - 6. Panel xavfsizlik sarlavhalari (`X-Frame-Options`, `frame-ancestors` CSP, `nosniff`, `Referrer-Policy`) va nginx `/uploads` `nosniff`.
+  - 7. `safeNextPath` boshqaruv belgilari/backslash orqali open redirect'ga qarshi.
+  - 8. `docs/DEPLOY.md`: deploy key, host hardening (SSH, ufw, fail2ban, swap), `<EMAIL>`/DOMAIN snippet, certbot dry-run; konteyner xotira limitlari.
+  - ⚠️ Mobil: avatar/portfolio faqat yuklangan URL (ilova allaqachon shunday), yopiq sinovda ro'yxatda yo'q raqamga 403.
+- [ ] **E-13 · Audit'dan qoldirilgan ishlar** — Claude
+  - Bog'liqlik: E-02 dan keyin, F-06 dan oldin.
+  - Qoldirilgan bandlar:
+    - Token revocation (`tokenVersion`, schema o'zgarishi).
+    - OTP uchun telefon bo'yicha kunlik limit; `POST /orders` throttle.
+    - Yangi Prisma indekslar; `page` uchun `@Max`; admin DTO'larda `MaxLength`/slug formati.
+    - Health check'da DB/Redis tekshiruvi.
+    - Push logida va Prisma xato logida shaxsiy ma'lumot (PII).
+    - Dockerfile: corepack versiyasini pin qilish, kod fayllari root egaligida.
+    - `env_file` minimal huquq (har servisga faqat kerakli o'zgaruvchilar).
+    - nginx: `default_server`, gzip, `limit_req`, certbot image pin.
+    - `error.tsx` / `not-found.tsx`; admin layout redirect'ida `?next=`; `public/` dagi qolgan SVG'lar.
+    - Admin-login bloki login nomi bo'yicha (5 xato → 15 daqiqa): login nomini bilgan begona odam adminni 15 daqiqaga bloklashi mumkin.
+    - Nonce asosidagi CSP (`script-src`/`default-src`) panel uchun.
+  - Tayyor mezoni: har bir band alohida baholanib bajarilgan yoki sababi bilan bekor qilingan.
 
 ## F. Reliz
 
