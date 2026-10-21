@@ -27,6 +27,10 @@ overrides:
   "brace-expansion@>=5 <6": "^5.0.12"
   # dev tooling only (shadcn CLI)
   "@modelcontextprotocol/sdk": "^1.31.0"
+  # 2026-10-22 (E-12, PR #49): dev tooling only — shadcn > @modelcontextprotocol/sdk > hono (GHSA-5r4p-p66f-jhc7).
+  # (vite 8.3.0–8.3.2 was fixed by a direct `vite` devDependency in backend and web: it is a vitest peer,
+  # and overrides do not change auto-installed peers.)
+  "hono@>=4.12.4 <4.13.11": "^4.13.11"
 allowBuilds:
   '@firebase/util': true
   '@prisma/client': true
@@ -43,3 +47,5 @@ auditConfig:
     # Dev tooling only — eslint-config-next and the shadcn CLI glob local files; nothing in the
     # production images. Remove when braces ships a fix (re-check: `pnpm audit`).
     - GHSA-vfj7-8cjw-p6xm
+minimumReleaseAgeExclude:
+  - vite@8.3.5
