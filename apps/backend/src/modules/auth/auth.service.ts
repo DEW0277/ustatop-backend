@@ -16,6 +16,7 @@ import { hashPassword, verifyPassword } from '../../common/crypto/password.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { REDIS_CLIENT } from '../../common/redis/redis.constants.js';
 import { FileCleanupService } from '../upload/file-cleanup.service.js';
+import { StorageService } from '../upload/storage.service.js';
 import type { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { SmsProvider } from './sms/sms-provider.js';
 import type { UserSession } from './types/user-session.type.js';
@@ -67,6 +68,7 @@ export class AuthService {
     private readonly smsProvider: SmsProvider,
     configService: ConfigService,
     private readonly fileCleanup: FileCleanupService,
+    private readonly storage: StorageService,
   ) {
     this.otpTtlSeconds = Number(configService.get('OTP_TTL_SECONDS') ?? 120);
     const configuredLength = Number(configService.get('OTP_LENGTH') ?? MAX_OTP_LENGTH);
@@ -245,6 +247,12 @@ export class AuthService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<UserSession> {
+    // Avatar faqat `POST /upload/single` qaytargan (o'z omborimiz) URL bo'lishi mumkin; bazaga yozishdan oldin tekshiriladi.
+    if (dto.avatarUrl !== undefined && this.storage.keyFromPublicUrl(dto.avatarUrl) === null) {
+      const message = "avatarUrl faqat yuklangan rasm manzili bo'lishi kerak (POST /upload/single javobidagi url)";
+      throw new BadRequestException({ message, errors: { avatarUrl: [message] } });
+    }
+
     const previousAvatar =
       dto.avatarUrl !== undefined
         ? (await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { avatarUrl: true } })).avatarUrl

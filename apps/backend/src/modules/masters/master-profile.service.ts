@@ -8,6 +8,7 @@ import {
 import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { FileCleanupService } from '../upload/file-cleanup.service.js';
+import { StorageService } from '../upload/storage.service.js';
 import type { AddPortfolioDto } from './dto/add-portfolio.dto.js';
 import type { CreateServiceDto } from './dto/create-service.dto.js';
 import type { UpdateServiceDto } from './dto/update-service.dto.js';
@@ -23,11 +24,14 @@ export type AdminCreateMasterInput = Required<
     isVerified?: boolean;
   };
 
+const MAX_PORTFOLIO_IMAGES = 20;
+
 @Injectable()
 export class MasterProfileService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fileCleanup: FileCleanupService,
+    private readonly storage: StorageService,
   ) {}
 
   async getMine(userId: string) {
@@ -235,6 +239,20 @@ export class MasterProfileService {
 
   async addPortfolioImage(userId: string, dto: AddPortfolioDto) {
     const profile = await this.requireProfile(userId);
+
+    // Faqat `POST /upload/single` qaytargan (o'z omborimiz) URL — begona kontentni bizning domen nomidan ko'rsatmaymiz.
+    if (this.storage.keyFromPublicUrl(dto.url) === null) {
+      const message = "url faqat yuklangan rasm manzili bo'lishi kerak (POST /upload/single javobidagi url)";
+      throw new BadRequestException({ message, errors: { url: [message] } });
+    }
+
+    // Yumshoq cheklov (tranzaksiyasiz): bitta ustaning parallel so'rovlari 20 dan oshirib yuborishi mumkin.
+    const existing = await this.prisma.portfolioImage.count({ where: { masterId: profile.id } });
+
+    if (existing >= MAX_PORTFOLIO_IMAGES) {
+      const message = `Portfolio'da ko'pi bilan ${MAX_PORTFOLIO_IMAGES} ta rasm bo'lishi mumkin`;
+      throw new BadRequestException({ message, errors: { url: [message] } });
+    }
 
     const last = await this.prisma.portfolioImage.aggregate({
       where: { masterId: profile.id },

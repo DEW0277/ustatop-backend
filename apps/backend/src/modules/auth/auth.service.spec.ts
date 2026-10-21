@@ -28,8 +28,10 @@ function createDeps() {
   const smsProvider = { sendOtp: vi.fn() };
   const configService = { get: vi.fn().mockReturnValue(120) };
   const fileCleanup = { deleteIfUnreferenced: vi.fn() };
+  // O'z ombor URL'i: `http://s/` bilan boshlanadigan har narsa; qolgani — begona.
+  const storage = { keyFromPublicUrl: vi.fn((url: string) => (url.startsWith('http://s/') ? url.slice('http://s/'.length) : null)) };
 
-  return { prisma, redis, jwtService, smsProvider, configService, fileCleanup };
+  return { prisma, redis, jwtService, smsProvider, configService, fileCleanup, storage };
 }
 
 describe('AuthService', () => {
@@ -45,6 +47,7 @@ describe('AuthService', () => {
       deps.smsProvider as never,
       deps.configService as never,
       deps.fileCleanup as never,
+      deps.storage as never,
     );
   });
 
@@ -66,6 +69,7 @@ describe('AuthService', () => {
         deps.smsProvider as never,
         deps.configService as never,
         deps.fileCleanup as never,
+        deps.storage as never,
       );
       deps.redis.ttl.mockResolvedValue(-2);
 
@@ -95,6 +99,7 @@ describe('AuthService', () => {
         deps.smsProvider as never,
         deps.configService as never,
         deps.fileCleanup as never,
+        deps.storage as never,
       );
     };
     const PROD = { NODE_ENV: 'production', SMS_MODE: 'mock', MOCK_SMS_ALLOWED_PHONES: '+998901234567' };
@@ -327,6 +332,7 @@ describe('AuthService', () => {
         deps.smsProvider as never,
         deps.configService as never,
         deps.fileCleanup as never,
+        deps.storage as never,
       );
     const lifetime = (token: string) => {
       const payload = realJwt().decode(token) as { exp: number; iat: number };
@@ -493,6 +499,43 @@ describe('AuthService', () => {
       await service.updateProfile('user-1', { name: 'Ism' });
       expect(deps.prisma.user.findUniqueOrThrow).not.toHaveBeenCalled();
       expect(deps.fileCleanup.deleteIfUnreferenced).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateProfile (avatar URL egaligi)', () => {
+    const row = {
+      id: 'user-1',
+      phone: '+998901234567',
+      name: 'Ism',
+      role: 'CLIENT',
+      avatarUrl: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+
+    it("begona avatarUrl 400 (errors.avatarUrl); bazaga yozilmaydi, eski fayl tozalanmaydi", async () => {
+      await expect(service.updateProfile('user-1', { avatarUrl: 'https://evil.example/a.png' })).rejects.toMatchObject({
+        status: 400,
+        response: { errors: { avatarUrl: expect.any(Array) } },
+      });
+      expect(deps.prisma.user.update).not.toHaveBeenCalled();
+      expect(deps.fileCleanup.deleteIfUnreferenced).not.toHaveBeenCalled();
+    });
+
+    it("o'z ombor URL'i qabul qilinadi", async () => {
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue({ avatarUrl: null });
+      deps.prisma.user.update.mockResolvedValue({ ...row, avatarUrl: 'http://s/images/x.png' });
+
+      await service.updateProfile('user-1', { avatarUrl: 'http://s/images/x.png' });
+
+      expect(deps.prisma.user.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("faqat name berilsa keyFromPublicUrl chaqirilmaydi", async () => {
+      deps.prisma.user.update.mockResolvedValue(row);
+
+      await service.updateProfile('user-1', { name: 'Yangi' });
+
+      expect(deps.storage.keyFromPublicUrl).not.toHaveBeenCalled();
     });
   });
 

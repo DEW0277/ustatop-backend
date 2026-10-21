@@ -97,6 +97,26 @@ describe('StorageService', () => {
     });
   });
 
+  describe('publicUrlForKey', () => {
+    const uuid = '0b9f8c2e-4a8d-4c55-9a43-7e3c3f1a2b10';
+
+    it("keyFromPublicUrl bilan o'zaro teskari", () => {
+      const key = `images/${uuid}.webp`;
+
+      expect(storageService.publicUrlForKey(key)).toBe(`http://localhost:9000/ustatop-uploads/${key}`);
+      expect(storageService.keyFromPublicUrl(storageService.publicUrlForKey(key))).toBe(key);
+    });
+
+    it("uploadFile aynan publicUrlForKey qaytaradi (oxiridagi / ga qaramay)", async () => {
+      mockSend.mockResolvedValueOnce({});
+      const key = `images/${uuid}.jpg`;
+
+      const url = await storageService.uploadFile(key, Buffer.from([0xff]), 'image/jpeg');
+
+      expect(url).toBe(storageService.publicUrlForKey(key));
+    });
+  });
+
   describe('keyFromPublicUrl / deleteFile', () => {
     const uuid = '0b9f8c2e-4a8d-4c55-9a43-7e3c3f1a2b10';
 
