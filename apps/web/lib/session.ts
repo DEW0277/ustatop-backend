@@ -1,7 +1,8 @@
 import 'server-only';
 import { cache } from 'react';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { backendRequest } from './backend';
+import { clientIpFromHeaders } from './client-ip';
 import { TOKEN_COOKIE } from './config';
 import type { AdminUser } from './types';
 
@@ -18,7 +19,7 @@ export const getAdminUser = cache(async (): Promise<AdminUser | null> => {
     return null;
   }
 
-  const { status, body } = await backendRequest('/auth/me', { token });
+  const { status, body } = await backendRequest('/auth/me', { token, clientIp: clientIpFromHeaders(await headers()) });
   const data = (body as { data?: Partial<AdminUser> } | null)?.data;
 
   if (status !== 200 || !data || data.role !== 'admin' || !data.id) {

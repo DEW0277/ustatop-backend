@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { backendRequest } from '@/lib/backend';
+import { clientIpFromHeaders } from '@/lib/client-ip';
 import { tokenCookieOptions, TOKEN_COOKIE } from '@/lib/config';
 import { csrfError, failure } from '@/lib/route-utils';
 
@@ -18,7 +19,11 @@ export async function POST(request: NextRequest) {
   const body = await request.text();
   if (!body) return failure("So'rov tanasi bo'sh", 400);
 
-  const { status, body: payload } = await backendRequest('/auth/admin/login', { method: 'POST', body });
+  const { status, body: payload } = await backendRequest('/auth/admin/login', {
+    method: 'POST',
+    body,
+    clientIp: clientIpFromHeaders(request.headers),
+  });
 
   if (status < 200 || status >= 300) {
     return NextResponse.json(payload, { status });

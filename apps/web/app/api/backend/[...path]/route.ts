@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { backendRequest } from '@/lib/backend';
+import { clientIpFromHeaders } from '@/lib/client-ip';
 import { TOKEN_COOKIE } from '@/lib/config';
 import { isAllowedProxyPath } from '@/lib/request-guard';
 import { clearTokenCookie, csrfError, failure } from '@/lib/route-utils';
@@ -40,6 +41,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     token,
     search: request.nextUrl.search,
     body,
+    clientIp: clientIpFromHeaders(request.headers),
   });
 
   const response = NextResponse.json(payload, { status });
