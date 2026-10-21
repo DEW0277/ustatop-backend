@@ -1,5 +1,6 @@
 import { randomBytes, scryptSync } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
+import { seedReferenceData } from './seed-reference.js';
 
 const prisma = new PrismaClient();
 
@@ -327,55 +328,9 @@ const categories = [
 ];
 
 async function main() {
-  console.log('Seeding regions and districts for all 14 regions...');
-
-  for (const regionData of regions) {
-    const region = await prisma.region.upsert({
-      where: { code: regionData.code },
-      update: {
-        nameUz: regionData.nameUz,
-        nameRu: regionData.nameRu,
-      },
-      create: regionData,
-    });
-
-    const districts = districtsByRegionCode[regionData.code] ?? [];
-    for (const district of districts) {
-      const existing = await prisma.district.findFirst({
-        where: { regionId: region.id, nameUz: district.nameUz },
-      });
-
-      if (!existing) {
-        await prisma.district.create({
-          data: {
-            ...district,
-            regionId: region.id,
-          },
-        });
-      } else {
-        await prisma.district.update({
-          where: { id: existing.id },
-          data: {
-            nameRu: district.nameRu,
-          },
-        });
-      }
-    }
-  }
-
-  console.log('Seeding categories...');
-  for (const category of categories) {
-    await prisma.category.upsert({
-      where: { slug: category.slug },
-      update: {
-        nameUz: category.nameUz,
-        nameRu: category.nameRu,
-        icon: category.icon,
-        description: category.description,
-      },
-      create: category,
-    });
-  }
+  // Ma'lumotnomalar faqat bo'sh bazada yaratiladi (prisma/seed-reference.ts) — admin tahrirlari saqlanadi.
+  const reference = await seedReferenceData(prisma, { regions, districtsByRegionCode, categories });
+  console.log(`Reference data: regions+districts ${reference.regions}, categories ${reference.categories}.`);
 
   // ADMIN rolini ochiq ro'yxatdan o'tish orqali olib bo'lmaydi (docs/TZ.md §4.1) — faqat shu yerda beriladi.
   // Admin panelga ADMIN_LOGIN + ADMIN_PASSWORD bilan kiradi; ADMIN_PHONE — akkauntning (majburiy, unikal)
@@ -412,7 +367,7 @@ async function main() {
     });
   }
 
-  console.log('Seed complete for all regions, districts, and categories.');
+  console.log('Seed complete.');
 }
 
 main()
