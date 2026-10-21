@@ -4,7 +4,9 @@ import { assertProductionConfig, findProductionConfigErrors, parseTrustProxy } f
 const SAFE = {
   NODE_ENV: 'production',
   JWT_SECRET: 'a'.repeat(64),
-  SMS_MODE: 'eskiz',
+  SMS_MODE: 'mock',
+  ALLOW_MOCK_SMS_IN_PRODUCTION: 'true',
+  MOCK_SMS_ALLOWED_PHONES: '+998901234567, +998 90 123 45 68',
   CORS_ORIGINS: 'https://admin.example.uz',
 };
 
@@ -23,13 +25,38 @@ describe('findProductionConfigErrors', () => {
   });
 
   it("mock SMS production'da rad etiladi — SMS_MODE berilmagan holatda ham", () => {
-    expect(findProductionConfigErrors({ ...SAFE, SMS_MODE: 'mock' })[0]).toMatch(/SMS_MODE=mock/);
-    expect(findProductionConfigErrors({ ...SAFE, SMS_MODE: undefined })[0]).toMatch(/SMS_MODE=mock/);
+    expect(findProductionConfigErrors({ ...SAFE, ALLOW_MOCK_SMS_IN_PRODUCTION: undefined })[0]).toMatch(/SMS_MODE=mock/);
+    expect(
+      findProductionConfigErrors({ ...SAFE, SMS_MODE: undefined, ALLOW_MOCK_SMS_IN_PRODUCTION: undefined })[0],
+    ).toMatch(/SMS_MODE=mock/);
   });
 
   it("mock SMS faqat aniq ALLOW_MOCK_SMS_IN_PRODUCTION=true bilan o'tadi", () => {
-    expect(findProductionConfigErrors({ ...SAFE, SMS_MODE: 'mock', ALLOW_MOCK_SMS_IN_PRODUCTION: 'true' })).toEqual([]);
-    expect(findProductionConfigErrors({ ...SAFE, SMS_MODE: 'mock', ALLOW_MOCK_SMS_IN_PRODUCTION: '1' })).toHaveLength(1);
+    expect(findProductionConfigErrors(SAFE)).toEqual([]);
+    expect(findProductionConfigErrors({ ...SAFE, ALLOW_MOCK_SMS_IN_PRODUCTION: '1' })).toHaveLength(1);
+  });
+
+  it.each([undefined, '', ' , '])("mock SMS ruxsat berilgan, lekin MOCK_SMS_ALLOWED_PHONES bo'sh (%j) — rad etiladi", (phones) => {
+    const errors = findProductionConfigErrors({ ...SAFE, MOCK_SMS_ALLOWED_PHONES: phones });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/MOCK_SMS_ALLOWED_PHONES/);
+  });
+
+  it("MOCK_SMS_ALLOWED_PHONES da noto'g'ri element bo'lsa rad etiladi va u xabarda ko'rsatiladi", () => {
+    const errors = findProductionConfigErrors({ ...SAFE, MOCK_SMS_ALLOWED_PHONES: '+998901234567,abc' });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/MOCK_SMS_ALLOWED_PHONES/);
+    expect(errors[0]).toContain('abc');
+  });
+
+  it("production'da SMS_MODE=mock'dan boshqa bo'lsa rad etiladi (haqiqiy provider hali ulanmagan)", () => {
+    const errors = findProductionConfigErrors({ ...SAFE, SMS_MODE: 'eskiz' });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/SMS_MODE=eskiz/);
+  });
+
+  it("dev'da ruxsat ro'yxati va SMS_MODE tekshirilmaydi", () => {
+    expect(findProductionConfigErrors({ NODE_ENV: 'development', SMS_MODE: 'eskiz', ALLOW_MOCK_SMS_IN_PRODUCTION: 'true' })).toEqual([]);
   });
 
   it("bo'sh CORS_ORIGINS rad etiladi", () => {

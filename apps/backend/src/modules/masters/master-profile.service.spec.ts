@@ -29,11 +29,17 @@ function createDeps() {
     district: { findUnique: vi.fn() },
     category: { count: vi.fn() },
     masterService: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), delete: vi.fn() },
-    portfolioImage: { aggregate: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
+    portfolioImage: { aggregate: vi.fn(), count: vi.fn().mockResolvedValue(0), create: vi.fn(), deleteMany: vi.fn() },
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   const fileCleanup = { deleteIfUnreferenced: vi.fn() };
-  return { prisma, tx, fileCleanup };
+  // O'z ombor URL'i: `https://own.example/` bilan boshlanadigan `images/<uuid>.jpg`; qolgani — begona.
+  const storage = {
+    keyFromPublicUrl: vi.fn((url: string) =>
+      /^https:\/\/own\.example\/(images\/[0-9a-f-]{36}\.jpg)$/.exec(url)?.[1] ?? null,
+    ),
+  };
+  return { prisma, tx, fileCleanup, storage };
 }
 
 const fullProfile = {
@@ -62,13 +68,16 @@ const fullProfile = {
   createdAt: new Date(),
 };
 
+const OWN_URL = 'https://own.example/images/0b9f8c2e-4a8d-4c55-9a43-7e3c3f1a2b10.jpg';
+const FOREIGN_URL = 'https://example.com/images/0b9f8c2e-4a8d-4c55-9a43-7e3c3f1a2b10.jpg';
+
 describe('MasterProfileService', () => {
   let deps: ReturnType<typeof createDeps>;
   let service: MasterProfileService;
 
   beforeEach(() => {
     deps = createDeps();
-    service = new MasterProfileService(deps.prisma as never, deps.fileCleanup as never);
+    service = new MasterProfileService(deps.prisma as never, deps.fileCleanup as never, deps.storage as never);
   });
 
   describe('getMine', () => {
@@ -291,9 +300,42 @@ describe('MasterProfileService', () => {
       deps.prisma.portfolioImage.aggregate.mockResolvedValue({ _max: { sortOrder: 4 } });
       deps.prisma.portfolioImage.create.mockResolvedValue({ id: 'p-1', url: 'https://x/y.jpg', sortOrder: 5 });
 
-      await service.addPortfolioImage('u-1', { url: 'https://x/y.jpg' });
+      await service.addPortfolioImage('u-1', { url: OWN_URL });
 
       expect(deps.prisma.portfolioImage.create.mock.calls[0][0].data.sortOrder).toBe(5);
+    });
+
+    it("begona URL (o'z omborimiz emas) 400 bilan rad etiladi va hech narsa yozilmaydi", async () => {
+      deps.prisma.masterProfile.findUnique.mockResolvedValue({ id: 'm-1' });
+
+      await expect(service.addPortfolioImage('u-1', { url: FOREIGN_URL })).rejects.toMatchObject({
+        status: 400,
+        response: { errors: { url: expect.any(Array) } },
+      });
+      expect(deps.prisma.portfolioImage.create).not.toHaveBeenCalled();
+    });
+
+    it("19 ta rasm bor — 20-chisi yaratiladi", async () => {
+      deps.prisma.masterProfile.findUnique.mockResolvedValue({ id: 'm-1' });
+      deps.prisma.portfolioImage.count.mockResolvedValue(19);
+      deps.prisma.portfolioImage.aggregate.mockResolvedValue({ _max: { sortOrder: 18 } });
+      deps.prisma.portfolioImage.create.mockResolvedValue({ id: 'p-20', url: OWN_URL, sortOrder: 19 });
+
+      await service.addPortfolioImage('u-1', { url: OWN_URL });
+
+      expect(deps.prisma.portfolioImage.count).toHaveBeenCalledWith({ where: { masterId: 'm-1' } });
+      expect(deps.prisma.portfolioImage.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("20 ta rasm bor — 21-chisi 400 (xabarda 20), yozuv yaratilmaydi", async () => {
+      deps.prisma.masterProfile.findUnique.mockResolvedValue({ id: 'm-1' });
+      deps.prisma.portfolioImage.count.mockResolvedValue(20);
+
+      const error = await service.addPortfolioImage('u-1', { url: OWN_URL }).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(BadRequestException);
+      expect((error as BadRequestException).message).toContain('20');
+      expect(deps.prisma.portfolioImage.create).not.toHaveBeenCalled();
     });
 
     it("birinchi rasm uchun sortOrder 0 bo'ladi", async () => {
@@ -301,7 +343,7 @@ describe('MasterProfileService', () => {
       deps.prisma.portfolioImage.aggregate.mockResolvedValue({ _max: { sortOrder: null } });
       deps.prisma.portfolioImage.create.mockResolvedValue({ id: 'p-1', url: 'u', sortOrder: 0 });
 
-      await service.addPortfolioImage('u-1', { url: 'https://x/y.jpg' });
+      await service.addPortfolioImage('u-1', { url: OWN_URL });
 
       expect(deps.prisma.portfolioImage.create.mock.calls[0][0].data.sortOrder).toBe(0);
     });

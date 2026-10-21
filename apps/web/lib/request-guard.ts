@@ -32,9 +32,26 @@ export function isSameOrigin(origin: string | null, host: string | null): boolea
   }
 }
 
-// Open redirect'dan himoya: faqat panel ichidagi mutlaq yo'llar (`/users`), `//evil.com` yoki `/\evil.com` emas.
+// Boshqaruv belgilari (brauzer ularni URL'dan olib tashlaydi: `/\t/evil.com` -> `//evil.com`) va istalgan joydagi backslash.
+const UNSAFE_PATH_CHARS = /[\u0000-\u001F\u007F\\]/;
+const PROBE_ORIGIN = 'http://panel.invalid';
+
+// Open redirect'dan himoya: faqat panel ichidagi mutlaq yo'llar (`/users`), `//evil.com`, `/\evil.com` yoki
+// boshqaruv belgisi bilan yashirilgan variantlar emas.
 export function safeNextPath(next: string | null | undefined): string {
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\') || next.startsWith('/login')) {
+  if (!next || UNSAFE_PATH_CHARS.test(next)) {
+    return '/';
+  }
+
+  if (!next.startsWith('/') || next.startsWith('//') || next.startsWith('/login')) {
+    return '/';
+  }
+
+  try {
+    if (new URL(next, PROBE_ORIGIN).origin !== PROBE_ORIGIN) {
+      return '/';
+    }
+  } catch {
     return '/';
   }
 

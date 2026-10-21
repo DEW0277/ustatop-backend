@@ -1,7 +1,8 @@
 import { BadRequestException, ForbiddenException, HttpException, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashPassword, verifyPassword } from '../../common/crypto/password.js';
-import { AuthService } from './auth.service.js';
+import { ADMIN_TOKEN_TTL_SECONDS, AuthService } from './auth.service.js';
 
 function createDeps() {
   const $transaction = vi.fn(async (operations: unknown[]) => Promise.all(operations));
@@ -27,8 +28,10 @@ function createDeps() {
   const smsProvider = { sendOtp: vi.fn() };
   const configService = { get: vi.fn().mockReturnValue(120) };
   const fileCleanup = { deleteIfUnreferenced: vi.fn() };
+  // O'z ombor URL'i: `http://s/` bilan boshlanadigan har narsa; qolgani — begona.
+  const storage = { keyFromPublicUrl: vi.fn((url: string) => (url.startsWith('http://s/') ? url.slice('http://s/'.length) : null)) };
 
-  return { prisma, redis, jwtService, smsProvider, configService, fileCleanup };
+  return { prisma, redis, jwtService, smsProvider, configService, fileCleanup, storage };
 }
 
 describe('AuthService', () => {
@@ -44,6 +47,7 @@ describe('AuthService', () => {
       deps.smsProvider as never,
       deps.configService as never,
       deps.fileCleanup as never,
+      deps.storage as never,
     );
   });
 
@@ -65,6 +69,7 @@ describe('AuthService', () => {
         deps.smsProvider as never,
         deps.configService as never,
         deps.fileCleanup as never,
+        deps.storage as never,
       );
       deps.redis.ttl.mockResolvedValue(-2);
 
@@ -81,6 +86,65 @@ describe('AuthService', () => {
       expect(deps.redis.set).toHaveBeenCalledWith('otp:+998901234567', '123456', 'EX', 120);
       expect(deps.smsProvider.sendOtp).toHaveBeenCalledWith('+998901234567', '123456');
       expect(result.timeoutSeconds).toBe(120);
+    });
+  });
+
+  describe('yopiq sinov ruxsat ro\'yxati (production + mock SMS)', () => {
+    const build = (env: Record<string, unknown>) => {
+      deps.configService.get.mockImplementation((key: string) => env[key] ?? (key === 'OTP_TTL_SECONDS' ? 120 : undefined));
+      return new AuthService(
+        deps.prisma as never,
+        deps.redis as never,
+        deps.jwtService as never,
+        deps.smsProvider as never,
+        deps.configService as never,
+        deps.fileCleanup as never,
+        deps.storage as never,
+      );
+    };
+    const PROD = { NODE_ENV: 'production', SMS_MODE: 'mock', MOCK_SMS_ALLOWED_PHONES: '+998901234567' };
+
+    it("ro'yxatda yo'q raqamga sendOtp 403 va Redis/SMS'ga tegilmaydi", async () => {
+      const closed = build(PROD);
+
+      await expect(closed.sendOtp('+998901234568')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(deps.redis.ttl).not.toHaveBeenCalled();
+      expect(deps.redis.set).not.toHaveBeenCalled();
+      expect(deps.smsProvider.sendOtp).not.toHaveBeenCalled();
+    });
+
+    it("ro'yxatda yo'q raqamga verifyOtp 403: Redis o'qilmaydi, foydalanuvchi yaratilmaydi", async () => {
+      const closed = build(PROD);
+
+      await expect(closed.verifyOtp('+998901234568', '123456')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(deps.redis.get).not.toHaveBeenCalled();
+      expect(deps.prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it("ro'yxatdagi raqam uchun sendOtp odatdagidek ishlaydi", async () => {
+      const closed = build(PROD);
+      deps.redis.ttl.mockResolvedValue(-2);
+
+      await closed.sendOtp('+998901234567');
+
+      expect(deps.redis.set).toHaveBeenCalledWith('otp:+998901234567', '123456', 'EX', 120);
+      expect(deps.smsProvider.sendOtp).toHaveBeenCalledWith('+998901234567', '123456');
+    });
+
+    it("faol, lekin ro'yxat bo'sh (guard aylanib o'tilgan) — hamma raqam 403 (fail-closed)", async () => {
+      const closed = build({ NODE_ENV: 'production', SMS_MODE: 'mock' });
+
+      await expect(closed.sendOtp('+998901234567')).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(closed.verifyOtp('+998901234567', '123456')).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("NODE_ENV=test'da ro'yxatdan tashqari raqam ham ishlaydi (dev o'zgarmagan)", async () => {
+      const open = build({ ...PROD, NODE_ENV: 'test' });
+      deps.redis.ttl.mockResolvedValue(-2);
+
+      await open.sendOtp('+998901234568');
+
+      expect(deps.smsProvider.sendOtp).toHaveBeenCalledWith('+998901234568', '123456');
     });
   });
 
@@ -238,6 +302,101 @@ describe('AuthService', () => {
     });
   });
 
+  describe('admin sessiyasi (12 soat, yangilanmaydi)', () => {
+    const adminRow = async () => ({
+      id: 'a-1',
+      phone: '+998900000001',
+      name: 'Administrator',
+      role: 'ADMIN',
+      avatarUrl: null,
+      isBlocked: false,
+      login: 'admin',
+      passwordHash: await hashPassword('to-g-ri-parol'),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    const clientRow = {
+      id: 'c-1',
+      phone: '+998901234567',
+      name: 'Mijoz',
+      role: 'CLIENT',
+      avatarUrl: null,
+      isPhoneVerified: true,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+    const realJwt = () => new JwtService({ secret: 'x'.repeat(32), signOptions: { expiresIn: '30d' } });
+    const withRealJwt = () =>
+      new AuthService(
+        deps.prisma as never,
+        deps.redis as never,
+        realJwt() as never,
+        deps.smsProvider as never,
+        deps.configService as never,
+        deps.fileCleanup as never,
+        deps.storage as never,
+      );
+    const lifetime = (token: string) => {
+      const payload = realJwt().decode(token) as { exp: number; iat: number };
+      return payload.exp - payload.iat;
+    };
+
+    it('ADMIN_TOKEN_TTL_SECONDS 12 soat', () => {
+      expect(ADMIN_TOKEN_TTL_SECONDS).toBe(43_200);
+    });
+
+    it('adminLogin tokeni 12 soat amal qiladi', async () => {
+      deps.redis.get.mockResolvedValue(null);
+      deps.prisma.user.findUnique.mockResolvedValue(await adminRow());
+
+      const result = await withRealJwt().adminLogin('admin', 'to-g-ri-parol');
+
+      expect(lifetime(result.token)).toBe(43_200);
+    });
+
+    it('verifyOtp (CLIENT) tokeni modul standarti bo\'yicha 30 kun amal qiladi', async () => {
+      deps.redis.get.mockResolvedValue('123456');
+      deps.prisma.user.findUnique.mockResolvedValue(clientRow);
+
+      const result = await withRealJwt().verifyOtp('+998901234567', '123456');
+
+      expect(lifetime(result.token)).toBe(2_592_000);
+    });
+
+    it("getMe ADMIN uchun token bermaydi (12 soatlik cheklov /auth/me orqali uzaytirilmasin)", async () => {
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue(await adminRow());
+
+      const session = await service.getMe('a-1');
+
+      expect(session).not.toHaveProperty('token');
+      expect(session.role).toBe('admin');
+      expect(deps.jwtService.sign).not.toHaveBeenCalled();
+    });
+
+    it('getMe CLIENT uchun token beradi (mobil kontrakt o\'zgarmagan)', async () => {
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue(clientRow);
+
+      const session = await service.getMe('c-1');
+
+      expect(session.token).toBe('signed.jwt.token');
+    });
+
+    it('updateProfile ADMIN uchun ham tokensiz', async () => {
+      deps.prisma.user.update.mockResolvedValue(await adminRow());
+
+      const session = await service.updateProfile('a-1', { name: 'Yangi' });
+
+      expect(session).not.toHaveProperty('token');
+      expect(deps.jwtService.sign).not.toHaveBeenCalled();
+    });
+
+    it('updateProfile CLIENT uchun token beradi', async () => {
+      deps.prisma.user.update.mockResolvedValue(clientRow);
+
+      const session = await service.updateProfile('c-1', { name: 'Yangi' });
+
+      expect(session.token).toBe('signed.jwt.token');
+    });
+  });
+
   describe('changeAdminPassword', () => {
     const admin = async () => ({
       id: 'a-1',
@@ -340,6 +499,43 @@ describe('AuthService', () => {
       await service.updateProfile('user-1', { name: 'Ism' });
       expect(deps.prisma.user.findUniqueOrThrow).not.toHaveBeenCalled();
       expect(deps.fileCleanup.deleteIfUnreferenced).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateProfile (avatar URL egaligi)', () => {
+    const row = {
+      id: 'user-1',
+      phone: '+998901234567',
+      name: 'Ism',
+      role: 'CLIENT',
+      avatarUrl: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+
+    it("begona avatarUrl 400 (errors.avatarUrl); bazaga yozilmaydi, eski fayl tozalanmaydi", async () => {
+      await expect(service.updateProfile('user-1', { avatarUrl: 'https://evil.example/a.png' })).rejects.toMatchObject({
+        status: 400,
+        response: { errors: { avatarUrl: expect.any(Array) } },
+      });
+      expect(deps.prisma.user.update).not.toHaveBeenCalled();
+      expect(deps.fileCleanup.deleteIfUnreferenced).not.toHaveBeenCalled();
+    });
+
+    it("o'z ombor URL'i qabul qilinadi", async () => {
+      deps.prisma.user.findUniqueOrThrow.mockResolvedValue({ avatarUrl: null });
+      deps.prisma.user.update.mockResolvedValue({ ...row, avatarUrl: 'http://s/images/x.png' });
+
+      await service.updateProfile('user-1', { avatarUrl: 'http://s/images/x.png' });
+
+      expect(deps.prisma.user.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("faqat name berilsa keyFromPublicUrl chaqirilmaydi", async () => {
+      deps.prisma.user.update.mockResolvedValue(row);
+
+      await service.updateProfile('user-1', { name: 'Yangi' });
+
+      expect(deps.storage.keyFromPublicUrl).not.toHaveBeenCalled();
     });
   });
 

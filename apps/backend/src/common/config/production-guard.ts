@@ -1,3 +1,5 @@
+import { parseMockSmsAllowlist } from './mock-sms-allowlist.js';
+
 const DEFAULT_JWT_SECRET = 'change_me_in_production';
 const MIN_JWT_SECRET_LENGTH = 32;
 
@@ -20,11 +22,28 @@ export function findProductionConfigErrors(env: Env): string[] {
   }
 
   // Mock SMS'da OTP doim 123456 — production'da bu istalgan mijoz/usta raqami nomidan kirish demak (admin panel alohida: login + parol).
-  // Haqiqiy SMS provider ulanmaguncha faqat ongli ravishda, yopiq sinov uchun yoqiladi.
-  if ((env.SMS_MODE ?? 'mock') === 'mock' && env.ALLOW_MOCK_SMS_IN_PRODUCTION !== 'true') {
+  // Haqiqiy SMS provider ulanmaguncha faqat ongli ravishda, yopiq sinov uchun yoqiladi — va faqat ruxsat ro'yxatidagi raqamlarga.
+  const smsMode = env.SMS_MODE ?? 'mock';
+
+  if (smsMode !== 'mock') {
+    // `SmsProvider` hozir doim MockSmsProvider'ga bog'langan: SMS_MODE=eskiz jimgina mock'ni (123456) yoqib yuborardi.
+    errors.push(`SMS_MODE=${smsMode} hali qo'llab-quvvatlanmaydi — faqat mock (haqiqiy provider: TASKS.md B-01)`);
+  } else if (env.ALLOW_MOCK_SMS_IN_PRODUCTION !== 'true') {
     errors.push(
       "SMS_MODE=mock production'da taqiqlangan (OTP doim 123456). Yopiq sinov uchun ALLOW_MOCK_SMS_IN_PRODUCTION=true qo'ying",
     );
+  } else {
+    const { phones, invalid } = parseMockSmsAllowlist(env);
+
+    if (invalid.length > 0) {
+      errors.push(
+        `MOCK_SMS_ALLOWED_PHONES da noto'g'ri raqam(lar): ${invalid.join(', ')} (format: +998XXXXXXXXX, vergul bilan ajratilgan)`,
+      );
+    } else if (phones.size === 0) {
+      errors.push(
+        "MOCK_SMS_ALLOWED_PHONES bo'sh — yopiq sinovda OTP faqat shu ro'yxatdagi raqamlarga beriladi (masalan +998901234567,+998901234568)",
+      );
+    }
   }
 
   if (!(env.CORS_ORIGINS ?? '').trim()) {

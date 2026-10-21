@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { StorageService } from '../src/modules/upload/storage.service.js';
 import { authHeader, createMasterProfile, createTestApp, otpLogin, testPhone, testPhonePrefix } from './e2e-utils.js';
 
 const TAG = '05';
@@ -182,8 +184,10 @@ describe('Masters (e2e)', () => {
 
   describe('portfolio va band holati', () => {
     it("rasm qo'shadi (yangisi birinchi), faqat o'zinikini URL bo'yicha o'chiradi", async () => {
-      const first = 'http://localhost:9000/ustatop-uploads/images/e2e-first.jpg';
-      const second = 'http://localhost:9000/ustatop-uploads/images/e2e-second.jpg';
+      // Faqat o'z omborimiz URL'i qabul qilinadi (`images/<uuid>.<ext>`).
+      const storage = app.get(StorageService);
+      const first = storage.publicUrlForKey(`images/${randomUUID()}.jpg`);
+      const second = storage.publicUrlForKey(`images/${randomUUID()}.jpg`);
 
       for (const url of [first, second]) {
         await request(app.getHttpServer())
@@ -217,6 +221,12 @@ describe('Masters (e2e)', () => {
         .post('/api/v1/masters/me/portfolio')
         .set(...authHeader(masterToken))
         .send({ url: 'javascript:alert(1)' })
+        .expect(400);
+      // Begona host (kalit shakli to'g'ri bo'lsa ham) — 400.
+      await request(app.getHttpServer())
+        .post('/api/v1/masters/me/portfolio')
+        .set(...authHeader(masterToken))
+        .send({ url: `https://example.com/images/${randomUUID()}.jpg` })
         .expect(400);
     });
 

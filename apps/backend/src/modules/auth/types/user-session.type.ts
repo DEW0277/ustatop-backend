@@ -4,6 +4,7 @@ export interface UserSession {
   name: string;
   role: 'client' | 'master' | 'admin';
   avatarUrl?: string;
-  token: string;
+  // ADMIN uchun `/auth/me` va `/auth/profile` javobida yo'q (sessiya yangilanmaydi) — faqat kirish javoblarida.
+  token?: string;
   createdAt: string;
 }

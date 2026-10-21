@@ -11,15 +11,20 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Role, type User } from '@prisma/client';
 import type { Redis } from 'ioredis';
+import { parseMockSmsAllowlist, type MockSmsAllowlist } from '../../common/config/mock-sms-allowlist.js';
 import { hashPassword, verifyPassword } from '../../common/crypto/password.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { REDIS_CLIENT } from '../../common/redis/redis.constants.js';
 import { FileCleanupService } from '../upload/file-cleanup.service.js';
+import { StorageService } from '../upload/storage.service.js';
 import type { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { SmsProvider } from './sms/sms-provider.js';
 import type { UserSession } from './types/user-session.type.js';
 
 const MOCK_OTP_CODE = '123456';
+// Admin sessiyasi 12 soat. Env emas, konstanta: web panel cookie'si (`apps/web/lib/config.ts` TOKEN_COOKIE_MAX_AGE)
+// aynan shu son bilan bir xil bo'lishi shart. CLIENT/MASTER tokeni modul standarti (`JWT_EXPIRES_IN ?? '30d'`).
+export const ADMIN_TOKEN_TTL_SECONDS = 12 * 60 * 60;
 const MIN_OTP_LENGTH = 4;
 const MAX_OTP_LENGTH = MOCK_OTP_CODE.length;
 // Kod bo'shligi kichik (4-6 xona) bo'lgani uchun urinishlar cheklanmasa, `POST /auth/verify-otp`ni
@@ -54,6 +59,7 @@ export class AuthService {
   private readonly otpLength: number;
   // Login topilmaganda ham scrypt hisoblanadi — javob vaqti bo'yicha mavjud loginni aniqlab bo'lmasin.
   private dummyHash?: Promise<string>;
+  private readonly mockSmsAllowlist: MockSmsAllowlist;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -62,13 +68,29 @@ export class AuthService {
     private readonly smsProvider: SmsProvider,
     configService: ConfigService,
     private readonly fileCleanup: FileCleanupService,
+    private readonly storage: StorageService,
   ) {
     this.otpTtlSeconds = Number(configService.get('OTP_TTL_SECONDS') ?? 120);
     const configuredLength = Number(configService.get('OTP_LENGTH') ?? MAX_OTP_LENGTH);
     this.otpLength = Math.min(MAX_OTP_LENGTH, Math.max(MIN_OTP_LENGTH, configuredLength));
+    this.mockSmsAllowlist = parseMockSmsAllowlist({
+      NODE_ENV: configService.get<string>('NODE_ENV'),
+      SMS_MODE: configService.get<string>('SMS_MODE'),
+      MOCK_SMS_ALLOWED_PHONES: configService.get<string>('MOCK_SMS_ALLOWED_PHONES'),
+    });
+  }
+
+  // Yopiq sinov: production + mock SMS (OTP doim 123456) da faqat ruxsat ro'yxatidagi raqamlar. Ro'yxat bo'sh bo'lsa
+  // (production-guard aylanib o'tilgan) hamma raqam rad etiladi — fail-closed. Redis'ga murojaatdan OLDIN tekshiriladi.
+  private assertPhoneAllowed(phone: string): void {
+    if (this.mockSmsAllowlist.active && !this.mockSmsAllowlist.phones.has(phone)) {
+      throw new ForbiddenException('Yopiq sinov: bu raqam bilan kirish hali ochilmagan');
+    }
   }
 
   async sendOtp(phone: string): Promise<{ message: string; timeoutSeconds: number }> {
+    this.assertPhoneAllowed(phone);
+
     const key = otpRedisKey(phone);
     const remainingTtl = await this.redis.ttl(key);
 
@@ -93,6 +115,8 @@ export class AuthService {
   }
 
   async verifyOtp(phone: string, code: string): Promise<{ user: UserSession; token: string }> {
+    this.assertPhoneAllowed(phone);
+
     const key = otpRedisKey(phone);
     const storedCode = await this.redis.get(key);
 
@@ -219,10 +243,16 @@ export class AuthService {
 
   async getMe(userId: string): Promise<UserSession> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    return this.buildSession(user);
+    return this.sessionWithoutRefresh(user);
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<UserSession> {
+    // Avatar faqat `POST /upload/single` qaytargan (o'z omborimiz) URL bo'lishi mumkin; bazaga yozishdan oldin tekshiriladi.
+    if (dto.avatarUrl !== undefined && this.storage.keyFromPublicUrl(dto.avatarUrl) === null) {
+      const message = "avatarUrl faqat yuklangan rasm manzili bo'lishi kerak (POST /upload/single javobidagi url)";
+      throw new BadRequestException({ message, errors: { avatarUrl: [message] } });
+    }
+
     const previousAvatar =
       dto.avatarUrl !== undefined
         ? (await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { avatarUrl: true } })).avatarUrl
@@ -241,7 +271,7 @@ export class AuthService {
       await this.fileCleanup.deleteIfUnreferenced(previousAvatar);
     }
 
-    return this.buildSession(user);
+    return this.sessionWithoutRefresh(user);
   }
 
   // Bitta qurilma — bitta akkaunt: token boshqa foydalanuvchida turgan bo'lsa (shu telefonda avval boshqa
@@ -264,17 +294,30 @@ export class AuthService {
     return { registered: false };
   }
 
-  private buildSession(user: User): UserSession {
-    const token = this.jwtService.sign({ sub: user.id });
+  // `/auth/me` va `/auth/profile`: ADMIN uchun yangi token imzolanmaydi — aks holda o'g'irlangan token
+  // bu endpointlar orqali cheksiz yangilanib, 12 soatlik cheklov ma'nosiz bo'lardi. CLIENT/MASTER o'zgarmagan.
+  private sessionWithoutRefresh(user: User): UserSession {
+    return user.role === Role.ADMIN ? this.toSession(user) : this.buildSession(user);
+  }
 
+  private signToken(user: User): string {
+    return user.role === Role.ADMIN
+      ? this.jwtService.sign({ sub: user.id }, { expiresIn: ADMIN_TOKEN_TTL_SECONDS })
+      : this.jwtService.sign({ sub: user.id });
+  }
+
+  private toSession(user: User): UserSession {
     return {
       id: user.id,
       phone: user.phone,
       name: user.name,
       role: roleToApi(user.role),
       avatarUrl: user.avatarUrl ?? undefined,
-      token,
       createdAt: user.createdAt.toISOString(),
     };
+  }
+
+  private buildSession(user: User): UserSession & { token: string } {
+    return { ...this.toSession(user), token: this.signToken(user) };
   }
 }

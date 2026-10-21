@@ -127,8 +127,12 @@ export class StorageService implements OnModuleInit {
       }),
     );
 
-    const baseUrl = this.publicUrl.replace(/\/+$/, '');
-    return `${baseUrl}/${key}`;
+    return this.publicUrlForKey(key);
+  }
+
+  // Kalitdan ommaviy URL (`keyFromPublicUrl` ning teskarisi).
+  publicUrlForKey(key: string): string {
+    return `${this.publicUrl.replace(/\/+$/, '')}/${key}`;
   }
 
   // Faqat shu bucket'ga o'zimiz yuklagan fayllar (`UploadService` kalit formati: images/<uuid>.<ext>) uchun kalit

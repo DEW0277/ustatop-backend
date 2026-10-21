@@ -1,4 +1,5 @@
 import 'server-only';
+import { buildBackendHeaders } from './client-ip';
 import { BACKEND_URL } from './config';
 
 export interface BackendResult {
@@ -11,6 +12,7 @@ interface BackendRequest {
   token?: string;
   search?: string;
   body?: string;
+  clientIp?: string;
 }
 
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -21,15 +23,11 @@ function errorBody(message: string, statusCode: number) {
 
 // Backend bilan server-to-server aloqa. Tarmoq xatosi va JSON bo'lmagan javoblar ham bir xil xato shakliga aylanadi.
 export async function backendRequest(path: string, options: BackendRequest = {}): Promise<BackendResult> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
-
-  if (options.body !== undefined) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  if (options.token) {
-    headers.Authorization = `Bearer ${options.token}`;
-  }
+  const headers = buildBackendHeaders({
+    token: options.token,
+    hasBody: options.body !== undefined,
+    clientIp: options.clientIp,
+  });
 
   try {
     const response = await fetch(`${BACKEND_URL}${path}${options.search ?? ''}`, {
