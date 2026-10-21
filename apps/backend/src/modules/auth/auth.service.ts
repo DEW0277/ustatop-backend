@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Role, type User } from '@prisma/client';
 import type { Redis } from 'ioredis';
+import { parseMockSmsAllowlist, type MockSmsAllowlist } from '../../common/config/mock-sms-allowlist.js';
 import { hashPassword, verifyPassword } from '../../common/crypto/password.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { REDIS_CLIENT } from '../../common/redis/redis.constants.js';
@@ -57,6 +58,7 @@ export class AuthService {
   private readonly otpLength: number;
   // Login topilmaganda ham scrypt hisoblanadi — javob vaqti bo'yicha mavjud loginni aniqlab bo'lmasin.
   private dummyHash?: Promise<string>;
+  private readonly mockSmsAllowlist: MockSmsAllowlist;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -69,9 +71,24 @@ export class AuthService {
     this.otpTtlSeconds = Number(configService.get('OTP_TTL_SECONDS') ?? 120);
     const configuredLength = Number(configService.get('OTP_LENGTH') ?? MAX_OTP_LENGTH);
     this.otpLength = Math.min(MAX_OTP_LENGTH, Math.max(MIN_OTP_LENGTH, configuredLength));
+    this.mockSmsAllowlist = parseMockSmsAllowlist({
+      NODE_ENV: configService.get<string>('NODE_ENV'),
+      SMS_MODE: configService.get<string>('SMS_MODE'),
+      MOCK_SMS_ALLOWED_PHONES: configService.get<string>('MOCK_SMS_ALLOWED_PHONES'),
+    });
+  }
+
+  // Yopiq sinov: production + mock SMS (OTP doim 123456) da faqat ruxsat ro'yxatidagi raqamlar. Ro'yxat bo'sh bo'lsa
+  // (production-guard aylanib o'tilgan) hamma raqam rad etiladi — fail-closed. Redis'ga murojaatdan OLDIN tekshiriladi.
+  private assertPhoneAllowed(phone: string): void {
+    if (this.mockSmsAllowlist.active && !this.mockSmsAllowlist.phones.has(phone)) {
+      throw new ForbiddenException('Yopiq sinov: bu raqam bilan kirish hali ochilmagan');
+    }
   }
 
   async sendOtp(phone: string): Promise<{ message: string; timeoutSeconds: number }> {
+    this.assertPhoneAllowed(phone);
+
     const key = otpRedisKey(phone);
     const remainingTtl = await this.redis.ttl(key);
 
@@ -96,6 +113,8 @@ export class AuthService {
   }
 
   async verifyOtp(phone: string, code: string): Promise<{ user: UserSession; token: string }> {
+    this.assertPhoneAllowed(phone);
+
     const key = otpRedisKey(phone);
     const storedCode = await this.redis.get(key);
 

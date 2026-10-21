@@ -29,7 +29,7 @@ export class AuthController {
   @Throttle(AUTH_THROTTLE)
   @Post('send-otp')
   @ApiOperation({ summary: "Telefon raqamiga tasdiqlash kodi yuborish (SMS_MODE=mock: har doim 123456)" })
-  @ApiErrorResponses(400, 429)
+  @ApiErrorResponses(400, 403, 429)
   sendOtp(@Body() dto: SendOtpDto) {
     return this.authService.sendOtp(dto.phone);
   }

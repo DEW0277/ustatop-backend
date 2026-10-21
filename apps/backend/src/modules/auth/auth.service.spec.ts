@@ -85,6 +85,64 @@ describe('AuthService', () => {
     });
   });
 
+  describe('yopiq sinov ruxsat ro\'yxati (production + mock SMS)', () => {
+    const build = (env: Record<string, unknown>) => {
+      deps.configService.get.mockImplementation((key: string) => env[key] ?? (key === 'OTP_TTL_SECONDS' ? 120 : undefined));
+      return new AuthService(
+        deps.prisma as never,
+        deps.redis as never,
+        deps.jwtService as never,
+        deps.smsProvider as never,
+        deps.configService as never,
+        deps.fileCleanup as never,
+      );
+    };
+    const PROD = { NODE_ENV: 'production', SMS_MODE: 'mock', MOCK_SMS_ALLOWED_PHONES: '+998901234567' };
+
+    it("ro'yxatda yo'q raqamga sendOtp 403 va Redis/SMS'ga tegilmaydi", async () => {
+      const closed = build(PROD);
+
+      await expect(closed.sendOtp('+998901234568')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(deps.redis.ttl).not.toHaveBeenCalled();
+      expect(deps.redis.set).not.toHaveBeenCalled();
+      expect(deps.smsProvider.sendOtp).not.toHaveBeenCalled();
+    });
+
+    it("ro'yxatda yo'q raqamga verifyOtp 403: Redis o'qilmaydi, foydalanuvchi yaratilmaydi", async () => {
+      const closed = build(PROD);
+
+      await expect(closed.verifyOtp('+998901234568', '123456')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(deps.redis.get).not.toHaveBeenCalled();
+      expect(deps.prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it("ro'yxatdagi raqam uchun sendOtp odatdagidek ishlaydi", async () => {
+      const closed = build(PROD);
+      deps.redis.ttl.mockResolvedValue(-2);
+
+      await closed.sendOtp('+998901234567');
+
+      expect(deps.redis.set).toHaveBeenCalledWith('otp:+998901234567', '123456', 'EX', 120);
+      expect(deps.smsProvider.sendOtp).toHaveBeenCalledWith('+998901234567', '123456');
+    });
+
+    it("faol, lekin ro'yxat bo'sh (guard aylanib o'tilgan) — hamma raqam 403 (fail-closed)", async () => {
+      const closed = build({ NODE_ENV: 'production', SMS_MODE: 'mock' });
+
+      await expect(closed.sendOtp('+998901234567')).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(closed.verifyOtp('+998901234567', '123456')).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("NODE_ENV=test'da ro'yxatdan tashqari raqam ham ishlaydi (dev o'zgarmagan)", async () => {
+      const open = build({ ...PROD, NODE_ENV: 'test' });
+      deps.redis.ttl.mockResolvedValue(-2);
+
+      await open.sendOtp('+998901234568');
+
+      expect(deps.smsProvider.sendOtp).toHaveBeenCalledWith('+998901234568', '123456');
+    });
+  });
+
   describe('verifyOtp', () => {
     it("Redis'da kod topilmasa xato qaytaradi", async () => {
       deps.redis.get.mockResolvedValue(null);
