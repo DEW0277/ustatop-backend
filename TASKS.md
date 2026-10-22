@@ -1,7 +1,7 @@
 # TASKS.md — UstaTop: 100% tugatishgacha qolgan ishlar
 
 > Loyihaning **yagona jonli vazifalar ro'yxati**. Arxitektura va qarorlar — [`docs/TZ.md`](docs/TZ.md), agent qoidalari — [`AGENTS.md`](AGENTS.md) / [`CLAUDE.md`](CLAUDE.md).
-> Holat sanasi: **2026-10-22** (`main` = `3252b83`).
+> Holat sanasi: **2026-10-22** (`main` = `fb7fb20`; production: `https://7acts.uz`).
 
 ## Qanday ishlatiladi (barcha agentlar uchun majburiy)
 
@@ -24,9 +24,9 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | B. Backend | 4 | 8 |
 | C. Admin panel | 4 | 6 |
 | D. Mobil ilova integratsiyasi | 12 | 13 |
-| E. Deploy va operatsiya | 4 | 13 |
+| E. Deploy va operatsiya | 6 | 13 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **27** | **50** |
+| **Jami** | **29** | **50** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -158,15 +158,17 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 
 ## E. Deploy va operatsiya (Contabo VPS) 🔒
 
-- [ ] **E-01 · VPS va domen** — 👤
+- [x] **E-01 · VPS va domen** — 👤 — ✅ Bajarildi (2026-10-22, PR #__PR__)
+  - Contabo VPS `169.58.205.184` (Ubuntu 24.04.5, 6 vCPU, 11 GB RAM, 193 GB), domen `7acts.uz` (+ `www`) `A` yozuvi shu IP'ga; Claude SSH kalit bilan kiradi. Server chet elda — E-10 bo'yicha xavfni foydalanuvchi qabul qilgan (2026-10-20).
   - Tayyor mezoni: Ubuntu 22.04/24.04 VPS (kamida 2 vCPU / 4 GB), domen `A` yozuvi, Claude uchun SSH kirish yoki foydalanuvchi buyruqlarni o'zi bajaradi.
 - [ ] **E-02 · Birinchi deploy (yopiq sinov)** — Claude + 👤
   - Bog'liqlik: E-01. `docs/DEPLOY.md` §1–3 bo'yicha, `ALLOW_MOCK_SMS_IN_PRODUCTION=true` bilan — **manzil ommaga e'lon qilinmaydi** (mock OTP bilan istalgan mijoz/usta raqami nomidan kirish mumkin; admin panel alohida — login + parol).
   - 2026-10-22 (E-12): production'da mock OTP faqat `.env.production`dagi `MOCK_SMS_ALLOWED_PHONES` (vergul bilan ajratilgan `+998…` raqamlar) ro'yxatiga beriladi, ro'yxat bo'sh bo'lsa backend ishga tushmaydi — sinovchilar raqamlarini shu yerga yozing (`docs/DEPLOY.md` §0, §2); `SMS_MODE` faqat `mock`.
   - Tayyor mezoni: `dc ps` hammasi healthy, `https://<domen>/api/v1/regions` va `/login` ishlaydi, seed qo'llangan, admin panelga kirilgan.
+  > 🔄 2026-10-22: `https://7acts.uz` ishlayapti (`main` = `fb7fb20`) — host hardening (SSH faqat kalit, ufw 22/80/443, fail2ban, unattended-upgrades, 4 GB swap), Docker 29.9 + Compose v5.6, `dc ps` hammasi healthy, migratsiyalar qo'llangan, seed (14 viloyat, 207 tuman, 8 kategoriya, admin `texnozor_admin0277`), Let's Encrypt (`7acts.uz`, `www`), `/api/v1/regions` va `/login` 200, Swagger 404, ruxsat ro'yxatidan tashqari raqam 403. `MOCK_SMS_ALLOWED_PHONES` hozircha faqat admin telefoni — sinovchilar qo'shilishi kerak. Qolgan 👤: admin panelga birinchi kirish va parolni almashtirish. Mobil ilova `SERVER_URL = 'https://7acts.uz'` (ustatop-mobile PR #26).
 - [ ] **E-03 · Backup va sertifikat cron'lari** — Claude
   - Tayyor mezoni: kunlik `pg_dump` + Garage arxivi cron'da, **boshqa joyga** nusxa (rclone / obyekt saqlash), haftalik nginx reload; backup'dan tiklash bir marta amalda sinab ko'rilgan.
-  > 🔄 Jarayonda: `deploy/backup/` (`backup.sh`, `restore.sh`, lokal sinov `test-local.sh`) va CI shellcheck — PR #47. Qolgan: VPS'da cron o'rnatish, tashqi saqlash joyini tanlash va `rclone` sozlash, haqiqiy serverda tiklash sinovi (E-01/E-02 dan keyin).
+  > 🔄 Jarayonda: `deploy/backup/` (`backup.sh`, `restore.sh`, lokal sinov `test-local.sh`) va CI shellcheck — PR #47. 2026-10-22 VPS'da: root crontab'da kunlik backup (03:00, `PATH` bilan, 14 kun) va haftalik nginx reload; birinchi tungi backup o'tdi; tiklash sinovi production'da bajarildi (yangi backup → `restore.sh --yes latest` → foydalanuvchi/viloyat/tuman/kategoriya soni bir xil, sayt ~1 daqiqada qaytdi); `certbot renew --dry-run` muvaffaqiyatli. Qolgan 👤: tashqi saqlash joyini tanlash va `BACKUP_RCLONE_REMOTE` (hozir backup faqat VPS diskida).
 - [ ] **E-04 · CD — avtomatik deploy** — Claude 👤
   - TZ §6: "`main`ga merge → SSH orqali deploy" hali rejada. Image'lar hozir VPS'ning o'zida yig'iladi.
   - Tayyor mezoni: GitHub Actions workflow (qo'lda tasdiq / `workflow_dispatch` bilan), SSH kaliti repo secret'ida, sha bo'yicha `IMAGE_TAG` (rollback uchun), DEPLOY.md yangilangan.
@@ -176,8 +178,9 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [ ] **E-06 · Production'ni haqiqiy rejimga o'tkazish** — Claude + 👤
   - Bog'liqlik: B-01, B-02.
   - Tayyor mezoni: `SMS_MODE=eskiz`, `ALLOW_MOCK_SMS_IN_PRODUCTION=false`, `PUSH_PROVIDER=fcm`, `SWAGGER_ENABLED=false`; sinov davridagi soxta foydalanuvchi/buyurtmalar tozalangan; `123456` bilan kirib bo'lmasligi tekshirilgan.
-- [ ] **E-07 · Yuklama va xavfsizlik tekshiruvi (production'da)** — Claude
+- [x] **E-07 · Yuklama va xavfsizlik tekshiruvi (production'da)** — Claude — ✅ Bajarildi (2026-10-22, PR #__PR__)
   - Tayyor mezoni: rate limit Nginx ortida haqiqiy IP bo'yicha ishlashi tekshirilgan (`TRUST_PROXY`), TLS/sarlavhalar tekshiruvi, `pnpm audit` 0, Postgres/Redis/Garage portlari tashqaridan yopiq, `/uploads` faqat o'qish.
+  - Natija (`https://7acts.uz`): bitta IP'dan 6-chi admin login → 429, shu paytda boshqa IP (VPS'ning o'zi) → 401 (limit haqiqiy IP bo'yicha); TLS Let's Encrypt, HSTS, X-Frame-Options DENY, CSP frame-ancestors, nosniff, Referrer-Policy; `pnpm audit` 0 (CI, PR #49); 5432/6379/3900/3000/3001 tashqaridan yopiq; `/uploads` PUT/POST/DELETE → 403. Yuklama (load) testi bu mezonga kirmagan — kerak bo'lsa F-03 dan oldin alohida.
 - [x] **E-08 · Operatsion qo'llanma** — Claude — ✅ Bajarildi (2026-10-16, PR #35)
   - `docs/DEPLOY.md` §9 hodisalar jadvali, §10 adminlarni boshqarish (qo'shimcha admin, parol, olib tashlash — SQL dev bazada sinab ko'rilgan), §11 sirlarni almashtirish. Haqiqiy VPS'da hali sinalmagan.
   - Tayyor mezoni: `docs/DEPLOY.md`ga qo'shilgan: hodisa yuz berganda nima qilish (xizmat tushdi, disk to'ldi, DB tiklash), admin qo'shish/olib tashlash, sirlarni almashtirish (JWT secret, MinIO, Eskiz).
@@ -217,6 +220,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
     - `error.tsx` / `not-found.tsx`; admin layout redirect'ida `?next=`; `public/` dagi qolgan SVG'lar.
     - Admin-login bloki login nomi bo'yicha (5 xato → 15 daqiqa): login nomini bilgan begona odam adminni 15 daqiqaga bloklashi mumkin.
     - Nonce asosidagi CSP (`script-src`/`default-src`) panel uchun.
+    - Backend Dockerfile build'ida `ERR_PNPM_IGNORED_BUILDS` (verifyDepsBeforeRun install'i) — build to'xtamaydi, Prisma client generatsiya qilinadi, lekin logni chalkashtiradi (2026-10-22 VPS build).
   - Tayyor mezoni: har bir band alohida baholanib bajarilgan yoki sababi bilan bekor qilingan.
 
 ## F. Reliz
