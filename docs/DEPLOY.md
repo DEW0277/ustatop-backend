@@ -43,15 +43,16 @@ Fayllar: `docker-compose.prod.yml`, `apps/backend/Dockerfile`, `apps/web/Dockerf
    | garage | 512m |
 
    nginx, certbot, garage-init — limitsiz (kichik). Nima uchun: bitta konteynerdagi xotira oqishi butun serverni (SSH'ni ham) yiqitmasin; limitdan oshgan konteyner o'zi qayta ishga tushadi. Host xotirasi to'liq tugasa, OOM-killer postgres'ni **oxirgi** navbatda tanlaydi (`oom_score_adj: -500`) — ma'lumotlar bazasi eng qimmat. Limit ostida `dc ps` yoki `docker stats --no-stream` bilan real sarfni kuzating; backend tez-tez "OOMKilled" bilan qayta ishga tushsa (`docker inspect --format '{{.State.OOMKilled}}' <konteyner>`) limitni oshiring.
-6. **Kodni olish** — deploy key bilan (quyida) yoki HTTPS bilan:
+6. **Kodni olish.** Repo public (2026-10-20 dan), shuning uchun HTTPS clone kalit yoki token'siz ishlaydi:
    ```bash
    sudo mkdir -p /opt/ustatop && sudo chown $USER /opt/ustatop
-   git clone git@github.com:DEW0277/ustatop-backend.git /opt/ustatop && cd /opt/ustatop
+   git clone https://github.com/DEW0277/ustatop-backend.git /opt/ustatop && cd /opt/ustatop
    ```
+   Repo yana private qilinsa — quyidagi deploy key (yoki HTTPS token) kerak bo'ladi.
 
 ### Deploy key (VPS -> GitHub, faqat o'qish)
 
-Repo private, shuning uchun VPS'ga o'z kaliti kerak. Shaxsiy SSH kalitingizni serverga **qo'ymang** — repo bo'yicha read-only deploy key yetarli.
+Faqat repo private bo'lsa kerak (hozir public — 6-qadamdagi HTTPS clone yetarli). Shaxsiy SSH kalitingizni serverga **qo'ymang** — repo bo'yicha read-only deploy key yetarli.
 
 ```bash
 # VPS'da: parolsiz ed25519 kalit (server o'zi git pull qiladi)
