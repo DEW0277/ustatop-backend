@@ -158,7 +158,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 
 ## E. Deploy va operatsiya (Contabo VPS) 🔒
 
-- [x] **E-01 · VPS va domen** — 👤 — ✅ Bajarildi (2026-10-22, PR #__PR__)
+- [x] **E-01 · VPS va domen** — 👤 — ✅ Bajarildi (2026-10-22, PR #50)
   - Contabo VPS `169.58.205.184` (Ubuntu 24.04.5, 6 vCPU, 11 GB RAM, 193 GB), domen `7acts.uz` (+ `www`) `A` yozuvi shu IP'ga; Claude SSH kalit bilan kiradi. Server chet elda — E-10 bo'yicha xavfni foydalanuvchi qabul qilgan (2026-10-20).
   - Tayyor mezoni: Ubuntu 22.04/24.04 VPS (kamida 2 vCPU / 4 GB), domen `A` yozuvi, Claude uchun SSH kirish yoki foydalanuvchi buyruqlarni o'zi bajaradi.
 - [ ] **E-02 · Birinchi deploy (yopiq sinov)** — Claude + 👤
@@ -178,7 +178,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [ ] **E-06 · Production'ni haqiqiy rejimga o'tkazish** — Claude + 👤
   - Bog'liqlik: B-01, B-02.
   - Tayyor mezoni: `SMS_MODE=eskiz`, `ALLOW_MOCK_SMS_IN_PRODUCTION=false`, `PUSH_PROVIDER=fcm`, `SWAGGER_ENABLED=false`; sinov davridagi soxta foydalanuvchi/buyurtmalar tozalangan; `123456` bilan kirib bo'lmasligi tekshirilgan.
-- [x] **E-07 · Yuklama va xavfsizlik tekshiruvi (production'da)** — Claude — ✅ Bajarildi (2026-10-22, PR #__PR__)
+- [x] **E-07 · Yuklama va xavfsizlik tekshiruvi (production'da)** — Claude — ✅ Bajarildi (2026-10-22, PR #50)
   - Tayyor mezoni: rate limit Nginx ortida haqiqiy IP bo'yicha ishlashi tekshirilgan (`TRUST_PROXY`), TLS/sarlavhalar tekshiruvi, `pnpm audit` 0, Postgres/Redis/Garage portlari tashqaridan yopiq, `/uploads` faqat o'qish.
   - Natija (`https://7acts.uz`): bitta IP'dan 6-chi admin login → 429, shu paytda boshqa IP (VPS'ning o'zi) → 401 (limit haqiqiy IP bo'yicha); TLS Let's Encrypt, HSTS, X-Frame-Options DENY, CSP frame-ancestors, nosniff, Referrer-Policy; `pnpm audit` 0 (CI, PR #49); 5432/6379/3900/3000/3001 tashqaridan yopiq; `/uploads` PUT/POST/DELETE → 403. Yuklama (load) testi bu mezonga kirmagan — kerak bo'lsa F-03 dan oldin alohida.
 - [x] **E-08 · Operatsion qo'llanma** — Claude — ✅ Bajarildi (2026-10-16, PR #35)
