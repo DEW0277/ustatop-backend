@@ -39,6 +39,7 @@ export function toMasterResponse(master: MasterWithRelations) {
     completedOrdersCount: master.completedOrdersCount,
     isVerified: master.isVerified,
     isAvailable: master.isAvailable,
+    type: master.type,
     regionId: master.regionId,
     districtId: master.districtId,
     address: master.address,

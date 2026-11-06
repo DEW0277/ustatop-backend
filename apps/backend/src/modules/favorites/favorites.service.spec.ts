@@ -17,6 +17,7 @@ function masterFixture(overrides: Record<string, unknown> = {}) {
     completedOrdersCount: 7,
     isVerified: true,
     isAvailable: true,
+    type: 'MASTER',
     user: { avatarUrl: null },
     regionId: 'r-1',
     districtId: 'd-1',

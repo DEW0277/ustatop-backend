@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { MasterType, type Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { ListMastersQueryDto, MasterSortBy } from './dto/list-masters-query.dto.js';
 import { masterDetailInclude, masterListInclude, toMasterResponse } from './master.mapper.js';
@@ -26,6 +26,8 @@ export class MastersService {
 
     const where: Prisma.MasterProfileWhereInput = {
       user: { isBlocked: false },
+      // type berilmasa faqat MASTER: eski ilova versiyalari shoxobcha/do'konlarni ko'rmasin (TZ §4.4).
+      type: query.type ?? MasterType.MASTER,
       ...(query.regionId ? { regionId: query.regionId } : {}),
       ...(query.districtId ? { districtId: query.districtId } : {}),
       ...(query.categoryId ? { categories: { some: { categoryId: query.categoryId } } } : {}),
