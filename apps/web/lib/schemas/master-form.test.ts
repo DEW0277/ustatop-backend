@@ -37,6 +37,12 @@ describe('masterFormSchema', () => {
     expect(masterFormSchema.safeParse(valid).success).toBe(true);
   });
 
+  it('standart tur MASTER; noma’lum turni rad etadi', () => {
+    expect(DEFAULT_MASTER_FORM.type).toBe('MASTER');
+    expect(masterFormSchema.safeParse({ ...valid, type: 'PARTS_SHOP' }).success).toBe(true);
+    expect(masterFormSchema.safeParse({ ...valid, type: 'X' }).success).toBe(false);
+  });
+
   it('standart (bo‘sh) forma majburiy maydonlar bo‘yicha xato beradi', () => {
     const res = masterFormSchema.safeParse(DEFAULT_MASTER_FORM);
     expect(res.success).toBe(false);
@@ -68,6 +74,11 @@ describe('masterFormToApiBody', () => {
     expect(body.experienceYears).toBe(0);
     expect(body.isVerified).toBe(true);
     expect(body).not.toHaveProperty('workStart');
+  });
+
+  it('`type`ni doim yuboradi', () => {
+    expect(masterFormToApiBody(valid).type).toBe('MASTER');
+    expect(masterFormToApiBody({ ...valid, type: 'FUEL_STATION' }).type).toBe('FUEL_STATION');
   });
 
   it('ish vaqtini `workingHours`ga yig‘adi va kunlarni hafta tartibida yuboradi', () => {

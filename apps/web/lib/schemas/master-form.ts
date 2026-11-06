@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MASTER_TYPES } from '../master-type';
 
 // `POST /admin/masters` (docs/TZ.md §4.1). Qoidalar backend `CreateMasterDto` bilan bir xil bo'lishi shart —
 // aks holda forma o'tkazib yuborgan qiymat serverda 400 bilan tugaydi.
@@ -28,6 +29,7 @@ export function normalizeUzPhone(input: string): string | null {
 }
 
 export const masterFormSchema = z.object({
+  type: z.enum(MASTER_TYPES),
   phone: z
     .string()
     .trim()
@@ -54,6 +56,7 @@ export const masterFormSchema = z.object({
 export type MasterFormValues = z.infer<typeof masterFormSchema>;
 
 export const DEFAULT_MASTER_FORM: MasterFormValues = {
+  type: 'MASTER',
   phone: '+998',
   firstName: '',
   lastName: '',
@@ -72,6 +75,7 @@ export const DEFAULT_MASTER_FORM: MasterFormValues = {
 
 export function masterFormToApiBody(values: MasterFormValues) {
   return {
+    type: values.type,
     phone: normalizeUzPhone(values.phone) ?? values.phone,
     firstName: values.firstName,
     lastName: values.lastName,
@@ -94,6 +98,7 @@ export function masterFormToApiBody(values: MasterFormValues) {
 
 // Backend maydon nomlari → forma maydonlari (server 400 `errors`ini tegishli input ostida ko'rsatish uchun).
 export const MASTER_API_FIELD_TO_FORM: Record<string, keyof MasterFormValues> = {
+  type: 'type',
   phone: 'phone',
   firstName: 'firstName',
   lastName: 'lastName',

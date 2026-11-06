@@ -124,7 +124,7 @@ ustatop/
 ## 4. Ma'lumotlar bazasi va API
 
 Prisma schema va barcha REST endpoint kontraktlari **avvalgi spetsifikatsiya hujjatida** (`UstaTop Mobile App — Backend Blueprint`) to'liq belgilangan va **o'zgarishsiz kuchda qoladi**:
-- `User`, `Region`, `District`, `Category`, `MasterProfile`, `MasterCategory`, `MasterService`, `PortfolioImage`, `Order`, `Review`, `FavoriteMaster` modellari
+- `User`, `Region`, `District`, `Category`, `MasterProfile`, `MasterCategory`, `MasterService`, `PortfolioImage`, `Order`, `Review`, `FavoriteMaster` modellari (`MasterProfile.type` — usta/yoqilg'i shoxobchasi/zapchast do'koni, §4.4)
 - `/api/v1/auth/*`, `/api/v1/regions`, `/api/v1/districts`, `/api/v1/categories`, `/api/v1/masters/*`, `/api/v1/orders/*`, `/api/v1/masters/:id/reviews`, `/api/v1/upload/single`
 
 ### 4.0. Mobil ilova kontrakti bilan moslashtirish (2026-09-19)
@@ -132,14 +132,14 @@ Prisma schema va barcha REST endpoint kontraktlari **avvalgi spetsifikatsiya huj
 Mobil ilova kodi (`/Users/macstore.uz/Desktop/mobile-app/src/types/index.ts`, `src/services/api/*.ts`) o'qib chiqildi va backend javoblari **shu tiplarga aynan mos** qilindi. Original spec ba'zi joylarda jim yoki mobil kod bilan ziddiyatli edi — qarorlar:
 
 **Backend tomonda moslashtirilgan (kod tayyor):**
-- **Master javobi** mobil `Master` bilan bir xil kalitlarda: `id` (= MasterProfile.id), `fullName`, `avatarUrl` (User.avatarUrl, bo'lmasa `""`), `regionId`, `districtId`, `categoryIds: string[]`, `portfolioImages: string[]` (URL'lar, yangisi birinchi), `reviews[]` — tekis `{id, masterId, userId, userName, userAvatar, rating, comment, createdAt}`, `createdAt` ISO string. `telegram` yo'q bo'lsa kalit umuman yuborilmaydi.
+- **Master javobi** mobil `Master` bilan bir xil kalitlarda: `id` (= MasterProfile.id), `fullName`, `avatarUrl` (User.avatarUrl, bo'lmasa `""`), `regionId`, `districtId`, `categoryIds: string[]`, `portfolioImages: string[]` (URL'lar, yangisi birinchi), `reviews[]` — tekis `{id, masterId, userId, userName, userAvatar, rating, comment, createdAt}`, `createdAt` ISO string. `telegram` yo'q bo'lsa kalit umuman yuborilmaydi. `type` (`MASTER|FUEL_STATION|PARTS_SHOP`, §4.4) — additiv maydon, eski ilova versiyalari uni e'tiborsiz qoldiradi.
 - **UserSession**: `createdAt` (ISO) qo'shildi, `avatarUrl` yo'q bo'lsa yuborilmaydi (`null` emas), `role` — `'client' | 'master'` (admin faqat web panel uchun). **ADMIN uchun `GET /auth/me` va `PUT /auth/profile` javobida `token` kaliti yo'q** (2026-10-22): `token` faqat kirish javoblarida (`verify-otp`, `admin/login`) beriladi; aks holda o'g'irlangan admin tokenini `/auth/me` orqali cheksiz yangilab, 12 soatlik cheklovni aylanib o'tish mumkin edi. CLIENT/MASTER javoblari o'zgarmagan.
 - **Telefon**: ilova `+998 90 123 45 67` (probelli) yuboradi — backend `NormalizedPhone` dekoratori bilan kiruvchi qiymatni `+998901234567` ga keltiradi (probelli, `998...`, 9 xonali variantlar ham qabul qilinadi). Javoblarda doim kanonik format.
 - **OTP uzunligi**: **qaror (2026-10-10): 6 xona.** Backend standarti allaqachon 6 (`OTP_LENGTH=6`), production'da ham shunday qoladi. Ilovada hozir 4 ta katak — **ilova 6 katakka o'tkazilishi kerak** (`TASKS.md` D-04). `OTP_LENGTH` env (4–6) faqat texnik imkoniyat sifatida qoladi.
 - **Usta profili — faqat admin yaratadi (qaror 2026-10-13).** Ilovadan o'zi "usta bo'lish" yopilgan: usta profili faqat admin panel orqali qo'shiladi (`POST /admin/masters`, §4.1). `PUT /masters/me/profile` endi faqat **mavjud profilni tahrirlaydi** (barcha maydonlar ixtiyoriy; `categoryIds` berilsa kategoriyalar to'liq almashtiriladi; `User.name` = `firstName lastName`); profili yo'q foydalanuvchi `403` oladi ("Usta profili faqat administrator tomonidan yaratiladi..."). `GET /masters/me/profile` — profil yo'q bo'lsa `404`. ⚠️ Ilovadagi "usta bo'lish" formasi olib tashlanishi (yoki "administratorga murojaat qiling" xabari bilan almashtirilishi) kerak.
 - **Ilova ishlatadigan, spec'da yo'q endpointlar (qo'shildi)**: `PUT /masters/me/services/:serviceId` (xizmatni tahrirlash), `DELETE /masters/me/portfolio?url=...` (rasm URL bo'yicha o'chiriladi — ilovada rasmlar ID'siz).
 - **Fayl tozalash (2026-10-16)**: portfolio rasmi o'chirilganda (`DELETE /masters/me/portfolio`) yoki avatar almashtirilganda (`PUT /auth/profile`) eski fayl ombordan o'chiriladi — faqat o'z bucket'imizga o'zimiz yuklagan fayl (`images/<uuid>.<ext>`) bo'lsa va bazada boshqa portfolio/avatar uni ishlatmasa. Ombor xatosi asosiy amalni buzmaydi (log). `avatarUrl` va portfolio `url` — `http(s)://` majburiy, TLD shart emas (dev: `localhost`). **Faqat o'z ombor URL'i (2026-10-22):** `PUT /auth/profile` `avatarUrl` va `POST /masters/me/portfolio` `url` faqat `STORAGE_PUBLIC_URL/images/<uuid>.(jpg|png|webp)` ko'rinishida bo'lishi kerak (ya'ni `POST /upload/single` qaytargan URL), aks holda `400` (`errors.avatarUrl` / `errors.url`) — begona kontentni bizning domen nomidan ko'rsatib bo'lmasin. Portfolio'da ko'pi bilan **20 ta** rasm (`POST /masters/me/portfolio` 21-chisida `400`; bir vaqtdagi parallel so'rovlar bilan yumshoq cheklov). Bazadagi eski URL'lar o'zgarmaydi, `DELETE /masters/me/portfolio?url=` ularda ham ishlaydi.
-- Qolganlari: `POST/DELETE /masters/me/services`, `POST /masters/me/portfolio`, `PATCH /masters/me/availability` — faqat MASTER; xizmat egaligi tekshiriladi. `GET /masters` bloklangan ustalarni ko'rsatmaydi; `sortBy`: `rating|reviews|orders|experience|newest`.
+- Qolganlari: `POST/DELETE /masters/me/services`, `POST /masters/me/portfolio`, `PATCH /masters/me/availability` — faqat MASTER; xizmat egaligi tekshiriladi. `GET /masters` bloklangan ustalarni ko'rsatmaydi; ixtiyoriy `type` query (`MASTER|FUEL_STATION|PARTS_SHOP`) — **berilmasa faqat `MASTER`** qaytadi (eski ilova versiyalari shoxobcha/do'konlarni ustalar orasida ko'rmasin), noto'g'ri qiymat `400` (§4.4); `sortBy`: `rating|reviews|orders|experience|newest`.
 
 **Orders va Reviews (4-bosqich) — qarorlar:**
 - **Buyurtma javobi** mobil `OrderItem` bilan bir xil (`statusTextUz`, `masterName`, `masterAvatar`, `masterPhone`). `preferredDate`/`preferredTime` ilovada erkin matn (`"Bugun"`, `"12:00 - 15:00"`) — spec'dagi `2026-09-10`/`14:00` formatidan farqli, shuning uchun backend faqat uzunlikni tekshiradi, formatni emas. `statusTextUz`: `Kutilmoqda | Qabul qilindi | Bajarildi | Bekor qilindi | Rad etildi` (usta bekor qilsa "Rad etildi", mijoz bekor qilsa "Bekor qilindi" — `orders.cancelledBy` ustuni).
@@ -185,9 +185,9 @@ Original spec faqat mobil ilova uchun edi — admin panelga quyidagi qo'shimcha 
 
 - `GET /admin/users?role&isBlocked&query&page&limit` → `items[]`: `{ id, phone, name, role, avatarUrl?, isBlocked, isPhoneVerified, masterId?, createdAt }`. `query` — ism yoki telefon bo'yicha.
 - `PATCH /admin/users/:id/block` body `{ isBlocked: boolean }` → `{ id, isBlocked }`. O'zini va boshqa ADMIN'ni bloklab bo'lmaydi (400/403). Bloklangan foydalanuvchining token'i keyingi so'rovdayoq 401 beradi (`JwtStrategy` har so'rovda DB'ni tekshiradi).
-- `GET /admin/masters/pending?page&limit` → `items[]`: `{ id, userId, fullName, phone, telegram?, avatarUrl?, bio, experienceYears, isVerified, isBlocked, region{id,nameUz}, district{id,nameUz}, address, categories[{id,nameUz}], createdAt }`, eng eski so'rov birinchi.
-- `GET /admin/masters?isVerified&regionId&query&page&limit` → `items[]`: `masters/pending` bilan bir xil maydonlar **+** `rating`, `reviewCount`, `completedOrdersCount`, `isAvailable`. `isVerified` — `true|false` (berilmasa hammasi); `regionId` — UUID; `query` — ism (`firstName`/`lastName`) yoki telefon bo'yicha, 1–100 belgi; bo'shliq bilan ajratilgan har bir so'z (ko'pi bilan 5 ta) alohida mos kelishi kerak — shuning uchun to'liq ism (`Ali Valiyev`) va bo'shliqli telefon (`+998 90 123`) ham topiladi. Tartib: eng yangi birinchi (`createdAt desc`). Bloklangan ustalar ham ko'rinadi (`isBlocked: true`).
-- `POST /admin/masters` body `{ phone, firstName, lastName, bio, regionId, districtId, address, workingHours{start,end,workDays[]}, experienceYears?, telegram?, categoryIds?, isVerified? }` → `201`, `GET /admin/masters` elementi bilan bir xil shakl. Maydon qoidalari `PUT /masters/me/profile` bilan bir xil (§4.0), lekin `phone` majburiy (`+998XXXXXXXXX`, probelli variantlar ham qabul qilinadi). `isVerified` standart `true` (admin qo'shgan usta darhol tasdiqlangan). Telefon bo'yicha: akkaunt yo'q bo'lsa — yaratiladi (`role: MASTER`, `isPhoneVerified: false`; usta keyin shu raqam bilan oddiy OTP orqali kiradi va profil o'ziniki bo'ladi); mavjud CLIENT bo'lsa — unga profil biriktiriladi va rol `MASTER`ga o'tadi, `User.name` = `firstName lastName`. Rad etiladi: shu raqamda usta profili allaqachon bor yoki foydalanuvchi bloklangan → `409`; raqam ADMIN'ga tegishli → `400`; tuman viloyatga mos emas / kategoriya topilmadi → `400`. Hammasi bitta tranzaksiyada (xatoda akkaunt ham yaratilmaydi). Push yuborilmaydi. Additiv — mobil kontraktga ta'sir qilmaydi.
+- `GET /admin/masters/pending?page&limit` → `items[]`: `{ id, userId, fullName, phone, telegram?, avatarUrl?, bio, experienceYears, type, isVerified, isBlocked, region{id,nameUz}, district{id,nameUz}, address, categories[{id,nameUz}], createdAt }`, eng eski so'rov birinchi.
+- `GET /admin/masters?isVerified&regionId&type&query&page&limit` → `items[]`: `masters/pending` bilan bir xil maydonlar **+** `rating`, `reviewCount`, `completedOrdersCount`, `isAvailable`. `isVerified` — `true|false` (berilmasa hammasi); `regionId` — UUID; `type` — `MASTER|FUEL_STATION|PARTS_SHOP` (berilmasa **barcha turlar**, noto'g'ri qiymat `400`, §4.4); `query` — ism (`firstName`/`lastName`) yoki telefon bo'yicha, 1–100 belgi; bo'shliq bilan ajratilgan har bir so'z (ko'pi bilan 5 ta) alohida mos kelishi kerak — shuning uchun to'liq ism (`Ali Valiyev`) va bo'shliqli telefon (`+998 90 123`) ham topiladi. Tartib: eng yangi birinchi (`createdAt desc`). Bloklangan ustalar ham ko'rinadi (`isBlocked: true`).
+- `POST /admin/masters` body `{ phone, firstName, lastName, bio, regionId, districtId, address, workingHours{start,end,workDays[]}, experienceYears?, telegram?, categoryIds?, isVerified?, type? }` → `201`, `GET /admin/masters` elementi bilan bir xil shakl. Maydon qoidalari `PUT /masters/me/profile` bilan bir xil (§4.0), lekin `phone` majburiy (`+998XXXXXXXXX`, probelli variantlar ham qabul qilinadi). `isVerified` standart `true` (admin qo'shgan usta darhol tasdiqlangan). `type` standart `MASTER` (§4.4). Telefon bo'yicha: akkaunt yo'q bo'lsa — yaratiladi (`role: MASTER`, `isPhoneVerified: false`; usta keyin shu raqam bilan oddiy OTP orqali kiradi va profil o'ziniki bo'ladi); mavjud CLIENT bo'lsa — unga profil biriktiriladi va rol `MASTER`ga o'tadi, `User.name` = `firstName lastName`. Rad etiladi: shu raqamda usta profili allaqachon bor yoki foydalanuvchi bloklangan → `409`; raqam ADMIN'ga tegishli → `400`; tuman viloyatga mos emas / kategoriya topilmadi → `400`. Hammasi bitta tranzaksiyada (xatoda akkaunt ham yaratilmaydi). Push yuborilmaydi. Additiv — mobil kontraktga ta'sir qilmaydi.
 - `PUT /admin/me/password` body `{ currentPassword, newPassword }` → `{ changed: true }`. `newPassword` 12–128 belgi, joriy paroldan farqli bo'lishi kerak (`400`). Joriy parol noto'g'ri — `400` ("Joriy parol noto'g'ri"; `401` emas — panel 401 da sessiyani tugatadi). Xato urinishlar admin login bilan bir xil hisoblagichda (5 ta → 15 daqiqa `429`), shuning uchun o'g'irlangan sessiya orqali parolni taxmin qilib bo'lmaydi. Eski token'lar muddati tugaguncha (ko'pi bilan 12 soat) amal qiladi — shoshilinch holatda `JWT_SECRET` almashtiriladi (DEPLOY.md §11). (2026-10-16, C-06)
 - `GET /admin/masters/:id` → `GET /admin/masters` elementi **+** `workingHours{start,end,workDays[]}`, `services[{id,title,price,priceType,currency}]` (eski birinchi), `portfolioImages: string[]` (yangisi birinchi), `userCreatedAt` (akkaunt ochilgan vaqt, ISO). Yo'q usta — `404`. Faqat o'qish (2026-10-16, C-02).
 - `PATCH /admin/masters/:id/verify` body `{ isVerified?: boolean }` (standart `true`, `false` — tasdiqni bekor qilish) → `{ id, isVerified }`. Birinchi tasdiqlashda ustaga push yuboriladi (mock).
@@ -230,6 +230,49 @@ Admin: `GET /admin/users` elementida `deletedAt?` (ISO) qo'shiladi; o'chirilgan 
 **Xavfsizlik qoidasi**: `/api/v1/admin/*` barcha endpointlar `JwtAuthGuard` + `RolesGuard(Role.ADMIN)` bilan himoyalanadi. ADMIN role'ga ega foydalanuvchi faqat qo'lda (seed yoki to'g'ridan-to'g'ri DB orqali) yaratiladi — ochiq ro'yxatdan o'tish orqali ADMIN bo'lib bo'lmaydi. `prisma db seed` uni `ADMIN_LOGIN` + `ADMIN_PASSWORD` (kamida 8, production'da 12 belgi) + `ADMIN_PHONE` (akkauntning majburiy telefon maydoni uchun; u bilan kirib bo'lmaydi) bo'yicha yaratadi/yangilaydi (asosiy adminning parol/login/rol/blok holati har safar `.env` ga qaytadi). Dev: `apps/backend/.env`.
 
 **Seed va ma'lumotnomalar (2026-10-22):** viloyatlar+tumanlar va kategoriyalar seed tomonidan **faqat tegishli jadval bo'sh bo'lsa** yaratiladi (`prisma/seed-reference.ts`: viloyatlar — bitta tranzaksiyada `region.count() === 0` bo'lsa; kategoriyalar — `category.count() === 0` bo'lsa); aks holda o'tkazib yuboriladi (`skipped`) va hech narsa yozilmaydi. Sabab: admin panel orqali tahrirlangan/o'chirilgan yozuvlarni (nom, `code`, `slug`) seed qayta ishga tushganda bekor qilmasligi va dublikat yaratmasligi kerak. Oqibat: seed'ga keyin yangi viloyat/kategoriya qo'shilsa, mavjud bazaga avtomatik tushmaydi — admin panel orqali qo'shiladi.
+
+### 4.4. Usta turi (2026-11-06, issue #51)
+
+Platformada ustalardan tashqari yoqilg'i shoxobchalari va zapchast do'konlari ham ro'yxatga olinadi (Taplink katalogi, `TASKS.md` C-08). Ular ham `MasterProfile` — alohida jadval yo'q, buyurtma, sharh, sevimlilar va profil sahifasi barcha turlar uchun o'zgarishsiz ishlaydi. Faqat turi bo'yicha ajratiladi.
+
+**Schema (additiv, mavjud model/maydon o'zgarmaydi):**
+```prisma
+enum MasterType {
+  MASTER
+  FUEL_STATION
+  PARTS_SHOP
+}
+// MasterProfile ichida, isAvailable'dan keyin:
+  type                 MasterType @default(MASTER)
+// mavjud @@index([regionId, districtId, rating]) yoniga:
+  @@index([type, rating])
+```
+- Default `MASTER` — mavjud barcha yozuvlar avtomatik `MASTER` bo'ladi. Migratsiya additiv: `<UTC ts>_master_type` (`CREATE TYPE "MasterType"`, `ALTER TABLE "master_profiles" ADD COLUMN "type" ... NOT NULL DEFAULT 'MASTER'`, `CREATE INDEX "master_profiles_type_rating_idx"`); `DROP`/`ALTER COLUMN`/`RENAME` yo'q.
+- `@@index([type, rating])` sababi: ilovaning standart so'rovi (viloyat filtrisiz, `type = MASTER`, `ORDER BY rating DESC`) `(regionId, districtId, rating)` indeksidan foydalana olmaydi.
+
+**Validatsiya:** ikkala DTO'da (`GET /masters` va `GET /admin/masters` query, `POST /admin/masters` body) `type` ixtiyoriy, `@IsEnum(MasterType)`; noto'g'ri qiymat — `400` (global `ValidationPipe`, mavjud javob formati). **Usta o'z turini o'zgartira olmaydi:** `PUT /masters/me/profile` DTO'siga `type` qo'shilmaydi, `forbidNonWhitelisted` tufayli body'da `type` yuborilsa `400`. Admin tomonidan mavjud profil turini tahrirlash endpointi hozircha yo'q.
+
+**Endpoint qarorlari:**
+
+| Endpoint | Qaror |
+|---|---|
+| `GET /masters` | `type` ixtiyoriy; berilmasa `where.type = MASTER`; berilsa — faqat shu tur. `type` boshqa filtrlar (region, district, category, query) bilan AND. |
+| `GET /masters/:id` | Barcha turlar (filtrsiz); javobda `type`. |
+| Sevimlilar ro'yxati | Barcha turlar — foydalanuvchi o'zi tanlagan; javobda `type`. Toggle o'zgarmaydi. |
+| `GET/PUT /masters/me/profile`, services, portfolio, availability | O'zgarmaydi, barcha turlar; javobda `type`; `type`ni usta o'zgartira olmaydi. |
+| `GET /masters/:id/reviews`, `POST` sharh | O'zgarmaydi, barcha turlar. |
+| `/orders/*` | O'zgarmaydi, barcha turlar. |
+| `GET /categories`, regions, districts | O'zgarmaydi (usta ro'yxati yo'q). |
+| `GET /admin/masters` | `type` ixtiyoriy; berilmasa **barcha turlar** (admin hammasini ko'radi); javobda `type`. |
+| `GET /admin/masters/pending`, `GET /admin/masters/:id` | Filtr qo'shilmaydi; javobda `type`. |
+| `POST /admin/masters` | `type` ixtiyoriy, default `MASTER`; saqlanadi va javobda qaytadi. |
+| `GET /admin/stats/dashboard` | O'zgarmaydi (usta sonlari barcha turlarni sanaydi). |
+
+**Javob shakllari:** `Master` javobiga (`toMasterResponse`) va admin javoblariga (pending, list, detail, create) `type: "MASTER" | "FUEL_STATION" | "PARTS_SHOP"` qo'shiladi.
+
+**Admin panel:** "Barcha ustalar" jadvalida "Turi" ustuni, filtrda "Turi" select'i (Barchasi / Usta / Yoqilg'i shoxobchasi / Zapchast do'koni; URL param `type`, `ALL` API'ga yuborilmaydi), "Usta qo'shish" dialogida "Turi" select'i (default "Usta").
+
+⚠️ **Mobil ilova kontrakti:** (1) master javobida yangi `type` maydoni; (2) `GET /masters` endi `type`siz so'ralganda **faqat `MASTER`** qaytaradi; (3) yangi bo'limlar uchun `GET /masters?type=FUEL_STATION|PARTS_SHOP` (`TASKS.md` D-14).
 
 ## 5. Xavfsizlik va operatsion qoidalar
 

@@ -1,3 +1,4 @@
+import { MasterType } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -5,6 +6,7 @@ import {
   ArrayUnique,
   IsArray,
   IsBoolean,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -87,4 +89,9 @@ export class CreateMasterDto {
   @IsOptional()
   @IsBoolean()
   isVerified?: boolean;
+
+  @ApiPropertyOptional({ enum: MasterType, default: MasterType.MASTER, description: 'Usta turi (docs/TZ.md §4.4)' })
+  @IsOptional()
+  @IsEnum(MasterType)
+  type?: MasterType;
 }

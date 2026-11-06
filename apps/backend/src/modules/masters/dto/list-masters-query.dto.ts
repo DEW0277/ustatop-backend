@@ -1,3 +1,4 @@
+import { MasterType } from '@prisma/client';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
@@ -25,6 +26,14 @@ export class ListMastersQueryDto {
   @IsOptional()
   @IsUUID()
   categoryId?: string;
+
+  @ApiPropertyOptional({
+    enum: MasterType,
+    description: 'Usta turi. Berilmasa faqat MASTER qaytariladi (docs/TZ.md §4.4)',
+  })
+  @IsOptional()
+  @IsEnum(MasterType)
+  type?: MasterType;
 
   @ApiPropertyOptional({ description: 'Qidiruv: ism, familiya, bio yoki xizmat nomi' })
   @IsOptional()

@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import { api } from '@/lib/api-client';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
+import { MASTER_TYPE_LABELS } from '@/lib/master-type';
 import {
   DEFAULT_MASTERS_FILTERS,
   mastersFilterSchema,
@@ -27,6 +28,11 @@ const VERIFIED_LABELS: Record<MastersFilterValues['isVerified'], string> = {
   ALL: 'Barchasi',
   verified: 'Tasdiqlangan',
   unverified: 'Kutilmoqda',
+};
+
+const TYPE_ITEMS: Record<MastersFilterValues['type'], string> = {
+  ALL: 'Barchasi',
+  ...MASTER_TYPE_LABELS,
 };
 
 export function MasterFilters({
@@ -50,12 +56,13 @@ export function MasterFilters({
   const query = useWatch({ control, name: 'query' });
   const isVerified = useWatch({ control, name: 'isVerified' });
   const regionId = useWatch({ control, name: 'regionId' });
+  const type = useWatch({ control, name: 'type' });
   const debouncedQuery = useDebouncedValue(query, 350);
 
   useEffect(() => {
-    onChange({ query: debouncedQuery, isVerified, regionId });
+    onChange({ query: debouncedQuery, isVerified, regionId, type });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQuery, isVerified, regionId]);
+  }, [debouncedQuery, isVerified, regionId, type]);
 
   const regions = useMemo(() => regionsQuery.data ?? [], [regionsQuery.data]);
 
@@ -67,7 +74,9 @@ export function MasterFilters({
     [regions],
   );
 
-  const hasActiveFilters = Boolean(query || isVerified !== 'ALL' || regionId !== 'ALL');
+  const hasActiveFilters = Boolean(
+    query || isVerified !== 'ALL' || regionId !== 'ALL' || type !== 'ALL',
+  );
 
   function handleReset() {
     reset(DEFAULT_MASTERS_FILTERS);
@@ -89,6 +98,28 @@ export function MasterFilters({
             )}
           />
         </FieldContent>
+      </Field>
+
+      <Field className="w-48">
+        <FieldLabel>Turi</FieldLabel>
+        <Controller
+          control={control}
+          name="type"
+          render={({ field }) => (
+            <Select items={TYPE_ITEMS} value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(TYPE_ITEMS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </Field>
 
       <Field className="w-48">

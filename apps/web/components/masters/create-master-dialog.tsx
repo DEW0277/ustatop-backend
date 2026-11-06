@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ApiError, api } from '@/lib/api-client';
+import { MASTER_TYPES, MASTER_TYPE_LABELS } from '@/lib/master-type';
 import {
   DEFAULT_MASTER_FORM,
   MASTER_API_FIELD_TO_FORM,
@@ -171,6 +172,33 @@ export function CreateMasterDialog() {
           className="grid gap-4 py-2 sm:grid-cols-2"
           noValidate
         >
+          <Field className="sm:col-span-2">
+            <FieldLabel htmlFor="master-type">Turi</FieldLabel>
+            <FieldContent>
+              <Controller
+                control={control}
+                name="type"
+                render={({ field, fieldState }) => (
+                  <>
+                    <Select items={MASTER_TYPE_LABELS} value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="master-type" className="w-full" aria-invalid={fieldState.invalid}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MASTER_TYPES.map((value) => (
+                          <SelectItem key={value} value={value}>
+                            {MASTER_TYPE_LABELS[value]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldError errors={fieldState.error ? [fieldState.error] : undefined} />
+                  </>
+                )}
+              />
+            </FieldContent>
+          </Field>
+
           <Field>
             <FieldLabel htmlFor="master-firstName">Ism</FieldLabel>
             <FieldContent>

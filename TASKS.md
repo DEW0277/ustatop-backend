@@ -21,12 +21,12 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | Bo'lim | Bajarildi | Jami |
 |---|---|---|
 | A. Tezkor tuzatishlar va tartib | 3 | 4 |
-| B. Backend | 4 | 8 |
-| C. Admin panel | 4 | 6 |
-| D. Mobil ilova integratsiyasi | 12 | 13 |
+| B. Backend | 5 | 9 |
+| C. Admin panel | 5 | 8 |
+| D. Mobil ilova integratsiyasi | 12 | 14 |
 | E. Deploy va operatsiya | 6 | 13 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **29** | **50** |
+| **Jami** | **31** | **54** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -84,6 +84,9 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Bog'liqlik: B-01. Real SMS yoqilgach Google Play / App Store tekshiruvchilari SMS kodni ololmaydi — "App access" bo'limiga ishlaydigan login kerak, aks holda ilova rad etiladi.
   - Taklif: production `.env`da `REVIEW_PHONE` + `REVIEW_OTP` — faqat shu raqamga SMS yuborilmaydi va kod qat'iy; raqam oddiy CLIENT (admin emas), kerak bo'lsa alohida usta akkaunti ham. Xavfsizlik: kod uzun va tasodifiy, faqat tekshiruv davrida yoqiladi, urinishlar limiti amal qiladi.
   - Tayyor mezoni: unit + e2e test, DEPLOY.md'da yoqish/o'chirish tartibi, `mobile-app/docs/PLAY_STORE.md` §5 yangilangan.
+- [x] **B-09 · Usta turi (MASTER / FUEL_STATION / PARTS_SHOP)** — Claude ⚠️ — ✅ Bajarildi (2026-11-06, PR #52)
+  - Issue #51, TZ §4.4. `MasterProfile.type` (default `MASTER`, additiv migratsiya), `GET /masters?type=` (berilmasa faqat `MASTER` — eski ilova versiyalari himoyalangan), `POST /admin/masters` va `GET /admin/masters` `type` bilan, javoblarda `type`.
+  - Tayyor mezoni: migratsiya va TZ mos, `GET /masters` standart holda faqat `MASTER`, admin create/filter ishlaydi, unit + e2e testlar yashil.
 
 ## C. Admin panel (`apps/web`)
 
@@ -109,6 +112,14 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - `PUT /admin/me/password` + "Sozlamalar" sahifasi (joriy parol tekshiriladi, xato urinishlar login bloki bilan umumiy). Qo'shimcha admin qo'shish/olib tashlash — hozircha DEPLOY.md §10 (SQL); panel UI kerak bo'lsa alohida vazifa.
   - Hozir parol faqat `ADMIN_PASSWORD` + `prisma db seed` orqali almashtiriladi va bitta admin bor.
   - Tayyor mezoni: TZ'ga endpoint qo'shilgan; "Parolni almashtirish" (eski parol tekshiriladi) va kerak bo'lsa yangi admin qo'shish.
+- [x] **C-07 · Admin panelda usta turi** — Gemini — ✅ Bajarildi (2026-11-06, Claude — Gemini ishga tusha olmadi, PR #52)
+  - "Barcha ustalar" jadvalida "Turi" ustuni va filtri (URL param `type`), "Usta qo'shish" dialogida "Turi" select'i (default "Usta").
+  - Bog'liqlik: B-09.
+  - Tayyor mezoni: web zod sxemalari backend DTO bilan sinxron, `pnpm --filter web lint` va `test` yashil.
+- [ ] **C-08 · Taplink katalogini import qilish (~369 yozuv)** — 👤
+  - Deploy'dan keyin Chrome orqali admin panelda (yoki `POST /admin/masters`) yoqilg'i shoxobchalari va zapchast do'konlarini kiritish.
+  - Bog'liqlik: B-09, C-07, production deploy.
+  - Tayyor mezoni: yozuvlar productionda to'g'ri `type` bilan, takroriy telefonlar yo'q.
 
 ## D. Mobil ilova integratsiyasi (`/Users/macstore.uz/Desktop/mobile-app`, alohida repo) 🔒
 
@@ -155,6 +166,10 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Profil: "Akkauntni o'chirish" (ikki bosqichli tasdiq) va maxfiylik siyosati / shartlar havolalari (`LEGAL_URLS`, C-03 sahifalari).
   - Bog'liqlik: B-03, C-03.
   - Tayyor mezoni: Profil ekranida "Akkauntni o'chirish" (tasdiqlash bilan) va maxfiylik siyosati / shartlar havolalari.
+- [ ] **D-14 · Mobil ilovada shoxobcha va zapchast do'konlari bo'limlari** — Claude ⚠️ (alohida repo)
+  - `GET /masters?type=FUEL_STATION|PARTS_SHOP`, `Master` tipiga `type` qo'shiladi.
+  - Bog'liqlik: B-09.
+  - Tayyor mezoni: ilovada alohida bo'limlar, ustalar ro'yxati o'zgarmagan (faqat `MASTER`).
 
 ## E. Deploy va operatsiya (Contabo VPS) 🔒
 

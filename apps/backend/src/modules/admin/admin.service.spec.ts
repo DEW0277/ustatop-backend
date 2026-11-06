@@ -1,6 +1,10 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminService } from './admin.service.js';
+import { CreateMasterDto } from './dto/create-master.dto.js';
+import { ListMastersQueryDto } from './dto/list-masters-query.dto.js';
 
 function createDeps() {
   const prisma = {
@@ -117,6 +121,7 @@ describe('AdminService', () => {
         bio: 'Tajribali usta',
         experienceYears: 3,
         isVerified: true,
+        type: 'PARTS_SHOP',
         address: 'Manzil',
         createdAt: new Date('2026-10-12T10:00:00.000Z'),
         region: { id: 'r-1', nameUz: 'Toshkent' },
@@ -135,6 +140,7 @@ describe('AdminService', () => {
       expect(result).toMatchObject({
         id: 'm-9',
         fullName: 'Ali Valiyev',
+        type: 'PARTS_SHOP',
         isVerified: true,
         isBlocked: false,
         categories: [{ id: 'c-1', nameUz: 'Elektrik' }],
@@ -272,6 +278,18 @@ describe('AdminService', () => {
       expect(deps.prisma.masterProfile.findMany.mock.calls[1]![0].where.AND).toHaveLength(5);
     });
 
+    it("type filtri findMany va count ikkalasida ham qo'llanadi", async () => {
+      await service.listMasters({ type: 'FUEL_STATION' } as never);
+      expect(deps.prisma.masterProfile.findMany.mock.calls[0]![0].where).toEqual({ type: 'FUEL_STATION' });
+      expect(deps.prisma.masterProfile.count).toHaveBeenCalledWith({ where: { type: 'FUEL_STATION' } });
+    });
+
+    it("type berilmasa where'da type kaliti yo'q (admin barcha turlarni ko'radi)", async () => {
+      await service.listMasters({});
+      expect(deps.prisma.masterProfile.findMany.mock.calls[0]![0].where).not.toHaveProperty('type');
+      expect(deps.prisma.masterProfile.count.mock.calls[0]![0].where).not.toHaveProperty('type');
+    });
+
     it('isVerified=false filtri tushib qolmaydi (falsy qiymat)', async () => {
       await service.listMasters({ isVerified: false });
       expect(deps.prisma.masterProfile.findMany.mock.calls[0]![0].where).toEqual({ isVerified: false });
@@ -300,6 +318,7 @@ describe('AdminService', () => {
           reviewCount: 12,
           completedOrdersCount: 25,
           isAvailable: true,
+          type: 'FUEL_STATION',
           address: 'Chilonzor',
           createdAt: new Date('2026-09-01T00:00:00.000Z'),
           region: { id: 'r-1', nameUz: 'Toshkent' },
@@ -320,6 +339,7 @@ describe('AdminService', () => {
         avatarUrl: 'https://example.com/avatar.jpg',
         bio: 'Tajribali usta',
         experienceYears: 5,
+        type: 'FUEL_STATION',
         isVerified: true,
         isBlocked: false,
         rating: 4.8,
@@ -332,6 +352,31 @@ describe('AdminService', () => {
         categories: [{ id: 'c-1', nameUz: 'Santexnik' }],
         createdAt: '2026-09-01T00:00:00.000Z',
       });
+    });
+  });
+
+  describe('DTO type validatsiyasi', () => {
+    it("CreateMasterDto: noto'g'ri type rad etiladi, to'g'ri va berilmagan qabul qilinadi", async () => {
+      const base = {
+        phone: '+998901112233',
+        firstName: 'Ali',
+        lastName: 'Valiyev',
+        bio: 'Tajribali usta, 10 yil',
+        regionId: '11111111-1111-4111-8111-111111111111',
+        districtId: '22222222-2222-4222-8222-222222222222',
+        address: 'Chilonzor 9',
+        workingHours: { start: '09:00', end: '18:00', workDays: ['mon'] },
+      };
+      const bad = await validate(plainToInstance(CreateMasterDto, { ...base, type: 'X' }));
+      expect(bad.map((e) => e.property)).toEqual(['type']);
+      expect(await validate(plainToInstance(CreateMasterDto, { ...base, type: 'PARTS_SHOP' }))).toEqual([]);
+      expect(await validate(plainToInstance(CreateMasterDto, base))).toEqual([]);
+    });
+
+    it("admin ListMastersQueryDto: type=bogus rad etiladi, FUEL_STATION qabul qilinadi", async () => {
+      const bad = await validate(plainToInstance(ListMastersQueryDto, { type: 'bogus' }));
+      expect(bad.map((e) => e.property)).toEqual(['type']);
+      expect(await validate(plainToInstance(ListMastersQueryDto, { type: 'FUEL_STATION' }))).toEqual([]);
     });
   });
 });

@@ -1,6 +1,8 @@
 import { NotFoundException } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MasterSortBy } from './dto/list-masters-query.dto.js';
+import { ListMastersQueryDto, MasterSortBy } from './dto/list-masters-query.dto.js';
 import { MastersService } from './masters.service.js';
 
 function masterFixture(overrides: Record<string, unknown> = {}) {
@@ -18,6 +20,7 @@ function masterFixture(overrides: Record<string, unknown> = {}) {
     completedOrdersCount: 7,
     isVerified: false,
     isAvailable: true,
+    type: 'MASTER',
     user: { avatarUrl: null },
     regionId: 'r-1',
     districtId: 'd-1',
@@ -72,6 +75,7 @@ describe('MastersService', () => {
       expect(master).toMatchObject({
         id: 'm-1',
         fullName: 'Alisher Valiyev',
+        type: 'MASTER',
         avatarUrl: '',
         regionId: 'r-1',
         districtId: 'd-1',
@@ -131,6 +135,57 @@ describe('MastersService', () => {
 
       expect(prisma.masterProfile.findMany.mock.calls[0][0].where.OR).toBeUndefined();
     });
+
+    it("type berilmasa faqat MASTER ni qaytaradi (eski ilova versiyalari himoyasi)", async () => {
+      prisma.masterProfile.findMany.mockResolvedValue([]);
+
+      await service.findAll({});
+
+      expect(prisma.masterProfile.findMany.mock.calls[0][0].where.type).toBe('MASTER');
+    });
+
+    it.each(['MASTER', 'FUEL_STATION', 'PARTS_SHOP'] as const)('type=%s bo\'yicha filtrlaydi', async (type) => {
+      prisma.masterProfile.findMany.mockResolvedValue([]);
+
+      await service.findAll({ type });
+
+      expect(prisma.masterProfile.findMany.mock.calls[0][0].where.type).toBe(type);
+    });
+
+    it("type boshqa filtrlar bilan birga where'da bo'ladi", async () => {
+      prisma.masterProfile.findMany.mockResolvedValue([]);
+
+      await service.findAll({ regionId: 'r-1', type: 'FUEL_STATION' });
+
+      const where = prisma.masterProfile.findMany.mock.calls[0][0].where;
+      expect(where.regionId).toBe('r-1');
+      expect(where.type).toBe('FUEL_STATION');
+      expect(where.user).toEqual({ isBlocked: false });
+    });
+
+    it('javobdagi elementda type kaliti bor', async () => {
+      prisma.masterProfile.findMany.mockResolvedValue([masterFixture({ type: 'PARTS_SHOP' })]);
+
+      const [master] = await service.findAll({ type: 'PARTS_SHOP' });
+
+      expect(master.type).toBe('PARTS_SHOP');
+    });
+  });
+
+  describe('ListMastersQueryDto type', () => {
+    it("noto'g'ri type qiymatini rad etadi", async () => {
+      const errors = await validate(plainToInstance(ListMastersQueryDto, { type: 'SHOP' }));
+
+      expect(errors.map((e) => e.property)).toEqual(['type']);
+    });
+
+    it.each(['MASTER', 'FUEL_STATION', 'PARTS_SHOP'])('%s ni qabul qiladi', async (type) => {
+      expect(await validate(plainToInstance(ListMastersQueryDto, { type }))).toEqual([]);
+    });
+
+    it('type ixtiyoriy', async () => {
+      expect(await validate(plainToInstance(ListMastersQueryDto, {}))).toEqual([]);
+    });
   });
 
   describe('findOne', () => {
@@ -144,6 +199,15 @@ describe('MastersService', () => {
         user: { isBlocked: false },
       });
       expect(result.id).toBe('m-1');
+    });
+
+    it("barcha turlar uchun ishlaydi: where'da type yo'q", async () => {
+      prisma.masterProfile.findFirst.mockResolvedValue(masterFixture({ type: 'FUEL_STATION' }));
+
+      const result = await service.findOne('m-1');
+
+      expect(prisma.masterProfile.findFirst.mock.calls[0][0].where).not.toHaveProperty('type');
+      expect(result.type).toBe('FUEL_STATION');
     });
 
     it('topilmasa NotFoundException otadi', async () => {

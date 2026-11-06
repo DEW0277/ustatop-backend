@@ -1,6 +1,7 @@
+import { MasterType } from '@prisma/client';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { PaginationQueryDto } from './pagination-query.dto.js';
 
 export class ListMastersQueryDto extends PaginationQueryDto {
@@ -14,6 +15,11 @@ export class ListMastersQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   regionId?: string;
+
+  @ApiPropertyOptional({ enum: MasterType, description: 'Usta turi. Berilmasa barcha turlar (docs/TZ.md §4.4)' })
+  @IsOptional()
+  @IsEnum(MasterType)
+  type?: MasterType;
 
   @ApiPropertyOptional({ description: 'Qidiruv: ism yoki telefon' })
   @IsOptional()

@@ -12,6 +12,7 @@ describe('mastersFilterSchema', () => {
       query: ' Ali ',
       isVerified: 'verified',
       regionId: 'reg-1',
+      type: 'ALL',
     });
     expect(res.success).toBe(true);
     if (res.success) {
@@ -24,6 +25,7 @@ describe('mastersFilterSchema', () => {
       query: '',
       isVerified: 'invalid',
       regionId: 'ALL',
+      type: 'ALL',
     });
     expect(res.success).toBe(false);
   });
@@ -45,7 +47,18 @@ describe('mastersFiltersFromSearchParams', () => {
       query: 'Vali',
       isVerified: 'unverified',
       regionId: 'region-uuid',
+      type: 'ALL',
     });
+  });
+
+  it('`type` parametrini o‘qiydi', () => {
+    const params = new URLSearchParams({ type: 'PARTS_SHOP' });
+    expect(mastersFiltersFromSearchParams(params)).toEqual({ ...DEFAULT_MASTERS_FILTERS, type: 'PARTS_SHOP' });
+  });
+
+  it('noto‘g‘ri `type` bo‘lsa standart qiymatga qaytadi', () => {
+    const params = new URLSearchParams({ type: 'bogus' });
+    expect(mastersFiltersFromSearchParams(params)).toEqual(DEFAULT_MASTERS_FILTERS);
   });
 
   it('noto‘g‘ri parametrlar berilganda standart qiymatga qaytadi', () => {
@@ -62,15 +75,23 @@ describe('mastersFiltersToApiQuery', () => {
       query: undefined,
       isVerified: undefined,
       regionId: undefined,
+      type: undefined,
       page: 1,
       limit: 20,
     });
   });
 
+  it('`type`: ALL → undefined, aniq tur → o‘sha tur', () => {
+    expect(mastersFiltersToApiQuery({ ...DEFAULT_MASTERS_FILTERS, type: 'ALL' }, 1).type).toBeUndefined();
+    expect(mastersFiltersToApiQuery({ ...DEFAULT_MASTERS_FILTERS, type: 'FUEL_STATION' }, 1).type).toBe(
+      'FUEL_STATION',
+    );
+  });
+
   it('aniq filtrlarni to‘g‘ri shakllantiradi', () => {
     expect(
       mastersFiltersToApiQuery(
-        { query: 'Ali', isVerified: 'verified', regionId: 'uuid-123' },
+        { query: 'Ali', isVerified: 'verified', regionId: 'uuid-123', type: 'ALL' },
         2,
         10,
       ),
@@ -78,19 +99,21 @@ describe('mastersFiltersToApiQuery', () => {
       query: 'Ali',
       isVerified: true,
       regionId: 'uuid-123',
+      type: undefined,
       page: 2,
       limit: 10,
     });
 
     expect(
       mastersFiltersToApiQuery(
-        { query: '', isVerified: 'unverified', regionId: 'ALL' },
+        { query: '', isVerified: 'unverified', regionId: 'ALL', type: 'ALL' },
         1,
       ),
     ).toEqual({
       query: undefined,
       isVerified: false,
       regionId: undefined,
+      type: undefined,
       page: 1,
       limit: 20,
     });

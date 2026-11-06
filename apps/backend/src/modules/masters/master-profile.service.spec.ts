@@ -56,6 +56,7 @@ const fullProfile = {
   completedOrdersCount: 0,
   isVerified: false,
   isAvailable: true,
+  type: 'MASTER',
   user: { avatarUrl: null },
   regionId: 'r-1',
   districtId: 'd-1',
@@ -160,6 +161,14 @@ describe('MasterProfileService', () => {
         data: expect.objectContaining({ userId: 'u-new', phone: '+998901112233', isVerified: true, experienceYears: 0 }),
       });
       expect(deps.tx.masterCategory.createMany).not.toHaveBeenCalled();
+    });
+
+    it("type berilmasa MASTER saqlanadi, berilsa o'sha tur saqlanadi", async () => {
+      await service.createByAdmin(input);
+      expect(deps.tx.masterProfile.create.mock.calls[0]![0].data.type).toBe('MASTER');
+
+      await service.createByAdmin({ ...(input as object), type: 'PARTS_SHOP' } as never);
+      expect(deps.tx.masterProfile.create.mock.calls[1]![0].data.type).toBe('PARTS_SHOP');
     });
 
     it("mavjud CLIENT'ga profil biriktiradi, rolni MASTER qiladi; isVerified=false va kategoriyalar saqlanadi", async () => {

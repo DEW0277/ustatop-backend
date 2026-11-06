@@ -29,6 +29,7 @@ const pendingMasterSelect = {
   telegram: true,
   bio: true,
   experienceYears: true,
+  type: true,
   isVerified: true,
   address: true,
   createdAt: true,
@@ -60,6 +61,7 @@ function toAdminMaster(master: MasterRow) {
     avatarUrl: master.user.avatarUrl ?? undefined,
     bio: master.bio,
     experienceYears: master.experienceYears,
+    type: master.type,
     isVerified: master.isVerified,
     isBlocked: master.user.isBlocked,
     region: master.region,
@@ -193,6 +195,7 @@ export class AdminService {
     const where: Prisma.MasterProfileWhereInput = {
       ...(query.isVerified !== undefined ? { isVerified: query.isVerified } : {}),
       ...(query.regionId ? { regionId: query.regionId } : {}),
+      ...(query.type ? { type: query.type } : {}),
       ...(terms.length > 0
         ? {
             AND: terms.map((term) => ({

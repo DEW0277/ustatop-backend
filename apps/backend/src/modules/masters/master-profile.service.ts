@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Role } from '@prisma/client';
+import { MasterType, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { FileCleanupService } from '../upload/file-cleanup.service.js';
 import { StorageService } from '../upload/storage.service.js';
@@ -22,6 +22,7 @@ export type AdminCreateMasterInput = Required<
   Pick<UpsertMasterProfileDto, 'telegram' | 'experienceYears' | 'categoryIds'> & {
     phone: string;
     isVerified?: boolean;
+    type?: MasterType;
   };
 
 const MAX_PORTFOLIO_IMAGES = 20;
@@ -161,6 +162,7 @@ export class MasterProfileService {
               workDays: dto.workingHours.workDays,
             },
             isVerified: dto.isVerified ?? true,
+            type: dto.type ?? MasterType.MASTER,
           },
         });
 
