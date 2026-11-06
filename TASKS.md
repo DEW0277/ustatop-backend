@@ -21,12 +21,12 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | Bo'lim | Bajarildi | Jami |
 |---|---|---|
 | A. Tezkor tuzatishlar va tartib | 3 | 4 |
-| B. Backend | 4 | 9 |
-| C. Admin panel | 4 | 8 |
+| B. Backend | 5 | 9 |
+| C. Admin panel | 5 | 8 |
 | D. Mobil ilova integratsiyasi | 12 | 14 |
 | E. Deploy va operatsiya | 6 | 13 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **29** | **54** |
+| **Jami** | **31** | **54** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -84,7 +84,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - Bog'liqlik: B-01. Real SMS yoqilgach Google Play / App Store tekshiruvchilari SMS kodni ololmaydi — "App access" bo'limiga ishlaydigan login kerak, aks holda ilova rad etiladi.
   - Taklif: production `.env`da `REVIEW_PHONE` + `REVIEW_OTP` — faqat shu raqamga SMS yuborilmaydi va kod qat'iy; raqam oddiy CLIENT (admin emas), kerak bo'lsa alohida usta akkaunti ham. Xavfsizlik: kod uzun va tasodifiy, faqat tekshiruv davrida yoqiladi, urinishlar limiti amal qiladi.
   - Tayyor mezoni: unit + e2e test, DEPLOY.md'da yoqish/o'chirish tartibi, `mobile-app/docs/PLAY_STORE.md` §5 yangilangan.
-- [ ] **B-09 · Usta turi (MASTER / FUEL_STATION / PARTS_SHOP)** — Claude ⚠️
+- [x] **B-09 · Usta turi (MASTER / FUEL_STATION / PARTS_SHOP)** — Claude ⚠️ — ✅ Bajarildi (2026-11-06, PR #52)
   - Issue #51, TZ §4.4. `MasterProfile.type` (default `MASTER`, additiv migratsiya), `GET /masters?type=` (berilmasa faqat `MASTER` — eski ilova versiyalari himoyalangan), `POST /admin/masters` va `GET /admin/masters` `type` bilan, javoblarda `type`.
   - Tayyor mezoni: migratsiya va TZ mos, `GET /masters` standart holda faqat `MASTER`, admin create/filter ishlaydi, unit + e2e testlar yashil.
 
@@ -112,7 +112,7 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - `PUT /admin/me/password` + "Sozlamalar" sahifasi (joriy parol tekshiriladi, xato urinishlar login bloki bilan umumiy). Qo'shimcha admin qo'shish/olib tashlash — hozircha DEPLOY.md §10 (SQL); panel UI kerak bo'lsa alohida vazifa.
   - Hozir parol faqat `ADMIN_PASSWORD` + `prisma db seed` orqali almashtiriladi va bitta admin bor.
   - Tayyor mezoni: TZ'ga endpoint qo'shilgan; "Parolni almashtirish" (eski parol tekshiriladi) va kerak bo'lsa yangi admin qo'shish.
-- [ ] **C-07 · Admin panelda usta turi** — Gemini
+- [x] **C-07 · Admin panelda usta turi** — Gemini — ✅ Bajarildi (2026-11-06, Claude — Gemini ishga tusha olmadi, PR #52)
   - "Barcha ustalar" jadvalida "Turi" ustuni va filtri (URL param `type`), "Usta qo'shish" dialogida "Turi" select'i (default "Usta").
   - Bog'liqlik: B-09.
   - Tayyor mezoni: web zod sxemalari backend DTO bilan sinxron, `pnpm --filter web lint` va `test` yashil.
