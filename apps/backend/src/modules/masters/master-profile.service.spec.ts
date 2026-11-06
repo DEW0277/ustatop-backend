@@ -163,6 +163,14 @@ describe('MasterProfileService', () => {
       expect(deps.tx.masterCategory.createMany).not.toHaveBeenCalled();
     });
 
+    it("type berilmasa MASTER saqlanadi, berilsa o'sha tur saqlanadi", async () => {
+      await service.createByAdmin(input);
+      expect(deps.tx.masterProfile.create.mock.calls[0]![0].data.type).toBe('MASTER');
+
+      await service.createByAdmin({ ...(input as object), type: 'PARTS_SHOP' } as never);
+      expect(deps.tx.masterProfile.create.mock.calls[1]![0].data.type).toBe('PARTS_SHOP');
+    });
+
     it("mavjud CLIENT'ga profil biriktiradi, rolni MASTER qiladi; isVerified=false va kategoriyalar saqlanadi", async () => {
       deps.tx.user.findUnique.mockResolvedValue({ id: 'u-1', role: 'CLIENT', isBlocked: false, masterProfile: null });
       deps.prisma.category.count.mockResolvedValue(2);
