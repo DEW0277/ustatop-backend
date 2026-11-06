@@ -26,6 +26,12 @@ enum OrderStatus {
   cancelled
 }
 
+enum MasterType {
+  MASTER
+  FUEL_STATION
+  PARTS_SHOP
+}
+
 enum WeekDay {
   mon
   tue
@@ -97,28 +103,29 @@ model Category {
 }
 
 model MasterProfile {
-  id                   String   @id @default(uuid())
-  userId               String   @unique
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String     @id @default(uuid())
+  userId               String     @unique
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   firstName            String
   lastName             String
   phone                String
   telegram             String?
   bio                  String
-  experienceYears      Int      @default(0)
-  rating               Float    @default(0.0)
-  reviewCount          Int      @default(0)
-  completedOrdersCount Int      @default(0)
-  isVerified           Boolean  @default(false)
-  isAvailable          Boolean  @default(true)
+  experienceYears      Int        @default(0)
+  rating               Float      @default(0.0)
+  reviewCount          Int        @default(0)
+  completedOrdersCount Int        @default(0)
+  isVerified           Boolean    @default(false)
+  isAvailable          Boolean    @default(true)
+  type                 MasterType @default(MASTER)
   regionId             String
-  region               Region   @relation(fields: [regionId], references: [id])
+  region               Region     @relation(fields: [regionId], references: [id])
   districtId           String
-  district             District @relation(fields: [districtId], references: [id])
+  district             District   @relation(fields: [districtId], references: [id])
   address              String
   workingHours         Json
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 
   categories  MasterCategory[]
   services    MasterService[]
@@ -128,6 +135,7 @@ model MasterProfile {
   favoritedBy FavoriteMaster[]
 
   @@index([regionId, districtId, rating])
+  @@index([type, rating])
   @@map("master_profiles")
 }
 
