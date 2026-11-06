@@ -24,9 +24,9 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | B. Backend | 5 | 9 |
 | C. Admin panel | 5 | 8 |
 | D. Mobil ilova integratsiyasi | 12 | 14 |
-| E. Deploy va operatsiya | 6 | 13 |
+| E. Deploy va operatsiya | 7 | 14 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **31** | **54** |
+| **Jami** | **32** | **55** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -237,6 +237,12 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
     - Nonce asosidagi CSP (`script-src`/`default-src`) panel uchun.
     - Backend Dockerfile build'ida `ERR_PNPM_IGNORED_BUILDS` (verifyDepsBeforeRun install'i) — build to'xtamaydi, Prisma client generatsiya qilinadi, lekin logni chalkashtiradi (2026-10-22 VPS build).
   - Tayyor mezoni: har bir band alohida baholanib bajarilgan yoki sababi bilan bekor qilingan.
+- [x] **E-14 · Bog'liqliklardagi yangi zaifliklar (2026-11-06 audit)** — Claude — ✅ Bajarildi (2026-11-06, PR #52)
+  - PR #52 CI'dagi `pnpm audit` yangi advisory'lar bilan yiqildi (kodga aloqasi yo'q): `next` 2 ta critical (autentifikatsiyasiz RCE, `use cache` typed-array RCE) + high DoS; `zod`, `body-parser`, `multer`, `undici` (high); `systeminformation`, `ip-address`, `@hono/node-server`, `qs`, `fast-uri`, `glob`, `minimatch` (moderate/high/low).
+  - To'g'ridan-to'g'ri ko'tarildi: `next` va `eslint-config-next` 16.3.8 → 16.4.1, `zod` ^4.6.5 → ^4.6.6 (web), `multer` ^2.4.0 → ^2.5.0 (backend).
+  - `pnpm-workspace.yaml` `overrides` (har biri izohli): `multer` ^2.5.0, `body-parser@>=2 <2.4.0` → ^2.4.0, `qs` → ^6.16.1, `undici@>=7 <7.30.1` → ^7.30.1, `systeminformation` ^5.33.16, `ip-address` ^10.7.4, `@hono/node-server` ^2.1.3, `fast-uri` ^3.1.9, `zod@<4.6.6` → ^4.6.6, `rimraf@<6` → ^6.1.4 (gaxios uni yuklamaydi), `minimatch@>=10 <11` → ^11.0.1.
+  - `deepmerge` (GHSA-gcqx-w48m-w2h4, low): tuzatilgan versiya chiqmagan (oxirgisi 4.3.1), faqat dev tooling (shadcn CLI) — `auditConfig.ignoreGhsas`da sababi bilan.
+  - Tayyor mezoni: `pnpm audit` 0 (ignore qilinganidan tashqari), CI'da audit qadami yashil, lint/typecheck/test/build/e2e o'tadi.
 
 ## F. Reliz
 
