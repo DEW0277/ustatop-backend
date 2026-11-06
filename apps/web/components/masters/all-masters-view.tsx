@@ -19,6 +19,7 @@ import {
 import { ApiError, api } from '@/lib/api-client';
 import { areFiltersEqual } from '@/lib/filters-equal';
 import { formatDate } from '@/lib/format';
+import { MASTER_TYPE_LABELS } from '@/lib/master-type';
 import {
   mastersFiltersFromSearchParams,
   mastersFiltersToApiQuery,
@@ -47,6 +48,7 @@ export function AllMastersView() {
     if (filters.query) params.set('query', filters.query);
     if (filters.isVerified !== 'ALL') params.set('isVerified', filters.isVerified);
     if (filters.regionId !== 'ALL') params.set('regionId', filters.regionId);
+    if (filters.type !== 'ALL') params.set('type', filters.type);
     if (page > 1) params.set('page', String(page));
     const search = params.toString();
     router.replace(`${pathname}?${search}`, { scroll: false });
@@ -83,6 +85,7 @@ export function AllMastersView() {
             <TableHeader>
               <TableRow>
                 <TableHead>Usta</TableHead>
+                <TableHead>Turi</TableHead>
                 <TableHead>Hudud</TableHead>
                 <TableHead>Kategoriyalar</TableHead>
                 <TableHead>Reyting</TableHead>
@@ -96,7 +99,7 @@ export function AllMastersView() {
               {query.isLoading &&
                 Array.from({ length: SKELETON_ROWS }).map((_, index) => (
                   <TableRow key={index}>
-                    {Array.from({ length: 8 }).map((__, cell) => (
+                    {Array.from({ length: 9 }).map((__, cell) => (
                       <TableCell key={cell}>
                         <Skeleton className="h-5 w-full max-w-32" />
                       </TableCell>
@@ -106,7 +109,7 @@ export function AllMastersView() {
 
               {query.isError && (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-destructive">
+                  <TableCell colSpan={9} className="py-8 text-center text-destructive">
                     {query.error instanceof ApiError ? query.error.message : 'Kutilmagan xatolik'}
                   </TableCell>
                 </TableRow>
@@ -114,7 +117,7 @@ export function AllMastersView() {
 
               {!query.isLoading && !query.isError && items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="py-12 text-center text-muted-foreground">
                     <div className="flex flex-col items-center gap-2">
                       <span>Hech qanday usta topilmadi</span>
                       {showBackToFirstPage && (
@@ -138,6 +141,11 @@ export function AllMastersView() {
                           TG: @{master.telegram.replace(/^@/, '')}
                         </div>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="w-fit whitespace-nowrap">
+                        {MASTER_TYPE_LABELS[master.type]}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">{master.region.nameUz}</div>
