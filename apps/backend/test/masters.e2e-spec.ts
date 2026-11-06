@@ -19,6 +19,8 @@ describe('Masters (e2e)', () => {
   let otherCategoryId: string;
   let masterId: string;
   let otherMasterId: string;
+  let fuelStationId: string;
+  let partsShopId: string;
   let masterToken: string;
   let otherMasterToken: string;
   let clientToken: string;
@@ -53,6 +55,12 @@ describe('Masters (e2e)', () => {
     otherMasterId = await createMasterProfile(prisma, other.userId, { regionId, districtId, categoryId: otherCategoryId });
 
     clientToken = (await otpLogin(app, testPhone(TAG, 3))).token;
+
+    // Shoxobcha va do'kon: OTP orqali kirish shart emas (send-otp limiti) — akkaunt to'g'ridan-to'g'ri bazada.
+    const fuelUser = await prisma.user.create({ data: { phone: testPhone(TAG, 4), name: 'E2E shoxobcha' } });
+    fuelStationId = await createMasterProfile(prisma, fuelUser.id, { regionId, districtId, categoryId }, 'FUEL_STATION');
+    const shopUser = await prisma.user.create({ data: { phone: testPhone(TAG, 5), name: "E2E do'kon" } });
+    partsShopId = await createMasterProfile(prisma, shopUser.id, { regionId, districtId, categoryId }, 'PARTS_SHOP');
   });
 
   afterAll(async () => {
@@ -112,6 +120,65 @@ describe('Masters (e2e)', () => {
       expect(typeof master.createdAt).toBe('string');
 
       await request(app.getHttpServer()).get('/api/v1/masters/00000000-0000-0000-0000-000000000000').expect(404);
+    });
+  });
+
+  describe('usta turi (type)', () => {
+    const idsOf = (res: { body: { data: { id: string }[] } }) => res.body.data.map((m) => m.id);
+
+    it("type berilmasa faqat MASTER qaytadi (shu tumandagi shoxobcha va do'kon ko'rinmaydi); elementlarda type bor", async () => {
+      const res = await request(app.getHttpServer()).get(`/api/v1/masters?districtId=${districtId}`).expect(200);
+
+      expect(idsOf(res).sort()).toEqual([masterId, otherMasterId].sort());
+      expect(idsOf(res)).not.toContain(fuelStationId);
+      expect(idsOf(res)).not.toContain(partsShopId);
+      for (const item of res.body.data) {
+        expect(item.type).toBe('MASTER');
+      }
+    });
+
+    it("type=FUEL_STATION faqat shoxobchalarni, type=PARTS_SHOP faqat do'konlarni qaytaradi", async () => {
+      const fuel = await request(app.getHttpServer())
+        .get(`/api/v1/masters?districtId=${districtId}&type=FUEL_STATION`)
+        .expect(200);
+      expect(idsOf(fuel)).toEqual([fuelStationId]);
+      expect(fuel.body.data[0].type).toBe('FUEL_STATION');
+
+      const shops = await request(app.getHttpServer())
+        .get(`/api/v1/masters?districtId=${districtId}&type=PARTS_SHOP`)
+        .expect(200);
+      expect(idsOf(shops)).toEqual([partsShopId]);
+
+      const masters = await request(app.getHttpServer()).get(`/api/v1/masters?districtId=${districtId}&type=MASTER`).expect(200);
+      expect(idsOf(masters).sort()).toEqual([masterId, otherMasterId].sort());
+    });
+
+    it("type boshqa filtrlar bilan AND: kategoriya mos kelmasa bo'sh", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/masters?districtId=${districtId}&type=FUEL_STATION&categoryId=${otherCategoryId}`)
+        .expect(200);
+      expect(res.body.data).toEqual([]);
+    });
+
+    it("noto'g'ri type 400 (success: false)", async () => {
+      const res = await request(app.getHttpServer()).get('/api/v1/masters?type=SHOP').expect(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('GET /masters/:id shoxobcha uchun ham 200 va type bilan', async () => {
+      const res = await request(app.getHttpServer()).get(`/api/v1/masters/${fuelStationId}`).expect(200);
+      expect(res.body.data).toMatchObject({ id: fuelStationId, type: 'FUEL_STATION' });
+    });
+
+    it("usta o'z turini PUT /masters/me/profile orqali o'zgartira olmaydi (400), tur bazada o'zgarmaydi", async () => {
+      await request(app.getHttpServer())
+        .put('/api/v1/masters/me/profile')
+        .set(...authHeader(masterToken))
+        .send({ type: 'FUEL_STATION' })
+        .expect(400);
+
+      const profile = await prisma.masterProfile.findUniqueOrThrow({ where: { id: masterId } });
+      expect(profile.type).toBe('MASTER');
     });
   });
 

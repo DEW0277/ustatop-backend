@@ -231,6 +231,89 @@ describe('Admin e2e', () => {
         .expect(403);
     });
 
+    it("type: PARTS_SHOP saqlanadi (javobda va bazada); type'siz MASTER; noto'g'ri type 400 va akkaunt yaratilmaydi", async () => {
+      const shopPhone = testPhone(TAG, 25);
+      const shop = await request(app.getHttpServer())
+        .post('/api/v1/admin/masters')
+        .set(...authHeader(adminToken))
+        .send({ ...body(shopPhone), type: 'PARTS_SHOP' })
+        .expect(201);
+      expect(shop.body.data.type).toBe('PARTS_SHOP');
+      const shopProfile = await prisma.masterProfile.findUniqueOrThrow({ where: { id: shop.body.data.id } });
+      expect(shopProfile.type).toBe('PARTS_SHOP');
+
+      const plain = await request(app.getHttpServer())
+        .post('/api/v1/admin/masters')
+        .set(...authHeader(adminToken))
+        .send(body(testPhone(TAG, 26)))
+        .expect(201);
+      expect(plain.body.data.type).toBe('MASTER');
+      const plainProfile = await prisma.masterProfile.findUniqueOrThrow({ where: { id: plain.body.data.id } });
+      expect(plainProfile.type).toBe('MASTER');
+
+      const badPhone = testPhone(TAG, 27);
+      const bad = await request(app.getHttpServer())
+        .post('/api/v1/admin/masters')
+        .set(...authHeader(adminToken))
+        .send({ ...body(badPhone), type: 'X' })
+        .expect(400);
+      expect(bad.body.success).toBe(false);
+      expect(await prisma.user.findUnique({ where: { phone: badPhone } })).toBeNull();
+    });
+
+    it("GET /admin/masters?type filtri: faqat shoxobchalar; type'siz barcha turlar; type=bogus 400; pending/detail'da type bor", async () => {
+      const phone = testPhone(TAG, 28);
+      const fuelName = `Shoxobcha${Date.now()}`;
+      const fuel = await request(app.getHttpServer())
+        .post('/api/v1/admin/masters')
+        .set(...authHeader(adminToken))
+        .send({ ...body(phone), firstName: fuelName, type: 'FUEL_STATION', isVerified: false })
+        .expect(201);
+      const fuelId: string = fuel.body.data.id;
+      const idsOf = (res: { body: { data: { items: { id: string }[] } } }) => res.body.data.items.map((m) => m.id);
+
+      const filtered = await request(app.getHttpServer())
+        .get(`/api/v1/admin/masters?type=FUEL_STATION&query=${fuelName}`)
+        .set(...authHeader(adminToken))
+        .expect(200);
+      expect(idsOf(filtered)).toEqual([fuelId]);
+      expect(filtered.body.data.total).toBe(1);
+      expect(filtered.body.data.items[0].type).toBe('FUEL_STATION');
+
+      // Boshqa tur bilan shu ism topilmaydi.
+      const wrongType = await request(app.getHttpServer())
+        .get(`/api/v1/admin/masters?type=MASTER&query=${fuelName}`)
+        .set(...authHeader(adminToken))
+        .expect(200);
+      expect(wrongType.body.data.items).toEqual([]);
+      expect(wrongType.body.data.total).toBe(0);
+
+      // type'siz — barcha turlar.
+      const all = await request(app.getHttpServer())
+        .get(`/api/v1/admin/masters?query=${fuelName}`)
+        .set(...authHeader(adminToken))
+        .expect(200);
+      expect(idsOf(all)).toEqual([fuelId]);
+
+      await request(app.getHttpServer())
+        .get('/api/v1/admin/masters?type=bogus')
+        .set(...authHeader(adminToken))
+        .expect(400)
+        .expect((res) => expect(res.body.success).toBe(false));
+
+      const pending = await request(app.getHttpServer())
+        .get('/api/v1/admin/masters/pending?limit=100')
+        .set(...authHeader(adminToken))
+        .expect(200);
+      expect(pending.body.data.items.find((m: { id: string }) => m.id === fuelId)).toMatchObject({ type: 'FUEL_STATION' });
+
+      const detail = await request(app.getHttpServer())
+        .get(`/api/v1/admin/masters/${fuelId}`)
+        .set(...authHeader(adminToken))
+        .expect(200);
+      expect(detail.body.data.type).toBe('FUEL_STATION');
+    });
+
     it("majburiy maydonsiz yoki noto'g'ri telefon bilan 400 va akkaunt yaratilmaydi", async () => {
       const phone = testPhone(TAG, 21);
       const { bio: _bio, ...withoutBio } = body(phone);

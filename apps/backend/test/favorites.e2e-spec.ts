@@ -86,6 +86,25 @@ describe('Favorites (e2e)', () => {
     expect(after.body.data).toEqual([]);
   });
 
+  it("shoxobcha ham sevimlilar ro'yxatida type bilan ko'rinadi", async () => {
+    const fuelUser = await prisma.user.create({ data: { phone: testPhone(TAG, 4), name: 'E2E shoxobcha' } });
+    const fuelStationId = await createMasterProfile(prisma, fuelUser.id, { regionId, districtId, categoryId }, 'FUEL_STATION');
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/favorites/${fuelStationId}`)
+      .set(...authHeader(clientToken))
+      .expect(201);
+
+    const list = await request(app.getHttpServer()).get('/api/v1/favorites').set(...authHeader(clientToken)).expect(200);
+    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data[0]).toMatchObject({ id: fuelStationId, type: 'FUEL_STATION' });
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/favorites/${fuelStationId}`)
+      .set(...authHeader(clientToken))
+      .expect(200);
+  });
+
   it("yo'q ustani qo'shib bo'lmaydi (404)", async () => {
     await request(app.getHttpServer())
       .post('/api/v1/favorites/00000000-0000-0000-0000-000000000000')
