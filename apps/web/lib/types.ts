@@ -1,3 +1,5 @@
+import type { MasterType } from './master-type';
+
 // Backend javob konverti (apps/backend/src/common/interceptors/response.interceptor.ts).
 export interface ApiSuccess<T> {
   success: true;
@@ -96,6 +98,7 @@ export interface DashboardStats {
 export interface PendingMaster {
   id: string;
   userId: string;
+  type: MasterType;
   fullName: string;
   phone: string;
   telegram?: string;
