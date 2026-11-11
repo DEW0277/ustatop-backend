@@ -49,6 +49,9 @@ overrides:
   "rimraf@<6": "^6.1.4"
   # dev tooling only (@nestjs/cli, typescript-eslint): minimatch DoS, fixed in 11.x only
   "minimatch@>=10 <11": "^11.0.1"
+  # 2026-11-11 `pnpm audit` (B-10, PR #55): firebase-admin > @google-cloud/storage — quadratic CPU on
+  # unterminated stop-node tags (GHSA-474x-hrwr-fgx4, low). Remove once @google-cloud/storage lifts it.
+  "fast-xml-parser@>=5 <5.11.3": "^5.11.3"
 allowBuilds:
   '@firebase/util': true
   '@prisma/client': true

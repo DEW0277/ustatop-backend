@@ -74,6 +74,8 @@ export async function createMasterProfile(
       districtId: location.districtId,
       address: 'Test manzil 1',
       type,
+      // Public ro'yxatda faqat tasdiqlangan ustalar ko'rinadi (TZ §4.0) — test ustasi admin tasdiqlagan holatda.
+      isVerified: true,
       workingHours: { start: '09:00', end: '18:00', workDays: ['mon', 'tue', 'wed', 'thu', 'fri'] },
       categories: { create: { categoryId: location.categoryId } },
     },

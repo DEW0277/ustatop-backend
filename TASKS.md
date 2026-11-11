@@ -21,12 +21,12 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 | Bo'lim | Bajarildi | Jami |
 |---|---|---|
 | A. Tezkor tuzatishlar va tartib | 3 | 4 |
-| B. Backend | 5 | 9 |
+| B. Backend | 6 | 10 |
 | C. Admin panel | 5 | 8 |
 | D. Mobil ilova integratsiyasi | 12 | 14 |
 | E. Deploy va operatsiya | 7 | 14 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **32** | **55** |
+| **Jami** | **33** | **56** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -87,6 +87,10 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
 - [x] **B-09 · Usta turi (MASTER / FUEL_STATION / PARTS_SHOP)** — Claude ⚠️ — ✅ Bajarildi (2026-11-06, PR #52)
   - Issue #51, TZ §4.4. `MasterProfile.type` (default `MASTER`, additiv migratsiya), `GET /masters?type=` (berilmasa faqat `MASTER` — eski ilova versiyalari himoyalangan), `POST /admin/masters` va `GET /admin/masters` `type` bilan, javoblarda `type`.
   - Tayyor mezoni: migratsiya va TZ mos, `GET /masters` standart holda faqat `MASTER`, admin create/filter ishlaydi, unit + e2e testlar yashil.
+
+- [x] **B-10 · Ilovada faqat tasdiqlangan ustalar** — Claude ⚠️ — ✅ Bajarildi (2026-11-11, PR #55)
+  - Production'da 380 usta qo'shildi, 2 tasi tasdiqlandi, lekin ilovada ko'rinmadi: `GET /masters` `isVerified` bo'yicha filtrlamas edi, 378 ta yangi tasdiqlanmagan usta ilovaning `limit=100` sahifasini to'ldirib, eng eski (tasdiqlangan) ikkitasini siqib chiqargan (issue #54).
+  - Tayyor mezoni: `GET /masters` faqat `isVerified: true` ustalarni qaytaradi (unit + e2e test); `GET /masters/:id` o'zgarmaydi; TZ §4.0 yangilangan.
 
 ## C. Admin panel (`apps/web`)
 
