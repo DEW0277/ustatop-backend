@@ -6,12 +6,12 @@ export const deleteAccountInfo: LegalDocument = {
   title: "Akkauntni o'chirish",
   updatedAt: '2026-10-17',
   intro:
-    "UstaTop ilovasidagi akkauntingizni va unga bog'liq shaxsiy ma'lumotlaringizni istalgan vaqtda o'chirishingiz mumkin. Bu amalni qaytarib bo'lmaydi.",
+    "Aka Uka ilovasidagi akkauntingizni va unga bog'liq shaxsiy ma'lumotlaringizni istalgan vaqtda o'chirishingiz mumkin. Bu amalni qaytarib bo'lmaydi.",
   sections: [
     {
       heading: "1. Ilova orqali o'chirish",
       items: [
-        "UstaTop ilovasini oching va telefon raqamingiz bilan tizimga kiring.",
+        "Aka Uka ilovasini oching va telefon raqamingiz bilan tizimga kiring.",
         "Pastki menyudan \"Profil\" bo'limiga o'ting.",
         "Sahifa oxiridagi \"Akkauntni o'chirish\" tugmasini bosing va amalni tasdiqlang.",
         "Akkaunt darhol o'chiriladi va ilova mehmon rejimiga o'tadi.",
@@ -20,7 +20,7 @@ export const deleteAccountInfo: LegalDocument = {
     {
       heading: "2. Ilovaga kira olmasangiz",
       paragraphs: [
-        "Akkaunt ochilgan telefon raqamingizni ko'rsatib, Telegram @ustatopofficial orqali yoki [EMAIL] manziliga murojaat qiling. Raqam sizga tegishli ekanini tasdiqlaganimizdan so'ng akkaunt 7 kun ichida o'chiriladi.",
+        "Akkaunt ochilgan telefon raqamingizni ko'rsatib, jaloliddina98@gmail.com manziliga murojaat qiling. Raqam sizga tegishli ekanini tasdiqlaganimizdan so'ng akkaunt 7 kun ichida o'chiriladi.",
       ],
     },
     {
@@ -42,7 +42,7 @@ export const deleteAccountInfo: LegalDocument = {
     },
     {
       heading: '5. Aloqa',
-      paragraphs: ["Savollar uchun: Telegram @ustatopofficial, [EMAIL]."],
+      paragraphs: ["Savollar uchun: jaloliddina98@gmail.com."],
     },
   ],
 };

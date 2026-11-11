@@ -5,7 +5,7 @@ export const termsOfUse: LegalDocument = {
   title: 'Foydalanish shartlari',
   updatedAt: '2026-10-16',
   intro:
-    "Ushbu shartlar UstaTop mobil ilovasi va xizmatidan (\"Platforma\") foydalanish qoidalarini belgilaydi. Platformadan foydalanib, siz ushbu shartlarga va Maxfiylik siyosatiga rozilik bildirasiz. Platforma operatori: [TASHKILOT NOMI, STIR, MANZIL].",
+    "Ushbu shartlar Aka Uka mobil ilovasi va xizmatidan (\"Platforma\") foydalanish qoidalarini belgilaydi. Platformadan foydalanib, siz ushbu shartlarga va Maxfiylik siyosatiga rozilik bildirasiz. Platforma operatori: Jaloliddin Abdurahmonov (jismoniy shaxs), O'zbekiston Respublikasi.",
   sections: [
     {
       heading: '1. Platforma nima',
@@ -75,7 +75,7 @@ export const termsOfUse: LegalDocument = {
     },
     {
       heading: '10. Aloqa',
-      paragraphs: ["Telegram @ustatopofficial, [EMAIL], [TELEFON]."],
+      paragraphs: ["jaloliddina98@gmail.com."],
     },
   ],
 };

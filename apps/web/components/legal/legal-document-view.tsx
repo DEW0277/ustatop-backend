@@ -14,7 +14,7 @@ export function LegalDocumentView({ document }: { document: LegalDocument }) {
         </p>
       )}
 
-      <p className="text-sm font-semibold text-indigo-600">UstaTop</p>
+      <p className="text-sm font-semibold text-indigo-600">Aka Uka</p>
       <h1 className="mt-1 text-3xl font-bold tracking-tight">{document.title}</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         Oxirgi yangilanish: {formatDate(`${document.updatedAt}T12:00:00+05:00`)}
