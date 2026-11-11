@@ -50,6 +50,8 @@ describe('Admin e2e', () => {
     const master = await otpLogin(app, testPhone(TAG, 3));
     masterUserId = master.userId;
     masterProfileId = await createMasterProfile(prisma, master.userId, { regionId, districtId, categoryId });
+    // Helper tasdiqlangan usta yaratadi; bu yerda moderatsiya oqimi tekshiriladi — kutilayotgan holatdan boshlanadi.
+    await prisma.masterProfile.update({ where: { id: masterProfileId }, data: { isVerified: false } });
   });
 
   afterAll(async () => {
