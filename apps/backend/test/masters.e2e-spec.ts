@@ -94,6 +94,20 @@ describe('Masters (e2e)', () => {
       }
     });
 
+    it("tasdiqlanmagan usta ro'yxatda ko'rinmaydi, tasdiqlangach ko'rinadi; sahifasi esa ochiladi", async () => {
+      await prisma.masterProfile.update({ where: { id: otherMasterId }, data: { isVerified: false } });
+      try {
+        const hidden = await request(app.getHttpServer()).get(`/api/v1/masters?regionId=${regionId}`).expect(200);
+        expect(hidden.body.data.map((m: { id: string }) => m.id)).toEqual([masterId]);
+        await request(app.getHttpServer()).get(`/api/v1/masters/${otherMasterId}`).expect(200);
+      } finally {
+        await prisma.masterProfile.update({ where: { id: otherMasterId }, data: { isVerified: true } });
+      }
+
+      const shown = await request(app.getHttpServer()).get(`/api/v1/masters?regionId=${regionId}`).expect(200);
+      expect(shown.body.data.map((m: { id: string }) => m.id).sort()).toEqual([masterId, otherMasterId].sort());
+    });
+
     it("noto'g'ri filtrlar 400: UUID bo'lmagan regionId, limit > 100, noma'lum sortBy", async () => {
       await request(app.getHttpServer()).get('/api/v1/masters?regionId=abc').expect(400);
       await request(app.getHttpServer()).get('/api/v1/masters?limit=101').expect(400);

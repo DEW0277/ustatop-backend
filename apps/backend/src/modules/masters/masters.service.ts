@@ -26,6 +26,8 @@ export class MastersService {
 
     const where: Prisma.MasterProfileWhereInput = {
       user: { isBlocked: false },
+      // Faqat admin tasdiqlagan ustalar (TZ §4.0): tasdiqlash — ilovada ko'rinish sharti.
+      isVerified: true,
       // type berilmasa faqat MASTER: eski ilova versiyalari shoxobcha/do'konlarni ko'rmasin (TZ §4.4).
       type: query.type ?? MasterType.MASTER,
       ...(query.regionId ? { regionId: query.regionId } : {}),

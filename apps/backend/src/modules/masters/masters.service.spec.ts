@@ -67,6 +67,16 @@ describe('MastersService', () => {
       expect(args.where.user).toEqual({ isBlocked: false });
     });
 
+    it("faqat admin tasdiqlagan ustalarni qaytaradi (isVerified: true) — filtrlar bilan ham", async () => {
+      prisma.masterProfile.findMany.mockResolvedValue([]);
+
+      await service.findAll({});
+      await service.findAll({ query: 'usta', regionId: 'r-1' });
+
+      expect(prisma.masterProfile.findMany.mock.calls[0][0].where.isVerified).toBe(true);
+      expect(prisma.masterProfile.findMany.mock.calls[1][0].where.isVerified).toBe(true);
+    });
+
     it('mobil ilovadagi Master tipi shaklida javob qaytaradi', async () => {
       prisma.masterProfile.findMany.mockResolvedValue([masterFixture({ telegram: null })]);
 
