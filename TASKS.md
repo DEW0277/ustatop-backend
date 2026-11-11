@@ -22,11 +22,11 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 |---|---|---|
 | A. Tezkor tuzatishlar va tartib | 3 | 4 |
 | B. Backend | 6 | 10 |
-| C. Admin panel | 5 | 8 |
+| C. Admin panel | 6 | 8 |
 | D. Mobil ilova integratsiyasi | 12 | 14 |
 | E. Deploy va operatsiya | 7 | 14 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **33** | **56** |
+| **Jami** | **34** | **56** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -120,10 +120,11 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - "Barcha ustalar" jadvalida "Turi" ustuni va filtri (URL param `type`), "Usta qo'shish" dialogida "Turi" select'i (default "Usta").
   - Bog'liqlik: B-09.
   - Tayyor mezoni: web zod sxemalari backend DTO bilan sinxron, `pnpm --filter web lint` va `test` yashil.
-- [ ] **C-08 · Taplink katalogini import qilish (~369 yozuv)** — 👤
+- [x] **C-08 · Taplink katalogini import qilish (~369 yozuv)** — 👤 — ✅ Bajarildi (2026-11-11, Claude, PR #56)
   - Deploy'dan keyin Chrome orqali admin panelda (yoki `POST /admin/masters`) yoqilg'i shoxobchalari va zapchast do'konlarini kiritish.
   - Bog'liqlik: B-09, C-07, production deploy.
   - Tayyor mezoni: yozuvlar productionda to'g'ri `type` bilan, takroriy telefonlar yo'q.
+  - 2026-11-11 holati: katalog 04:55 UTC'da #52 deploy'idan oldin kiritilgan (hammasi `MASTER`). Turlar SQL bilan kategoriya bo'yicha to'g'rilandi (backup `/opt/backups/2026-11-11_072307`): `Dizel yoqilg'isi (solyarka)` → `FUEL_STATION`, `Ehtiyot qismlar do'koni`/`B/u ehtiyot qismlar` → `PARTS_SHOP` (aralash kategoriyalilar `lastName` bo'yicha). Hammasi tasdiqlandi (egasining qarori). Katalogning yangi holatidan 6 ta yetishmagan yozuv panel API orqali qo'shildi (1 tasi boshqa raqam bilan mavjud — takror, o'tkazildi). Natija: 231 usta, 68 shoxobcha, 87 do'kon. 3 ta yozuv katalogda `MASTER`, bazada `PARTS_SHOP` (do'kon + xizmat) — panelda tur tahrirlash qo'shilganda qayta ko'rish mumkin.
 
 ## D. Mobil ilova integratsiyasi (`/Users/macstore.uz/Desktop/mobile-app`, alohida repo) 🔒
 
