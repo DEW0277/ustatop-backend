@@ -22,11 +22,11 @@ Belgilar: 👤 — foydalanuvchi qarori/harakati kerak · ⚠️ — mobil ilova
 |---|---|---|
 | A. Tezkor tuzatishlar va tartib | 3 | 4 |
 | B. Backend | 6 | 10 |
-| C. Admin panel | 6 | 8 |
+| C. Admin panel | 7 | 8 |
 | D. Mobil ilova integratsiyasi | 12 | 14 |
 | E. Deploy va operatsiya | 7 | 14 |
 | F. Reliz | 0 | 6 |
-| **Jami** | **34** | **56** |
+| **Jami** | **35** | **56** |
 
 Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik, CI, production Docker konfiguratsiyasi, FCM kodi) bu yerda takrorlanmaydi — ular `docs/TZ.md` §0 da.
 
@@ -101,8 +101,8 @@ Allaqachon tugagan ishlar (backend modullari, admin panel sahifalari, xavfsizlik
   - `GET /admin/masters/:id` (TZ §4.1) + Ustalar sahifasida "Batafsil" oynasi: portfolio, xizmatlar va narxlar, ish vaqti, reyting, tasdiqlash tugmasi. Foydalanuvchi tafsiloti qilinmadi (jadvaldagi ma'lumot yetarli).
   - Hozir faqat jadvallar; ustaning xizmatlari, portfolio rasmlari va buyurtmalarini ko'rib tasdiqlash imkoni yo'q — moderator rasmlarni ko'rmasdan tasdiqlaydi.
   - Tayyor mezoni: TZ §4.1 ga endpoint qo'shilgan, usta kartasi (dialog yoki sahifa) portfolio va xizmatlar bilan.
-- [ ] **C-03 · Maxfiylik siyosati va foydalanish shartlari sahifalari** — Gemini 👤
-  > 🔄 Jarayonda (2026-10-16, PR #39): `/privacy` va `/terms` auth'siz ochiladi, platformaning haqiqiy ishlashiga mos **loyiha** matni bilan (`apps/web/lib/legal/*`). Qolgani 👤: matnni tekshirish, `[KVADRAT QAVS]` joylarni (tashkilot, SMS/hosting provayderi, aloqa, yosh chegarasi) to'ldirish, keyin `LEGAL_DRAFT = false`.
+- [x] **C-03 · Maxfiylik siyosati va foydalanish shartlari sahifalari** — Gemini 👤 — ✅ Bajarildi (2026-11-12, PR #58)
+  > 2026-11-12: matn yakunlandi — ilova nomi "Aka Uka", operator va aloqa (email) to'ldirildi, v1.0 (faqat katalog, akkauntsiz) holati yozildi, katalog manbasi va yozuvni olib tashlash tartibi qo'shildi, hosting — Contabo GmbH, yosh chegarasi 18, `[KVADRAT QAVS]` joylar qolmadi, `LEGAL_DRAFT = false`.
   - Do'konlar ommaviy URL talab qiladi (F-02). Matnni foydalanuvchi beradi.
   - 2026-10-17: `/delete-account` qo'shildi (Google Play Data safety "Delete account URL" talabi) — matn TZ §4.3 ga mos, `[EMAIL]` to'ldiriladi.
   - Tayyor mezoni: `/privacy` va `/terms` auth'siz ochiladi (`proxy.ts` ularni login'ga yo'naltirmaydi).
